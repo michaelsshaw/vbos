@@ -1,0 +1,36 @@
+[
+  {
+    "arguments": [
+      "/home/michael/opt/cross/bin/x86_64-elf-gcc",
+      "-g",
+      "-O2",
+      "-pipe",
+      "-Wall",
+      "-Wextra",
+      "-std=c11",
+      "-ffreestanding",
+      "-fno-stack-protector",
+      "-fno-stack-check",
+      "-fno-lto",
+      "-fno-pie",
+      "-fno-pic",
+      "-m64",
+      "-march=x86-64",
+      "-mabi=sysv",
+      "-mno-80387",
+      "-mno-mmx",
+      "-mno-sse",
+      "-mno-sse2",
+      "-mno-red-zone",
+      "-mcmodel=kernel",
+      "-Iinclude",
+      "-c",
+      "-o",
+      "dev/serial.o",
+      "dev/serial.c"
+    ],
+    "directory": "/home/michael/src/os/kernel",
+    "file": "/home/michael/src/os/kernel/dev/serial.c",
+    "output": "/home/michael/src/os/kernel/dev/serial.o"
+  }
+]
