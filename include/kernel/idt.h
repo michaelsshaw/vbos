@@ -6,7 +6,7 @@
 
 #define IDT_GATE_SIZE 16
 #define IDT_NUM_VECTORS 256
-#define IDT_SIZE 32768
+#define IDT_SIZE (IDT_GATE_SIZE * IDT_NUM_VECTORS)
 
 #ifndef __ASM__
 
@@ -26,6 +26,8 @@ struct idtr {
 	uint16_t size;
 	uint64_t offset;
 };
+
+void idt_init();
 
 extern struct idtr __idtr;
 extern struct irqdesc __idt[IDT_NUM_VECTORS];
