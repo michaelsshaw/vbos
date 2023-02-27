@@ -3,6 +3,7 @@ override MAKEFLAGS += -rR
 override KERNEL := kernel.elf
 
 override CC := x86_64-elf-gcc
+override LD := x86_64-elf-ld
 
 # Convenience macro to reliably declare overridable command variables.
 define DEFAULT_VAR =
@@ -13,14 +14,6 @@ define DEFAULT_VAR =
 		override $(1) := $(2)
 	endif
 endef
-
-# It is highly recommended to use a custom built cross toolchain to build a kernel.
-# We are only using "cc" as a placeholder here. It may work by using
-# the host system's toolchain, but this is not guaranteed.
-$(eval $(call DEFAULT_VAR,CC,cc))
-
-# Same thing for "ld" (the linker).
-$(eval $(call DEFAULT_VAR,LD,ld))
 
 # User controllable CFLAGS.
 CFLAGS ?= -g -O2 -pipe -Wall -Wextra
@@ -74,18 +67,21 @@ all: $(KERNEL)
 
 # Link rules for the final kernel executable.
 $(KERNEL): $(OBJ)
-	$(LD) $(OBJ) $(LDFLAGS) -o $@
+	@$(LD) $(OBJ) $(LDFLAGS) -o $@
+	@echo "  LD    $@"
 
 # Include header dependencies.
 -include $(HEADER_DEPS)
 
 # Compilation rules for *.c files.
 %.o: %.c 
-	$(CC) $(CFLAGS) -c $< -o $@
+	@$(CC) $(CFLAGS) -c $< -o $@
+	@echo "  CC    $@"
 
 # Compilation rules for *.S files.
 %.o: %.S 
-	$(CC) $(CFLAGS) -c $< -o $@
+	@$(CC) $(CFLAGS) -c $< -o $@
+	@echo "  CC    $@"
 
 # Remove object files and the final executable.
 .PHONY: clean
@@ -99,7 +95,3 @@ distclean: clean
 .PHONY += run
 run:
 	make -C .. run-hdd
-
-.PHONY += whichcc
-whichcc:
-	echo "$(CC)"

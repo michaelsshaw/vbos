@@ -1,9 +1,8 @@
-#include <limine/limine.h>
-#include <stddef.h>
-#include <stdint.h>
-
+#include <kernel/common.h>
+#include <kernel/gdt.h>
 #include <dev/serial.h>
-#include <stdio.h>
+
+#include <limine/limine.h>
 
 static void done(void)
 {
@@ -14,10 +13,8 @@ static void done(void)
 
 void _start(void)
 {
+	gdt_init();
 	serial_init();
-
-	int test = printf("test %d", -304);
-	printf("\nExpect: 9, actual: %d\n", test);
 	
 	done();
 }

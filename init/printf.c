@@ -23,7 +23,6 @@ int printf(const char *restrict fmt, ...)
 {
 	int ret = 0;
 	char c;
-	char vac;
 	char *s;
 	int i;
 
@@ -69,9 +68,9 @@ int printf(const char *restrict fmt, ...)
 				ret += printf_write(s);
 				break;
 			case 'c':
-				vac = va_arg(args, char);
+				i = va_arg(args, int);
 				ret++;
-				printf_out(vac);
+				printf_out(i);
 			}
 		} else {
 			printf_out(c);
