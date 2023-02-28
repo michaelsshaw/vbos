@@ -50,6 +50,7 @@ int parse_next_madt_entry(int offset)
 
 	printf("MADT Entry %d: %s\n", n, madt_entry_types[type]);
 
+	n++;
 	return offset + len;
 }
 
