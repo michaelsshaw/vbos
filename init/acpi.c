@@ -11,8 +11,8 @@ static struct rsdp *rsdp = NULL;
 struct madt *__madt = NULL;
 
 static const char *madt_entry_types[] = {
-	"L-APIC",	    "I/O-APIC",	  "I/O-APIC_IRQ_SRC_OVRD",
-	"I/O-APIC_NMI_SRC", "L-APIC_NMI", "L-APIC_ADDR_OVRD",
+	"L-APIC",	    "IOAPIC",	  "IOAPIC_IRQ_SRC_OVRD",
+	"IOAPIC_NMI_SRC",   "L-APIC_NMI", "L-APIC_ADDR_OVRD",
 	"INVALID",	    "INVALID",	  "INVALID",
 	"CPU_LOCAL_X2-APIC"
 };
