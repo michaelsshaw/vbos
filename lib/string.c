@@ -16,3 +16,14 @@ char *strcpy(char *dest, const char *src)
 		;
 	return dest;
 }
+
+int memcmp(const void *aa, const void *bb, size_t num)
+{
+	const char *a = (const char *)aa;
+	const char *b = (const char *)bb;
+	for (size_t i = 0; i < num; i++) {
+		if (*a++ != *b++)
+			return a - b;
+	}
+	return 0;
+}

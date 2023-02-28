@@ -6,6 +6,7 @@
 #include <kernel/common.h>
 
 void *memcpy(void *dest, const void *src, size_t num);
+int memcmp(const void *aa, const void *bb, size_t num);
 char *strcpy(char *dest, const char *src);
 
 #endif /* __ASM__ */
