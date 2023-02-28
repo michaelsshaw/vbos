@@ -71,6 +71,18 @@ int printf(const char *restrict fmt, ...)
 				i = va_arg(args, int);
 				ret++;
 				printf_out(i);
+				break;
+			case 'x':
+				i = va_arg(args, int);
+				for (int j = sizeof(i) - 1; j >= 0; j--) {
+					printf_out(
+						convert[(i >> (j * 4)) & 0xF]);
+					ret++;
+				}
+				break;
+			default:
+				printf_out(c);
+				ret++;
 			}
 		} else {
 			printf_out(c);

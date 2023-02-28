@@ -68,7 +68,7 @@ all: $(KERNEL)
 # Link rules for the final kernel executable.
 $(KERNEL): $(OBJ)
 	@$(LD) $(OBJ) $(LDFLAGS) -o $@
-	@echo "  LD    $@"
+	@echo "  LD      $@"
 
 # Include header dependencies.
 -include $(HEADER_DEPS)
@@ -76,12 +76,12 @@ $(KERNEL): $(OBJ)
 # Compilation rules for *.c files.
 %.o: %.c 
 	@$(CC) $(CFLAGS) -c $< -o $@
-	@echo "  CC    $@"
+	@echo "  CC      $@"
 
 # Compilation rules for *.S files.
 %.o: %.S 
 	@$(CC) $(CFLAGS) -c $< -o $@
-	@echo "  CC    $@"
+	@echo "  CC      $@"
 
 # Remove object files and the final executable.
 .PHONY: clean

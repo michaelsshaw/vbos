@@ -11,14 +11,9 @@ struct rsdp {
 	char oemid[6];
 	uint8_t revision;
 	uint32_t rsdt_addr;
-
-	uint32_t length;
-	uint64_t xsdt_addr; /* the REAL address */
-	uint8_t checksum_ext;
-	char reserved[3];
 } PACKED;
 
-struct acpi_header {
+struct acpi_sdt_header {
 	char signature[4];
 	uint32_t length;
 	uint8_t revision;
@@ -29,6 +24,11 @@ struct acpi_header {
 	uint32_t creator_id;
 	uint32_t creator_revision;
 } PACKED;
+
+struct rsdt {
+	struct acpi_sdt_header h;
+	uint32_t sdt[];
+};
 
 void acpi_init();
 
