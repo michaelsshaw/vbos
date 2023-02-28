@@ -1,4 +1,5 @@
 #include <kernel/common.h>
+#include <kernel/acpi.h>
 #include <kernel/gdt.h>
 #include <kernel/idt.h>
 
@@ -18,6 +19,7 @@ void kmain(void)
 	gdt_init();
 	idt_init();
 	serial_init();
+	acpi_init();
 	
 	done();
 }

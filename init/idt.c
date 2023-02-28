@@ -1,4 +1,5 @@
 #include <kernel/idt.h>
+#include <stdio.h>
 
 void idt_load();
 
