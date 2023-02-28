@@ -37,7 +37,7 @@ void rsdt_print(struct rsdt *rsdt)
 	}
 }
 
-int parse_next_madt_entry(int offset)
+int madt_parse_next_entry(int offset)
 {
 	if ((unsigned)offset >= (__madt->h.length - 1))
 		return 0;
@@ -71,7 +71,7 @@ void acpi_init()
 		int length = __madt->h.length;
 		printf("MADT Length: %x\n", length);
 
-		while ((offset = parse_next_madt_entry(offset)))
+		while ((offset = madt_parse_next_entry(offset)))
 			;
 	}
 
