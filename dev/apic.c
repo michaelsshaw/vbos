@@ -18,6 +18,20 @@ static const char *madt_entry_types[] = { "LAPIC",
 					  "INVALID",
 					  "CPU_LOCAL_X2_APIC" };
 
+uint32_t ioapic_read(void *addr, uint32_t reg)
+{
+	uint32_t volatile *ioapic = (uint32_t volatile *)addr;
+	ioapic[0] = (reg & 0xFF);
+	return ioapic[4];
+}
+
+void ioapic_write(void *addr, uint32_t reg, uint32_t value)
+{
+	uint32_t volatile *ioapic = (uint32_t volatile *)addr;
+	ioapic[0] = (reg & 0xFF);
+	ioapic[4] = value;
+}
+
 int madt_parse_next_entry(int offset)
 {
 	if ((unsigned)offset >= (__madt->h.length - 1))
