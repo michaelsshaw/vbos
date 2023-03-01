@@ -27,7 +27,7 @@ int madt_parse_next_entry(int offset)
 	int type = madt[offset];
 	int len = madt[offset + 1];
 
-	printf("MADT Entry %d: %s\n", n_madt_entries, madt_entry_types[type]);
+	printf(LOG_INFO "MADT Entry %d: %s\n", n_madt_entries, madt_entry_types[type]);
 
 	switch (type) {
 	case MADT_LAPIC:
@@ -45,7 +45,7 @@ int madt_parse_next_entry(int offset)
 	case MADT_X2_LAPIC:
 		break;
 	default:
-		printf("Unrecognized MADT entry #%d, type=%d\n", n_madt_entries,
+		printf(LOG_WARN "Unrecognized MADT entry #%d, type=%d\n", n_madt_entries,
 		       type);
 	}
 

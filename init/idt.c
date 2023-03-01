@@ -23,5 +23,5 @@ void idt_init()
 	__idtr.offset = (uint64_t)__idt;
 	idt_load();
 
-	printf("IDT successfully loaded\n");
+	printf(LOG_SUCCESS "IDT successfully loaded\n");
 }

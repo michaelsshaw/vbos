@@ -18,12 +18,12 @@ int serial_init()
 
 	outb(COM1 | 0, 0xAE); /* Enable loopback mode */
 	if (inb(COM1 | 0) != 0xAE) { /* Loopback test */
-		printf("Serial COM1 loopback test failed\n");
+		printf(LOG_WARN "Serial COM1 loopback test failed\n");
 		return 1;
 	}
 
 	outb(COM1 | 4, 0x0F); /* Enter normal operation */
-	printf("Serial COM1 initialized\n");
+	printf(LOG_SUCCESS "Serial COM1 initialized\n");
 	return 0;
 }
 

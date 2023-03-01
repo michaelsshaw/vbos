@@ -28,5 +28,5 @@ void gdt_init()
 	__gdtr.offset = (uint64_t)__gdt;
 	gdt_load();
 
-	printf("GDT initialized\n");
+	printf(LOG_SUCCESS "GDT initialized\n");
 }

@@ -15,7 +15,7 @@ struct madt *__madt = NULL;
 void rsdt_print(struct rsdt *rsdt)
 {
 	int num_sdt = (rsdt->h.length - sizeof(rsdt->h)) / 4;
-	printf("Number of RSDT entries: %d\n", num_sdt);
+	printf(LOG_INFO "Number of RSDT entries: %d\n", num_sdt);
 
 	for (int i = 0; i < num_sdt; i++) {
 		/* 2 steps silences warning */
@@ -28,7 +28,8 @@ void rsdt_print(struct rsdt *rsdt)
 
 		char buf[9];
 		memcpy(buf, h->signature, 4);
-		printf("[ACPI] %s %d %x \n", buf, h->revision, h->checksum);
+		printf(LOG_INFO "[ACPI] %s %d %x \n", buf, h->revision,
+		       h->checksum);
 	}
 }
 
@@ -41,18 +42,23 @@ void acpi_init()
 	struct rsdt *rsdt = (struct rsdt *)rsdt_addr;
 	rsdt_print(rsdt);
 
+	printf(LOG_ERROR "Test\n");
+	printf(LOG_WARN "Test\n");
+	printf(LOG_SUCCESS "Test\n");
+	printf(LOG_INFO "Test\n");
+
 	if (__madt == NULL) {
-		printf("Failed to locate MADT\n");
+		printf(LOG_WARN "Failed to locate MADT\n");
 	} else {
 		/* First variable entry in MADT */
 		int offset = 0x2C;
 		int length = __madt->h.length;
-		printf("MADT Length: %x\n", length);
+		printf(LOG_INFO "MADT Length: %x\n", length);
 
 		while ((offset = madt_parse_next_entry(offset)))
 			;
 	}
 
-	printf("ACPI version: %d\n", rsdp->revision);
-	printf("ACPI initialized\n");
+	printf(LOG_INFO "ACPI version: %d\n", rsdp->revision);
+	printf(LOG_INFO "ACPI initialized\n");
 }
