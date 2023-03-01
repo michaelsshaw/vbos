@@ -45,9 +45,11 @@ int madt_parse_next_entry(int offset)
 	printf(LOG_INFO "MADT Entry %d: %s\n", n_madt_entries,
 	       madt_entry_types[type]);
 
+	/* Can't declare variables inside switch statement */
+	struct madt_lapic *lapic = (struct madt_lapic *)madt;
+
 	switch (type) {
 	case MADT_LAPIC:
-		struct madt_lapic *lapic = (struct madt_lapic *)madt;
 		printf(LOG_INFO "Lapic base address for cpu %d: %xh\n",
 		       lapic->acpi_cpu_id, __madt->lapic_addr);
 		break;
