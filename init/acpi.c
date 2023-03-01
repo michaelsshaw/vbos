@@ -42,18 +42,6 @@ void acpi_init()
 	struct rsdt *rsdt = (struct rsdt *)rsdt_addr;
 	rsdt_print(rsdt);
 
-	if (__madt == NULL) {
-		printf(LOG_WARN "Failed to locate MADT\n");
-	} else {
-		/* First variable entry in MADT */
-		int offset = 0x2C;
-		int length = __madt->h.length;
-		printf(LOG_INFO "MADT Length: %x\n", length);
-
-		while ((offset = madt_parse_next_entry(offset)))
-			;
-	}
-
 	printf(LOG_INFO "ACPI version: %d\n", rsdp->revision);
 	printf(LOG_SUCCESS "ACPI initialized\n");
 }

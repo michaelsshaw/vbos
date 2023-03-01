@@ -27,7 +27,8 @@ int madt_parse_next_entry(int offset)
 	int type = madt[offset];
 	int len = madt[offset + 1];
 
-	printf(LOG_INFO "MADT Entry %d: %s\n", n_madt_entries, madt_entry_types[type]);
+	printf(LOG_INFO "MADT Entry %d: %s\n", n_madt_entries,
+	       madt_entry_types[type]);
 
 	switch (type) {
 	case MADT_LAPIC:
@@ -45,8 +46,9 @@ int madt_parse_next_entry(int offset)
 	case MADT_X2_LAPIC:
 		break;
 	default:
-		printf(LOG_WARN "Unrecognized MADT entry #%d, type=%d\n", n_madt_entries,
-		       type);
+		printf(LOG_WARN "Unrecognized MADT entry #%d, type=%d\n",
+		       n_madt_entries, type);
+		break;
 	}
 
 	/* Add this entry to the list */
@@ -54,4 +56,21 @@ int madt_parse_next_entry(int offset)
 
 	n_madt_entries++;
 	return offset + len;
+}
+
+void apic_init()
+{
+	if (__madt == NULL) {
+		printf(LOG_WARN "Failed to locate MADT\n");
+	} else {
+		/* First variable entry in MADT */
+		int offset = 0x2C;
+		int length = __madt->h.length;
+		printf(LOG_INFO "MADT Length: %x\n", length);
+
+		while ((offset = madt_parse_next_entry(offset)))
+			;
+	}
+
+	printf(LOG_SUCCESS "APIC initialized\n");
 }

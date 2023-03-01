@@ -77,6 +77,7 @@ struct madt_x2_lapic {
 	uint32_t acpi_id;
 } PACKED;
 
+void apic_init();
 int madt_parse_next_entry(int offset);
 
 #endif /* __ASM__ */
