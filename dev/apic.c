@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 #include <kernel/common.h>
 #include <kernel/acpi.h>
 #include <dev/apic.h>

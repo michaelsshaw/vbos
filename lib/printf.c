@@ -1,7 +1,8 @@
-#include <stdarg.h>
-#include <stdbool.h>
-
+/* SPDX-License-Identifier: GPL-2.0-only */
+#include <kernel/common.h>
 #include <dev/serial.h>
+
+#include <stdarg.h>
 
 static inline void printf_out(char c)
 {
@@ -74,7 +75,7 @@ int printf(const char *restrict fmt, ...)
 				break;
 			case 'x':
 				i = va_arg(args, int);
-				for (int j = 0; j < (2 * sizeof(i)); j++) {
+				for (uint32_t j = 0; j < (2 * sizeof(i)); j++) {
 					int sel = ((sizeof(i) * 2) - j - 1) * 4;
 					int num = (i >> sel) & 0xF;
 					printf_out(convert[num]);

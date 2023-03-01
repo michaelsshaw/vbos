@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 #define __ASM__
 #include <kernel/gdt.h>
 #include <kernel/idt.h>

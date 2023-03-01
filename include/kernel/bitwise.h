@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef _BITWISE_H_
 #define _BITWISE_H_
 
