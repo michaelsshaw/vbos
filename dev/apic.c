@@ -47,7 +47,6 @@ int madt_parse_next_entry(int offset)
 	       madt_entry_types[type]);
 
 	/* Can't declare variables inside switch statement */
-	struct madt_lapic *lapic = (struct madt_lapic *)madt;
 	struct madt_ioapic *m_ioapic = (struct madt_ioapic *)madt;
 
 	switch (type) {
