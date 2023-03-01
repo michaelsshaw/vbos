@@ -30,12 +30,6 @@ struct rsdt {
 	uint32_t sdt[];
 } PACKED;
 
-struct madt {
-	struct acpi_sdt_header h;
-	uint32_t lapic_addr;
-	uint32_t flags;
-} PACKED;
-
 void acpi_init();
 
 extern struct madt *__madt;

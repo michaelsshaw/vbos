@@ -3,6 +3,8 @@
 
 #include <kernel/common.h>
 
+#define MSR_APIC_BASE 0x1B
+
 #ifndef __ASM__
 
 uint64_t rdmsr(uint32_t msr);
