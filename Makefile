@@ -58,7 +58,7 @@ endif
 # Use find to glob all *.c, *.S, and *.asm files in the directory and extract the object names.
 override CFILES := $(shell find . -type f -name '*.c')
 override ASFILES := $(shell find . -type f -name '*.S')
-override OBJ := $(CFILES:.c=.o) $(ASFILES:.S=.o) $(NASMFILES:.asm=.o)
+override OBJ := $(CFILES:.c=.o) $(ASFILES:.S=.o)
 override HEADER_DEPS := $(CFILES:.c=.d) $(ASFILES:.S=.d)
 
 # Default target.
