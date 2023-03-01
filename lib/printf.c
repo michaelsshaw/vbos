@@ -26,6 +26,7 @@ int printf(const char *restrict fmt, ...)
 	char c;
 	char *s;
 	int i;
+	long l;
 
 	int n;
 
@@ -78,6 +79,15 @@ int printf(const char *restrict fmt, ...)
 				for (uint32_t j = 0; j < (2 * sizeof(i)); j++) {
 					int sel = ((sizeof(i) * 2) - j - 1) * 4;
 					int num = (i >> sel) & 0xF;
+					printf_out(convert[num]);
+					ret++;
+				}
+				break;
+			case 'X':
+				l = va_arg(args, long);
+				for (uint64_t j = 0; j < (2 * sizeof(l)); j++) {
+					int sel = ((sizeof(l) * 2) - j - 1) * 4;
+					int num = (l >> sel) & 0xF;
 					printf_out(convert[num]);
 					ret++;
 				}

@@ -3,11 +3,12 @@
 #include <kernel/acpi.h>
 #include <dev/apic.h>
 
+#include <stdint.h>
 #include <stdio.h>
 
 static void *madt_entries[0x20];
 static int n_madt_entries = 0;
-static uint32_t ioapic_addr = 0;
+static uintptr_t ioapic_addr = 0;
 
 static const char *madt_entry_types[] = { "LAPIC",
 					  "IOAPIC",
@@ -20,18 +21,16 @@ static const char *madt_entry_types[] = { "LAPIC",
 					  "INVALID",
 					  "CPU_LOCAL_X2_APIC" };
 
-uint32_t ioapic_read(void *addr, uint32_t reg)
+uint32_t ioapic_read(uintptr_t addr, uint8_t reg)
 {
-	uint32_t volatile *ioapic = (uint32_t volatile *)addr;
-	ioapic[0] = (reg & 0xFF);
-	return ioapic[4];
+	*(volatile uint32_t *)(addr) = reg;
+	return *(volatile uint32_t *)(addr + 0x10);
 }
 
-void ioapic_write(void *addr, uint32_t reg, uint32_t value)
+void ioapic_write(uintptr_t addr, uint8_t reg, uint32_t value)
 {
-	uint32_t volatile *ioapic = (uint32_t volatile *)addr;
-	ioapic[0] = (reg & 0xFF);
-	ioapic[4] = value;
+	*(volatile uint32_t *)(addr) = reg;
+	*(volatile uint32_t *)(addr + 0x10) = value;
 }
 
 int madt_parse_next_entry(int offset)
@@ -50,6 +49,8 @@ int madt_parse_next_entry(int offset)
 	struct madt_ioapic *m_ioapic = (struct madt_ioapic *)madt;
 
 	switch (type) {
+	case MADT_LAPIC:
+		break;
 	case MADT_IOAPIC:
 		ioapic_addr = m_ioapic->ioapic_addr;
 		printf(LOG_INFO "IOAPIC address: %xh\n", m_ioapic->ioapic_addr);

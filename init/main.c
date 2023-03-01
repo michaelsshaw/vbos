@@ -3,6 +3,7 @@
 #include <kernel/acpi.h>
 #include <kernel/gdt.h>
 #include <kernel/idt.h>
+#include <kernel/mem.h>
 
 #include <dev/apic.h>
 #include <dev/serial.h>
@@ -23,6 +24,8 @@ void kmain(void)
 	serial_init();
 	acpi_init();
 	apic_init();
+
+	pfa_init();
 	
 	done();
 }

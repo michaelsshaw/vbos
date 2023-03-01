@@ -7,6 +7,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
+#include <stdio.h>
 
 #define PACKED __attribute__((packed))
 
