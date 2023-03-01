@@ -4,6 +4,7 @@
 #define COL_RED_BLACK "\e[31;40m"
 #define COL_YELLOW_BLACK "\e[33;40m"
 #define COL_GREEN_BLACK "\e[32;40m"
+#define COL_MAGENTA_BLACK "\e[35;40m"
 
 #define COL_RESET "\e[m"
 

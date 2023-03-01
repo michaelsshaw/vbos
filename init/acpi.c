@@ -28,7 +28,7 @@ void rsdt_print(struct rsdt *rsdt)
 
 		char buf[9];
 		memcpy(buf, h->signature, 4);
-		printf(LOG_INFO "[ACPI] %s %d %x \n", buf, h->revision,
+		printf(LOG_INFO "RSDT entry: %s %d %x \n", buf, h->revision,
 		       h->checksum);
 	}
 }
@@ -55,5 +55,5 @@ void acpi_init()
 	}
 
 	printf(LOG_INFO "ACPI version: %d\n", rsdp->revision);
-	printf(LOG_INFO "ACPI initialized\n");
+	printf(LOG_SUCCESS "ACPI initialized\n");
 }
