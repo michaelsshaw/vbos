@@ -42,11 +42,6 @@ void acpi_init()
 	struct rsdt *rsdt = (struct rsdt *)rsdt_addr;
 	rsdt_print(rsdt);
 
-	printf(LOG_ERROR "Test\n");
-	printf(LOG_WARN "Test\n");
-	printf(LOG_SUCCESS "Test\n");
-	printf(LOG_INFO "Test\n");
-
 	if (__madt == NULL) {
 		printf(LOG_WARN "Failed to locate MADT\n");
 	} else {
