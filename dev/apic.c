@@ -7,6 +7,7 @@
 
 static void *madt_entries[0x20];
 static int n_madt_entries = 0;
+static uint32_t ioapic_addr = 0;
 
 static const char *madt_entry_types[] = { "LAPIC",
 					  "IOAPIC",
@@ -47,13 +48,12 @@ int madt_parse_next_entry(int offset)
 
 	/* Can't declare variables inside switch statement */
 	struct madt_lapic *lapic = (struct madt_lapic *)madt;
+	struct madt_ioapic *m_ioapic = (struct madt_ioapic *)madt;
 
 	switch (type) {
-	case MADT_LAPIC:
-		printf(LOG_INFO "Lapic base address for cpu %d: %xh\n",
-		       lapic->acpi_cpu_id, __madt->lapic_addr);
-		break;
 	case MADT_IOAPIC:
+		ioapic_addr = m_ioapic->ioapic_addr;
+		printf(LOG_INFO "IOAPIC address: %xh\n", m_ioapic->ioapic_addr);
 		break;
 	case MADT_IOAPIC_OVRD:
 		break;
