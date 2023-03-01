@@ -46,6 +46,9 @@ int madt_parse_next_entry(int offset)
 
 	switch (type) {
 	case MADT_LAPIC:
+		struct madt_lapic *lapic = (struct madt_lapic *)madt;
+		printf(LOG_INFO "Lapic base address for cpu %d: %xh\n",
+		       lapic->acpi_cpu_id, __madt->lapic_addr);
 		break;
 	case MADT_IOAPIC:
 		break;

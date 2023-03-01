@@ -74,9 +74,10 @@ int printf(const char *restrict fmt, ...)
 				break;
 			case 'x':
 				i = va_arg(args, int);
-				for (int j = sizeof(i) - 1; j >= 0; j--) {
-					printf_out(
-						convert[(i >> (j * 4)) & 0xF]);
+				for (int j = 0; j < (2 * sizeof(i)); j++) {
+					int sel = ((sizeof(i) * 2) - j - 1) * 4;
+					int num = (i >> sel) & 0xF;
+					printf_out(convert[num]);
 					ret++;
 				}
 				break;
