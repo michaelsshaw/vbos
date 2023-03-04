@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 #include <kernel/common.h>
 #include <kernel/acpi.h>
+#include <kernel/mem.h>
 #include <dev/apic.h>
 
 #include <stdint.h>
@@ -91,6 +92,10 @@ void apic_init()
 		while ((offset = madt_parse_next_entry(offset)))
 			;
 	}
+
+	ioapic_addr += hhdm_start;
+	printf(LOG_INFO "IOAPIC ADDR: %X\n", ioapic_addr);
+
 
 	printf(LOG_SUCCESS "APIC initialized\n");
 }

@@ -66,7 +66,7 @@ override HEADER_DEPS := $(CFILES:.c=.d) $(ASFILES:.S=.d)
 all: $(KERNEL)
 
 # Link rules for the final kernel executable.
-$(KERNEL): $(OBJ)
+$(KERNEL): $(OBJ) linker.ld
 	@$(LD) $(OBJ) $(LDFLAGS) -o $@
 	@echo "  LD      $@"
 

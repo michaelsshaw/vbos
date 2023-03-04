@@ -10,6 +10,11 @@
 
 #include <limine/limine.h>
 
+uintptr_t hhdm_start;
+uintptr_t data_end;
+uintptr_t bss_start;
+uintptr_t bss_end;
+
 static void done(void)
 {
 	for (;;) {
@@ -19,13 +24,25 @@ static void done(void)
 
 void kmain(void)
 {
+	hhdm_start = (uintptr_t)(&__hhdm_start);
+	data_end = (uintptr_t)(&__data_end);
+	bss_start = (uintptr_t)(&__bss_start);
+	bss_end = (uintptr_t)(&__bss_end);
+
+	serial_init();
 	gdt_init();
 	idt_init();
-	serial_init();
+
 	acpi_init();
+
+	/* Initialize early kernel memory array */
+	const uintptr_t one_gb = 0x40000000;
+	char kmem[one_gb] ALIGN(0x1000);
+	printf(LOG_WARN "kmem: %Xh\n", kmem);
+
+	pfa_init(kmem, one_gb);
+
 	apic_init();
 
-	pfa_init();
-	
 	done();
 }

@@ -4,9 +4,9 @@
 
 #include <kernel/common.h>
 
-#ifndef __ASM__
+#define HHDM_START 0xffffffff80000000
 
-#define HHDM_START 0xFFFF800000000000
+#ifndef __ASM__
 
 #define ALIGN(_a) __attribute__((aligned(_a)))
 
@@ -22,7 +22,7 @@ struct page { /* I would rather refer to this as a struct */
 			uint64_t ignored : 1;
 			uint64_t zero : 1;
 			uint64_t ignored_2 : 4;
-			uint64_t pdpt_addr : 36;
+			uint64_t addr : 36;
 			uint64_t reserved : 4;
 			uint64_t ignored_3 : 11;
 			uint64_t xd : 1;
@@ -31,15 +31,34 @@ struct page { /* I would rather refer to this as a struct */
 	};
 };
 
-extern struct page pml4[512] ALIGN(0x1000);
-extern struct page pdpt[512] ALIGN(0x1000);
-extern struct page pdt[512] ALIGN(0x1000);
-extern struct page pt[512] ALIGN(0x1000);
+struct cr3 {
+	union {
+		struct {
+			uint64_t ignored : 3;
+			uint64_t pwt : 1;
+			uint64_t pcd : 1;
+			uint64_t ignored_2 : 7;
+			uint64_t pml4_addr : 52;
+		};
+		uint64_t val;
+	};
+};
+
+extern uintptr_t __hhdm_start;
+extern uintptr_t __data_end;
+extern uintptr_t __bss_start;
+extern uintptr_t __bss_end;
+
+extern uintptr_t hhdm_start;
+extern uintptr_t data_end;
+extern uintptr_t bss_start;
+extern uintptr_t bss_end;
 
 int page_map(uintptr_t virt, uintptr_t phys);
-uint64_t cr3_get();
+uint64_t cr3_read();
+void cr3_write(uint64_t cr3);
 
-void pfa_init();
+void pfa_init(char *mem, size_t len);
 
 #endif /* __ASM__ */
 #endif /* _MEM_H_ */

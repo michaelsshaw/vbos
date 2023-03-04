@@ -21,6 +21,7 @@ SECTIONS
 	/* Any address in this region will do, but often 0xffffffff80000000 is chosen as */
 	/* that is the beginning of the region. */
 	. = 0xffffffff80000000;
+	__hhdm_start = 0xffffffff80000000;
 
 	.text : {
 		*(.text .text.*)
@@ -29,15 +30,16 @@ SECTIONS
 	/* Move to the next memory page for .rodata */
 	. += CONSTANT(MAXPAGESIZE);
 
-	.rodata : {
+	.rodata ALIGN (0x1000) : {
 		*(.rodata .rodata.*)
 	} :rodata
 
 	/* Move to the next memory page for .data */
 	. += CONSTANT(MAXPAGESIZE);
 
-	.data : {
+	.data ALIGN (0x1000) : {
 		*(.data .data.*)
+		__data_end = .;
 	} :data
 
 	/* NOTE: .bss needs to be the last thing mapped to :data, otherwise lots of */
@@ -45,8 +47,10 @@ SECTIONS
 	/* If you need, for example, .init_array and .fini_array, those should be placed */
 	/* above this. */
 	.bss : {
+		__bss_start = .;
 		*(COMMON)
 		*(.bss .bss.*)
+		__bss_end = .;
 	} :data
 
 	/* Discard .note.* and .eh_frame since they may cause issues on some hosts. */

@@ -28,3 +28,13 @@ int memcmp(const void *aa, const void *bb, size_t num)
 	}
 	return 0;
 }
+
+void *memset(void *str, int c, size_t n)
+{
+	unsigned char *s = (unsigned char *)str;
+	unsigned char j = (unsigned char)c;
+	for (size_t i = 0; i < n; i++) {
+		s[i] = j;
+	}
+	return str;
+}
