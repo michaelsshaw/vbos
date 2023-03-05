@@ -34,7 +34,7 @@ uint64_t *next_level(uint64_t *this_level, size_t next_num)
 	return r;
 }
 
-void kmap(uint64_t paddr, uint64_t vaddr, size_t len, uint64_t attr)
+void kmap(paddr_t paddr, uint64_t vaddr, size_t len, uint64_t attr)
 {
 	uint64_t *pdpt;
 	uint64_t *pdt;
@@ -75,6 +75,8 @@ void mem_early_init(char *mem, size_t len)
 	kmem_len = len;
 
 	size_t kernel_size = 0;
+	size_t max_usable_size = 0;
+	paddr_t max_usable_ptr = 0;
 
 	/* Parse limine physical memory map */
 	struct limine_memmap_response *res = map_req.response;
@@ -83,6 +85,12 @@ void mem_early_init(char *mem, size_t len)
 		switch (entry->type) {
 		case LIMINE_MEMMAP_KERNEL_AND_MODULES:
 			kernel_size = entry->length;
+			break;
+		case LIMINE_MEMMAP_USABLE:
+			if (entry->length > max_usable_size) {
+				max_usable_size = entry->length;
+				max_usable_ptr = entry->base;
+			}
 			break;
 		default:
 			break;

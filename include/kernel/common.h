@@ -14,4 +14,6 @@
 
 #define PACKED __attribute__((packed))
 
+typedef uintptr_t paddr_t;
+
 #endif /* _COMMON_H_ */
