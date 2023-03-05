@@ -10,6 +10,8 @@
 #include <stdio.h>
 #include <string.h>
 
+#include <kernel/bitwise.h>
+
 #define PACKED __attribute__((packed))
 
 #endif /* _COMMON_H_ */
