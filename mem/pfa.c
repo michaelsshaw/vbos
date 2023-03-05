@@ -5,18 +5,13 @@
 #include <dev/apic.h>
 #include <limine/limine.h>
 
-struct limine_memmap_request map_req = { .id = LIMINE_MEMMAP_REQUEST,
-					 .revision = 0 };
+struct limine_memmap_request map_req = { .id = LIMINE_MEMMAP_REQUEST, .revision = 0 };
+struct limine_kernel_address_request kern_req = { .id = LIMINE_KERNEL_ADDRESS_REQUEST, .revision = 0 };
 
 static char *kmem;
 static size_t kmem_len;
 static uintptr_t hwm = 0;
-static struct page *pml4;
-
-static const char *map_names[] = { "USABLE      ", "RESERVED    ",
-				   "ACPI_RECLAIM", "ACPI_NVS    ",
-				   "BAD_MEM     ", "BOOT_RECLAIM",
-				   "KERNEL      ", "FRAMEBUFFER " };
+static struct page *pml4 ALIGN(0x1000);
 
 void *alloc_page()
 {
@@ -33,7 +28,7 @@ uint64_t *next_level(uint64_t *this_level, size_t next_num)
 	if (!(this_level[next_num] & 1)) {
 		r = alloc_page();
 		memset(r, 0, 4096);
-		this_level[next_num] = (uintptr_t)r | 3;
+		this_level[next_num] = ((uintptr_t)r | 3) - hhdm_start;
 	} else
 		r = (void *)(this_level[next_num] & -4096ull);
 	return r;
@@ -79,19 +74,14 @@ void pfa_init(char *mem, size_t len)
 	kmem = mem;
 	kmem_len = len;
 
-	uint64_t kernel_base = 0;
 	size_t kernel_size = 0;
 
-	/* Print limine early memory map */
+	/* Parse limine physical memory map */
 	struct limine_memmap_response *res = map_req.response;
 	for (unsigned int i = 0; i < res->entry_count; i++) {
 		struct limine_memmap_entry *entry = res->entries[i];
-		printf(LOG_INFO "MEM REGION %s BASE: %X, SIZE: %X\n",
-		       map_names[entry->type], entry->base, entry->length);
-
 		switch (entry->type) {
 		case LIMINE_MEMMAP_KERNEL_AND_MODULES:
-			kernel_base = entry->base;
 			kernel_size = entry->length;
 			break;
 		default:
@@ -99,21 +89,22 @@ void pfa_init(char *mem, size_t len)
 		}
 	}
 
-	/* Need to make these linker script values usable */
-
-	printf(LOG_WARN "__hhdm_start %X\n", hhdm_start);
-	printf(LOG_WARN "__data_end %X\n", data_end);
-	printf(LOG_WARN "__bss_start %X\n", bss_start);
-	printf(LOG_WARN "__bss_end %X\n", bss_end);
-	printf(LOG_WARN "sizeof size_t %d\n", sizeof(size_t));
+	uint64_t kpaddr = kern_req.response->physical_base;
+	uint64_t kvaddr = kern_req.response->virtual_base;
 
 	struct page attrs;
 	attrs.val = 0;
 	attrs.rw = 1;
 	attrs.xd = 0;
-	kmap(kernel_base, hhdm_start, kernel_size, attrs.val);
 
-	struct cr3 cr3 = { .pml4_addr = ((uintptr_t)pml4 >> 12) };
+	kmap(kpaddr, kvaddr, kernel_size, attrs.val);
+	kmap(0x0000, hhdm_start, 0x100000000, attrs.val);
+	kmap(0x1000, 0x0000, 0x100000000, attrs.val);
+
+	uintptr_t pml4_paddr = (uintptr_t)pml4;
+	pml4_paddr -= hhdm_start;
+
+	struct cr3 cr3 = { .pml4_addr = pml4_paddr >> 12 };
 	cr3_write(cr3.val);
 
 	printf(LOG_SUCCESS "Early memory map initialized\n");

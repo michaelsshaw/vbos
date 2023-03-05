@@ -10,6 +10,8 @@
 
 #include <limine/limine.h>
 
+struct limine_hhdm_request hhdm_req = { .id = LIMINE_HHDM_REQUEST, .revision = 0 };
+
 uintptr_t hhdm_start;
 uintptr_t data_end;
 uintptr_t bss_start;
@@ -24,23 +26,22 @@ static void done(void)
 
 void kmain(void)
 {
-	hhdm_start = (uintptr_t)(&__hhdm_start);
+	hhdm_start = hhdm_req.response->offset;
 	data_end = (uintptr_t)(&__data_end);
 	bss_start = (uintptr_t)(&__bss_start);
 	bss_end = (uintptr_t)(&__bss_end);
 
 	serial_init();
+
 	gdt_init();
 	idt_init();
-
-	acpi_init();
 
 	/* Initialize early kernel memory array */
 	const uintptr_t one_gb = 0x40000000;
 	char kmem[one_gb] ALIGN(0x1000);
-	printf(LOG_WARN "kmem: %Xh\n", kmem);
-
 	pfa_init(kmem, one_gb);
+
+	acpi_init();
 
 	apic_init();
 

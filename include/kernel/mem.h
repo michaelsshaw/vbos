@@ -44,7 +44,6 @@ struct cr3 {
 	};
 };
 
-extern uintptr_t __hhdm_start;
 extern uintptr_t __data_end;
 extern uintptr_t __bss_start;
 extern uintptr_t __bss_end;

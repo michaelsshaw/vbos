@@ -21,7 +21,6 @@ SECTIONS
 	/* Any address in this region will do, but often 0xffffffff80000000 is chosen as */
 	/* that is the beginning of the region. */
 	. = 0xffffffff80000000;
-	__hhdm_start = 0xffffffff80000000;
 
 	.text : {
 		*(.text .text.*)
