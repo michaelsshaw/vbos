@@ -39,7 +39,7 @@ void kmain(void)
 	/* Initialize early kernel memory array */
 	const uintptr_t one_gb = 0x40000000;
 	char kmem[one_gb] ALIGN(0x1000);
-	pfa_init(kmem, one_gb);
+	mem_early_init(kmem, one_gb);
 
 	acpi_init();
 

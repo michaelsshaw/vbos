@@ -65,11 +65,11 @@ void kmap(uint64_t paddr, uint64_t vaddr, size_t len, uint64_t attr)
 		pdpt = next_level((uint64_t *)pml4, pdpn);
 		pdt = next_level(pdpt, pdn);
 		pt = next_level(pdt, ptn);
-		pt[pn] = paddr | attr | 1;
+		pt[pn] = paddr | attr;
 	}
 }
 
-void pfa_init(char *mem, size_t len)
+void mem_early_init(char *mem, size_t len)
 {
 	kmem = mem;
 	kmem_len = len;
@@ -93,7 +93,7 @@ void pfa_init(char *mem, size_t len)
 	uint64_t kvaddr = kern_req.response->virtual_base;
 
 	struct page attrs;
-	attrs.val = 0;
+	attrs.val = 1;
 	attrs.rw = 1;
 	attrs.xd = 0;
 

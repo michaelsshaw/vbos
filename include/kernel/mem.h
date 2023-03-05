@@ -57,7 +57,7 @@ int page_map(uintptr_t virt, uintptr_t phys);
 uint64_t cr3_read();
 void cr3_write(uint64_t cr3);
 
-void pfa_init(char *mem, size_t len);
+void mem_early_init(char *mem, size_t len);
 
 #endif /* __ASM__ */
 #endif /* _MEM_H_ */
