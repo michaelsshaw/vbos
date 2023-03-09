@@ -11,16 +11,10 @@ static void *madt_entries[0x20];
 static int n_madt_entries = 0;
 static uintptr_t ioapic_addr = 0;
 
-static const char *madt_entry_types[] = { "LAPIC",
-					  "IOAPIC",
-					  "IOAPIC_IRQ_SRC_OVRD",
-					  "IOAPIC_NMI_SRC",
-					  "LAPIC_NMI",
-					  "LAPIC_ADDR_OVRD",
-					  "INVALID",
-					  "INVALID",
-					  "INVALID",
-					  "CPU_LOCAL_X2_APIC" };
+static const char *madt_entry_types[] = {
+	"LAPIC",   "IOAPIC",  "IOAPIC_IRQ_SRC_OVRD", "IOAPIC_NMI_SRC", "LAPIC_NMI", "LAPIC_ADDR_OVRD", "INVALID",
+	"INVALID", "INVALID", "CPU_LOCAL_X2_APIC"
+};
 
 uint32_t ioapic_read(uintptr_t addr, uint8_t reg)
 {
@@ -43,8 +37,7 @@ int madt_parse_next_entry(int offset)
 	int type = madt[offset];
 	int len = madt[offset + 1];
 
-	printf(LOG_INFO "MADT Entry %d: %s\n", n_madt_entries,
-	       madt_entry_types[type]);
+	printf(LOG_INFO "MADT Entry %d: %s\n", n_madt_entries, madt_entry_types[type]);
 
 	/* Can't declare variables inside switch statement */
 	struct madt_ioapic *m_ioapic = (struct madt_ioapic *)madt;
@@ -67,8 +60,7 @@ int madt_parse_next_entry(int offset)
 	case MADT_X2_LAPIC:
 		break;
 	default:
-		printf(LOG_WARN "Unrecognized MADT entry #%d, type=%d\n",
-		       n_madt_entries, type);
+		printf(LOG_WARN "Unrecognized MADT entry #%d, type=%d\n", n_madt_entries, type);
 		break;
 	}
 
@@ -95,6 +87,7 @@ void apic_init()
 
 	ioapic_addr += hhdm_start;
 	printf(LOG_INFO "IOAPIC ADDR: %X\n", ioapic_addr);
+
 
 
 	printf(LOG_SUCCESS "APIC initialized\n");

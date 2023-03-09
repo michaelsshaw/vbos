@@ -32,7 +32,6 @@ void kmain(void)
 	bss_end = (uintptr_t)(&__bss_end);
 
 	serial_init();
-
 	gdt_init();
 	idt_init();
 
@@ -42,7 +41,6 @@ void kmain(void)
 	mem_early_init(kmem, one_gb);
 
 	acpi_init();
-
 	apic_init();
 
 	done();

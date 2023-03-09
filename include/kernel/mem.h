@@ -6,6 +6,11 @@
 
 #define HHDM_START 0xffffffff80000000
 
+#define PAGE_XD (1 << 64)
+#define PAGE_PRESENT (1 << 0)
+#define PAGE_RW (1 << 1)
+#define PAGE_USERMODE (1 << 2)
+
 #ifndef __ASM__
 
 #define ALIGN(_a) __attribute__((aligned(_a)))
