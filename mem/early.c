@@ -77,8 +77,7 @@ void mem_early_init(char *mem, size_t len)
 
 	size_t kernel_size = 0;
 	size_t max_usable_size = 0;
-	paddr_t max_usable_ptr = 0;
-
+	/*	paddr_t max_usable_ptr = 0; */
 	/* Parse limine physical memory map */
 	struct limine_memmap_response *res = map_req.response;
 	for (unsigned int i = 0; i < res->entry_count; i++) {
@@ -90,7 +89,6 @@ void mem_early_init(char *mem, size_t len)
 		case LIMINE_MEMMAP_USABLE:
 			if (entry->length > max_usable_size) {
 				max_usable_size = entry->length;
-				max_usable_ptr = entry->base;
 			}
 			break;
 		default:
