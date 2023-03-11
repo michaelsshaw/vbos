@@ -77,7 +77,7 @@ void mem_early_init(char *mem, size_t len)
 
 	size_t kernel_size = 0;
 	size_t max_usable_size = 0;
-	/*	paddr_t max_usable_ptr = 0; */
+
 	/* Parse limine physical memory map */
 	struct limine_memmap_response *res = map_req.response;
 	for (unsigned int i = 0; i < res->entry_count; i++) {
