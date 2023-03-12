@@ -9,10 +9,10 @@
 
 #define COL_RESET "\e[m"
 
-#define LOG_ERROR "[" COL_RED_BLACK "  ERROR  " COL_RESET "] "
-#define LOG_WARN "[" COL_YELLOW_BLACK " WARNING " COL_RESET "] "
-#define LOG_SUCCESS "[" COL_GREEN_BLACK " SUCCESS " COL_RESET "] "
-#define LOG_INFO "[  INFO   ] "
+#define LOG_ERROR "[" COL_RED_BLACK "ERR" COL_RESET "] "
+#define LOG_WARN "[" COL_YELLOW_BLACK "WRN" COL_RESET "] "
+#define LOG_SUCCESS "[" COL_GREEN_BLACK "RDY" COL_RESET "] "
+#define LOG_INFO "[LOG] "
 
 int printf(const char *restrict fmt, ...);
 
