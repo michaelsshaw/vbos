@@ -105,6 +105,27 @@ struct madt_x2_lapic {
 	uint32_t acpi_id;
 } PACKED;
 
+struct apic_redirect {
+	union {
+		struct {
+			uint64_t vector : 8;
+			uint64_t delv_mode : 3;
+			uint64_t dest_mode : 1;
+			uint64_t delv_status : 1;
+			uint64_t polarity : 1;
+			uint64_t remote_irr : 1;
+			uint64_t trigger : 1;
+			uint64_t mask : 1;
+			uint64_t reserved : 39;
+			uint64_t dest : 8;
+		};
+		struct {
+			uint32_t low;
+			uint32_t high;
+		};
+	};
+} PACKED;
+
 void apic_init();
 int madt_parse_next_entry(int offset);
 
