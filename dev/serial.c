@@ -2,6 +2,8 @@
 #include <kernel/common.h>
 #include <kernel/pio.h>
 
+#include <dev/serial.h>
+
 #include <stdio.h>
 
 int serial_init()
