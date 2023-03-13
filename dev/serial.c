@@ -4,8 +4,6 @@
 
 #include <stdio.h>
 
-#define COM1 0x3F8
-
 int serial_init()
 {
 	outb(COM1 | 1, 0x00);
