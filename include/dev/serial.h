@@ -5,6 +5,6 @@
 #define COM1 0x3F8
 
 void serial_write(char c);
-void serial_init();
+int serial_init();
 
 #endif /* _SERIAL_H_ */
