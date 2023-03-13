@@ -13,6 +13,9 @@ static size_t kmem_len;
 static uintptr_t hwm = 0;
 static struct page *pml4 ALIGN(0x1000);
 
+static const char *region_types[] = { "USABLE",	 "RESERVED",	     "ACPI_RECLAIMABLE", "ACPI_NVS",
+				      "BAD_MEM", "BOOT_RECLAIMABLE", "KERNEL",		 "FRAMEBUFFER" };
+
 void *alloc_page()
 {
 	void *r = (void *)(hwm + kmem);
@@ -82,6 +85,7 @@ void mem_early_init(char *mem, size_t len)
 	struct limine_memmap_response *res = map_req.response;
 	for (unsigned int i = 0; i < res->entry_count; i++) {
 		struct limine_memmap_entry *entry = res->entries[i];
+		printf(LOG_INFO "BASE: %X SIZE %X %s\n", entry->base, entry->length, region_types[entry->type]);
 		switch (entry->type) {
 		case LIMINE_MEMMAP_KERNEL_AND_MODULES:
 			kernel_size = entry->length;
