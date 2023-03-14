@@ -108,7 +108,7 @@ struct madt_x2_lapic {
 struct apic_redirect {
 	union {
 		struct {
-			uint64_t vector : 8;
+			uint64_t isr : 8;
 			uint64_t delv_mode : 3;
 			uint64_t dest_mode : 1;
 			uint64_t delv_status : 1;
@@ -118,16 +118,20 @@ struct apic_redirect {
 			uint64_t mask : 1;
 			uint64_t reserved : 39;
 			uint64_t dest : 8;
-		};
+		} PACKED;
 		struct {
 			uint32_t low;
 			uint32_t high;
-		};
+		} PACKED;
 	};
 } PACKED;
 
 void apic_init();
 int madt_parse_next_entry(int offset);
+uint32_t ioapic_read(uintptr_t addr, uint8_t reg);
+void ioapic_write(uintptr_t addr, uint8_t reg, uint32_t value);
+uint32_t lapic_read(uintptr_t addr, unsigned int regoffset);
+uint32_t lapic_write(uintptr_t addr, unsigned int regoffset, uint32_t value);
 
 #endif /* __ASM__ */
 #endif /* _APIC_H_ */

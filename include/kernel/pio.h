@@ -16,4 +16,9 @@ static inline uint8_t inb(uint16_t port)
 	return ret;
 }
 
+static inline void iowait()
+{
+	outb(0x80, 0);
+}
+
 #endif /* _PIO_H_ */

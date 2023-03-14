@@ -31,10 +31,10 @@ __idt:
 
 .global gdt_load
 gdt_load:
-	lgdt (__gdtr)
+	lgdt __gdtr
 	ret
 
 .global idt_load
 idt_load:
-	lidt (__idtr)
+	lidt __idtr
 	ret

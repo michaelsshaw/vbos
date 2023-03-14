@@ -11,7 +11,7 @@
 
 #ifndef __ASM__
 
-#include <stdint.h>
+#include <kernel/common.h>
 
 struct irqdesc {
 	uint16_t offset_low;
@@ -21,14 +21,16 @@ struct irqdesc {
 	uint16_t offset_mid;
 	uint32_t offset_high;
 	uint32_t reserved;
-};
+} PACKED;
 
 struct idtr {
 	uint16_t size;
 	uint64_t offset;
-};
+} PACKED;
 
 void idt_init();
+void cli();
+void sti();
 
 extern struct idtr __idtr;
 extern struct irqdesc __idt[IDT_NUM_VECTORS];

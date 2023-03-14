@@ -5,7 +5,7 @@
 #include <kernel/idt.h>
 #include <kernel/mem.h>
 
-#include <dev/apic.h>
+#include <dev/pic.h>
 #include <dev/serial.h>
 
 #include <limine/limine.h>
@@ -31,17 +31,22 @@ void kmain(void)
 	bss_start = (uintptr_t)(&__bss_start);
 	bss_end = (uintptr_t)(&__bss_end);
 
-	serial_init();
 	gdt_init();
 	idt_init();
+
+	serial_init();
 
 	/* Initialize early kernel memory array */
 	const uintptr_t one_gb = 0x40000000;
 	char kmem[one_gb] ALIGN(0x1000);
 	mem_early_init(kmem, one_gb);
 
-	acpi_init();
-	apic_init();
+	cli();
+	pic_mask(4, 0);
+	pic_init();
+	sti();
+
+	printf("# ");
 
 	done();
 }

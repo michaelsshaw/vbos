@@ -11,9 +11,11 @@
 #define GDT_ACCESS_DATA_RING3 0b11110010
 #define GDT_ACCESS_CODE_RING3 0b11111010
 
+#define GDT_SEGMENT_CODE_RING0 0x28
+
 #ifndef __ASM__
 
-#include <stdint.h>
+#include <kernel/common.h>
 
 struct gdt_desc {
 	uint16_t limit;
@@ -22,12 +24,12 @@ struct gdt_desc {
 	uint8_t access;
 	uint8_t flags;
 	uint8_t base_3;
-};
+} PACKED;
 
 struct gdtr {
 	uint16_t size;
 	uint64_t offset;
-};
+} PACKED;
 
 extern struct gdtr __gdtr;
 extern struct gdt_desc __gdt[GDT_NUMDESC];

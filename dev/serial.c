@@ -23,6 +23,7 @@ int serial_init()
 		return 1;
 	}
 
+	outb(COM1 | 1, 0x01); /* Enable interrupts */
 	outb(COM1 | 4, 0x0F); /* Enter normal operation */
 	printf(LOG_SUCCESS "Serial COM1 initialized\n");
 	return 0;
@@ -35,4 +36,12 @@ void serial_write(char c)
 		;
 
 	outb(COM1, c);
+}
+
+void serial_trap()
+{
+	while ((inb(COM1 | 5) & 0x01) == 0)
+		;
+	char c = inb(COM1);
+	printf("%c", c);
 }

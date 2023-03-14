@@ -110,7 +110,7 @@ void mem_early_init(char *mem, size_t len)
 
 	kmap(kpaddr, kvaddr, kernel_size, attrs.val);
 	kmap(0x0000, hhdm_start, 0x100000000, attrs.val);
-	kmap(0x1000, 0x1000, 0x100000000, attrs.val);
+	kmap(0x0000, 0x0000, 0x100000000, attrs.val);
 
 	uintptr_t pml4_paddr = (uintptr_t)pml4;
 	pml4_paddr -= hhdm_start;
