@@ -18,6 +18,14 @@ char *strcpy(char *dest, const char *src)
 	return dest;
 }
 
+size_t strlen(const char *c)
+{
+	const char *b = c;
+	while (*b++)
+		;
+	return b - c - 1;
+}
+
 int memcmp(const void *aa, const void *bb, size_t num)
 {
 	const char *a = (const char *)aa;
@@ -37,4 +45,18 @@ void *memset(void *str, int c, size_t n)
 		s[i] = j;
 	}
 	return str;
+}
+
+int atoi(const char *a)
+{
+	int ndigits = strlen(a);
+	int b = 1;
+
+	int ret = 0;
+
+	for (int i = ndigits - 1; i >= 0; i--) {
+		ret += b * (a[i] - '0');
+		b *= 10;
+	}
+	return ret;
 }

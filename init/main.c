@@ -6,6 +6,7 @@
 #include <kernel/mem.h>
 
 #include <dev/pic.h>
+#include <dev/console.h>
 #include <dev/serial.h>
 
 #include <limine/limine.h>
@@ -35,6 +36,7 @@ void kmain(void)
 	idt_init();
 
 	serial_init();
+	console_init();
 
 	/* Initialize early kernel memory array */
 	const uintptr_t one_gb = 0x40000000;
@@ -44,9 +46,14 @@ void kmain(void)
 	cli();
 	pic_mask(4, 0);
 	pic_init();
+	printf(LOG_WARN"ATOI TEST: %d\n", atoi("101"));
 	sti();
+	console_resize();
 
-	printf("# ");
+	while (!console_ready())
+		;
+
+	printf("\n# ");
 
 	done();
 }

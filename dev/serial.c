@@ -3,6 +3,7 @@
 #include <kernel/pio.h>
 
 #include <dev/serial.h>
+#include <dev/console.h>
 
 #include <stdio.h>
 
@@ -42,6 +43,5 @@ void serial_trap()
 {
 	while ((inb(COM1 | 5) & 0x01) == 0)
 		;
-	char c = inb(COM1);
-	printf("%c", c);
+	console_input(inb(COM1));
 }
