@@ -1,12 +1,12 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 #include <kernel/common.h>
-#include <dev/serial.h>
+#include <dev/console.h>
 
 #include <stdarg.h>
 
 static inline void printf_out(char c)
 {
-	serial_write(c);
+	console_write(c);
 }
 
 static int printf_write(const char *restrict s)

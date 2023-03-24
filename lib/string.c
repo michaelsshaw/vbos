@@ -21,9 +21,9 @@ char *strcpy(char *dest, const char *src)
 size_t strlen(const char *c)
 {
 	const char *b = c;
-	while (*b++)
-		;
-	return b - c - 1;
+	while (*b)
+		b++;
+	return b - c;
 }
 
 int memcmp(const void *aa, const void *bb, size_t num)

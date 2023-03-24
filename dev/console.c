@@ -2,24 +2,26 @@
 #include <kernel/pio.h>
 
 #include <dev/console.h>
+#include <dev/serial.h>
 
 static struct {
 	int rows;
 	int cols;
 	int cursorpos;
 	char line[512];
+	size_t l_line;
 
 	int resizemode;
 	char resize_rows[8];
 	char resize_cols[8];
-	int l_resize_rows;
-	int l_resize_cols;
+	size_t l_resize_rows;
+	size_t l_resize_cols;
 } console;
 
 void console_init()
 {
 	memset(console.line, 0, 512);
-	console.resizemode = false;
+	console.resizemode = 0;
 }
 
 bool console_ready()
@@ -49,8 +51,10 @@ void console_input(char c)
 	} else {
 		if (c == 'R') {
 			/* detect end of escape sequence */
-			printf(LOG_SUCCESS "Console resize: Rows=%s, Cols=%s\n", console.resize_rows, console.resize_cols);
 			console.resizemode = 0;
+			console.cols = atoi(console.resize_cols);
+			console.rows = atoi(console.resize_rows);
+
 			return;
 		} else if (c == ';') {
 			/* switch to cols when semicolon detected */
@@ -61,7 +65,7 @@ void console_input(char c)
 			return;
 		}
 		char *out = console.resize_rows;
-		int *l = &console.l_resize_rows;
+		size_t *l = &console.l_resize_rows;
 
 		if (console.resizemode == 2) {
 			out = console.resize_cols;
@@ -75,5 +79,17 @@ void console_input(char c)
 
 void console_write(char c)
 {
-	console.cursorpos += 1;
+	if (!console.resizemode) {
+		console.cursorpos++;
+		if (console.cursorpos == console.cols)
+			console_write('\n');
+		if (c == '\n')
+			console.cursorpos = 1;
+
+		if (console.l_line < (sizeof(console.line) - 1)) {
+			console.line[console.l_line] = c;
+			console.l_line++;
+		}
+	}
+	serial_write(c);
 }

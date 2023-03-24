@@ -4,6 +4,7 @@
 #include <kernel/gdt.h>
 #include <kernel/idt.h>
 #include <kernel/mem.h>
+#include <kernel/pio.h>
 
 #include <dev/pic.h>
 #include <dev/console.h>
@@ -46,12 +47,12 @@ void kmain(void)
 	cli();
 	pic_mask(4, 0);
 	pic_init();
-	printf(LOG_WARN"ATOI TEST: %d\n", atoi("101"));
 	sti();
 	console_resize();
 
 	while (!console_ready())
 		;
+	iowait();
 
 	printf("\n# ");
 
