@@ -49,6 +49,29 @@ struct cr3 {
 	};
 };
 
+struct mem_region {
+	paddr_t base;
+	size_t len;
+};
+
+struct mem_region_header {
+	paddr_t usable_base;
+	size_t usable_len;
+
+	struct buddy_free_list *flist;
+
+	size_t bitmap_len;
+	char bitmap[];
+};
+
+struct buddy_free_list {
+	size_t len;
+	size_t depth;
+
+	struct buddy_free_list *next;
+	struct buddy_free_list *prev;
+};
+
 extern uintptr_t __data_end;
 extern uintptr_t __bss_start;
 extern uintptr_t __bss_end;

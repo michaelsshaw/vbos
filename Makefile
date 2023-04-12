@@ -94,7 +94,7 @@ distclean: clean
 
 .PHONY += run
 run:
-	make -C .. run-hdd
+	make -C .. run
 
 .PHONY += debug
 debug:
