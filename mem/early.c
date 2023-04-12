@@ -351,11 +351,4 @@ void mem_early_init(char *mem, size_t len)
 	}
 
 	printf(LOG_SUCCESS "Early memory map initialized\n");
-	/* Test buddy alloc */
-	struct mem_region *region = &regions[1];
-	struct mem_region_header *head = (void *)(region->base | hhdm_start);
-	paddr_t paddr = buddy_alloc(head, 0x1000);
-	buddy_free(head, paddr);
-	paddr = buddy_alloc(head, 0x1000);
-	paddr = buddy_alloc(head, 0x1000);
 }
