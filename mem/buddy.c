@@ -244,6 +244,7 @@ void buddy_free(struct mem_region_header *head, paddr_t paddr)
 	}
 
 	/* add the region to the free list */
+	/* TODO: Replace with binary tree traversal */
 	struct buddy_free_list *flist = (struct buddy_free_list *)(buddy_get_slab(head, depth, n) | hhdm_start);
 	flist->len = head->usable_len >> depth;
 	flist->depth = depth;
