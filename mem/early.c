@@ -159,6 +159,9 @@ paddr_t buddy_alloc(struct mem_region_header *head, size_t size)
 			new->len = flist->len >> 1;
 			new->depth = flist->depth + 1;
 
+			if(new->next != NULL)
+				new->next->prev = new;
+
 			/* Mark the bitmap */
 			size_t n = ((uintptr_t)flist ^ hhdm_start) - head->usable_base;
 			n /= flist->len;
@@ -172,13 +175,14 @@ paddr_t buddy_alloc(struct mem_region_header *head, size_t size)
 
 		} else if (flist->len == size) {
 			/* remove the region from the free list */
+
+			if (flist->next != NULL) /* must be done first! */
+				flist->next->prev = flist->prev;
+
 			if (flist->prev != NULL)
 				flist->prev->next = flist->next;
 			else
 				head->flist = flist->next;
-
-			if (flist->next != NULL)
-				flist->next->prev = flist->prev;
 
 			size_t n = ((uintptr_t)flist ^ hhdm_start) - head->usable_base;
 			n /= flist->len;
@@ -193,6 +197,43 @@ paddr_t buddy_alloc(struct mem_region_header *head, size_t size)
 	}
 
 	return 0;
+}
+
+void buddy_free(struct mem_region_header *head, paddr_t paddr)
+{
+	bool found = false;
+	size_t depth = 1;
+	size_t n = 0;
+
+	paddr_t offset = paddr - head->usable_base;
+	size_t curlen = head->usable_len >> 1;
+
+	while (!found) {
+		/* decide if left or right */
+		if (offset < curlen) {
+			/* left */
+			buddy_bitmap_set(head->bitmap, depth, n, false);
+			if (buddy_bitmap_get(head->bitmap, depth, n + 1) == 0) {
+				/* right is free, merge */
+				found = true;
+			} else {
+				/* right is not free, go up */
+				curlen >>= 1;
+				depth++;
+			}
+		} else {
+			/* right */
+			buddy_bitmap_set(head->bitmap, depth, n + 1, false);
+			if (buddy_bitmap_get(head->bitmap, depth, n) == 0) {
+				/* left is free, merge */
+				found = true;
+			} else {
+				/* left is not free, go up */
+				curlen >>= 1;
+				depth++;
+			}
+		}
+	}
 }
 
 void mem_early_init(char *mem, size_t len)
@@ -273,7 +314,7 @@ void mem_early_init(char *mem, size_t len)
 	struct mem_region *region = &regions[1];
 	struct mem_region_header *head = (void *)(region->base | hhdm_start);
 	paddr_t paddr = buddy_alloc(head, 0x1000);
-	paddr = buddy_alloc(head, 0x2000);
 	paddr = buddy_alloc(head, 0x4000);
-	paddr = buddy_alloc(head, 0x8000);
+	paddr = buddy_alloc(head, 0x4000);
+	paddr = buddy_alloc(head, 0x1000);
 }
