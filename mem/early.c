@@ -261,19 +261,18 @@ void buddy_free(struct mem_region_header *head, paddr_t paddr)
 		struct buddy_free_list *cur = head->flist;
 
 		while (cur != NULL) {
-			if(cur < flist && (cur->next > flist || cur->next == NULL)) {
+			if (cur < flist && (cur->next > flist || cur->next == NULL)) {
 				flist->next = cur->next;
 				flist->prev = cur;
 				cur->next = flist;
 
-				if(cur->next != NULL)
+				if (cur->next != NULL)
 					cur->next->prev = flist;
 
-				goto while_out;
+				break;
 			}
 			cur = cur->next;
 		}
-while_out:
 	}
 }
 
