@@ -77,9 +77,7 @@ static void buddy_bitmap_set(char *bitmap, size_t depth, size_t n, bool b)
 	if (n > depth)
 		printf(LOG_WARN "buddy_bitmap_set: n > depth, n=%d, depth=%d\n", n, depth);
 
-	size_t a = 1;
-	for (size_t i = 0; i < depth; i++)
-		a *= 2;
+	size_t a = 1 << depth;
 	a -= 1;
 
 	if (depth == 0) {
@@ -98,9 +96,7 @@ static uint8_t buddy_bitmap_get(char *bitmap, size_t depth, size_t n)
 	if (n > depth)
 		printf(LOG_WARN "buddy_bitmap_get: n > depth, n=%d, depth=%d\n", n, depth);
 
-	size_t a = 1;
-	for (size_t i = 0; i < depth; i++)
-		a *= 2;
+	size_t a = 1 << depth;
 	a -= 1;
 
 	if (depth == 0) {
@@ -137,6 +133,15 @@ static void buddy_init_region(struct mem_region *region)
 	head->flist = flist;
 }
 
+static paddr_t buddy_get_slab(struct mem_region_header *head, size_t depth, size_t n)
+{
+	if (depth == 0) {
+		return head->usable_base;
+	}
+
+	return head->usable_base + (n * (head->usable_len >> depth));
+}
+
 /* This bitmap for this allocator is 2 bits per page. It begins with one bit 
  * representing the entire region, then 2 bits representing that region split 
  * into two, then 4 bits representing that region split into 4, and so on, 
@@ -159,7 +164,7 @@ paddr_t buddy_alloc(struct mem_region_header *head, size_t size)
 			new->len = flist->len >> 1;
 			new->depth = flist->depth + 1;
 
-			if(new->next != NULL)
+			if (new->next != NULL)
 				new->next->prev = new;
 
 			/* Mark the bitmap */
@@ -201,38 +206,74 @@ paddr_t buddy_alloc(struct mem_region_header *head, size_t size)
 
 void buddy_free(struct mem_region_header *head, paddr_t paddr)
 {
-	bool found = false;
-	size_t depth = 1;
+	/* find the region in the bitmap */
+	paddr_t offset = paddr - head->usable_base;
+	size_t curlen = head->usable_len;
+	size_t depth = 0;
 	size_t n = 0;
 
-	paddr_t offset = paddr - head->usable_base;
-	size_t curlen = head->usable_len >> 1;
+	size_t lastn = 0;
+	size_t lastdepth = 0;
 
-	while (!found) {
-		/* decide if left or right */
-		if (offset < curlen) {
-			/* left */
-			buddy_bitmap_set(head->bitmap, depth, n, false);
-			if (buddy_bitmap_get(head->bitmap, depth, n + 1) == 0) {
-				/* right is free, merge */
-				found = true;
-			} else {
-				/* right is not free, go up */
-				curlen >>= 1;
-				depth++;
-			}
-		} else {
-			/* right */
-			buddy_bitmap_set(head->bitmap, depth, n + 1, false);
-			if (buddy_bitmap_get(head->bitmap, depth, n) == 0) {
-				/* left is free, merge */
-				found = true;
-			} else {
-				/* left is not free, go up */
-				curlen >>= 1;
-				depth++;
-			}
+	while (buddy_bitmap_get(head->bitmap, depth, n)) {
+		lastn = n;
+		lastdepth = depth;
+
+		depth++;
+		n <<= 1;
+		curlen >>= 1;
+
+		if (offset >= curlen) {
+			offset -= curlen;
+			n++;
 		}
+	}
+
+	n = lastn;
+	depth = lastdepth;
+
+	/* mark the region as free */
+	buddy_bitmap_set(head->bitmap, depth, n, false);
+
+	/* merge with adjacent regions */
+	while (depth > 0 && !buddy_bitmap_get(head->bitmap, depth, n ^ 1)) {
+		n >>= 1;
+		depth--;
+
+		buddy_bitmap_set(head->bitmap, depth, n, false);
+	}
+
+	/* add the region to the free list */
+	struct buddy_free_list *flist = (struct buddy_free_list *)(buddy_get_slab(head, depth, n) | hhdm_start);
+	flist->len = head->usable_len >> depth;
+	flist->depth = depth;
+
+	flist->next = NULL;
+	flist->prev = NULL;
+
+	if (head->flist == NULL) {
+		head->flist = flist;
+	} else if (head->flist > flist) {
+		flist->next = head->flist;
+		head->flist->prev = flist;
+		head->flist = flist;
+	} else {
+		struct buddy_free_list *cur = head->flist;
+
+		while (cur != NULL) {
+			if(cur < flist && (cur->next > flist || cur->next == NULL)) {
+				flist->next = cur->next;
+				flist->prev = cur;
+				cur->next = flist;
+
+				if(cur->next != NULL)
+					cur->next->prev = flist;
+
+				goto while_out;
+			}
+			cur = cur->next;
+		}
+while_out:
 	}
 }
 
@@ -314,7 +355,7 @@ void mem_early_init(char *mem, size_t len)
 	struct mem_region *region = &regions[1];
 	struct mem_region_header *head = (void *)(region->base | hhdm_start);
 	paddr_t paddr = buddy_alloc(head, 0x1000);
-	paddr = buddy_alloc(head, 0x4000);
-	paddr = buddy_alloc(head, 0x4000);
+	buddy_free(head, paddr);
+	paddr = buddy_alloc(head, 0x1000);
 	paddr = buddy_alloc(head, 0x1000);
 }
