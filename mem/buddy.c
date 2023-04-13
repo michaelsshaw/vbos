@@ -74,9 +74,6 @@ void kmap(paddr_t paddr, uint64_t vaddr, size_t len, uint64_t attr)
 
 static void buddy_bitmap_set(char *bitmap, size_t depth, size_t n, bool b)
 {
-	if (n > depth)
-		printf(LOG_WARN "buddy_bitmap_set: n > depth, n=%d, depth=%d\n", n, depth);
-
 	size_t a = 1 << depth;
 	a -= 1;
 
@@ -93,9 +90,6 @@ static void buddy_bitmap_set(char *bitmap, size_t depth, size_t n, bool b)
 
 static uint8_t buddy_bitmap_get(char *bitmap, size_t depth, size_t n)
 {
-	if (n > depth)
-		printf(LOG_WARN "buddy_bitmap_get: n > depth, n=%d, depth=%d\n", n, depth);
-
 	size_t a = 1 << depth;
 	a -= 1;
 
@@ -194,7 +188,6 @@ paddr_t buddy_alloc(struct mem_region_header *head, size_t size)
 
 			buddy_bitmap_set(head->bitmap, flist->depth, n, true);
 
-			printf(LOG_INFO "buddy_alloc: allocated %xh bytes at paddr=%Xh\n", size, (uintptr_t)flist ^ hhdm_start);
 			return ((paddr_t)flist ^ hhdm_start);
 		} else {
 			flist = flist->next;
@@ -332,7 +325,6 @@ void mem_early_init(char *mem, size_t len)
 	 * tables that are allocated in the new regions.
 	 */
 	kmap(kpaddr, kvaddr, kernel_size, attrs.val);
-	kmap(0x0000, hhdm_start, 0x100000000, attrs.val);
 
 	/* Identity map the regions */
 	for (unsigned int i = 0; i < nregions; i++) {
