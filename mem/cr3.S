@@ -8,3 +8,23 @@ cr3_read:
 cr3_write:
 	movq %rdi, %cr3
 	ret
+
+.global rsp_read
+rsp_read:
+	movq %rsp, %rax
+	ret
+
+.global rbp_read
+rbp_read:
+	movq %rbp, %rax
+	ret
+
+.global rsp_write
+rsp_write:
+	movq %rdi, %rsp
+	ret
+
+.global rbp_write
+rbp_write:
+	movq %rdi, %rbp
+	ret

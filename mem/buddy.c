@@ -14,7 +14,10 @@ static char *kmem;
 static size_t kmem_len;
 static struct page *pml4 ALIGN(0x1000);
 
-void *alloc_page()
+struct mem_region *mem_regions;
+size_t num_regions;
+
+static void *alloc_page()
 {
 	static uintptr_t hwm = 0;
 	void *r = (void *)(hwm + kmem);
@@ -24,7 +27,7 @@ void *alloc_page()
 	return r;
 }
 
-uint64_t *next_level(uint64_t *this_level, size_t next_num)
+static uint64_t *next_level(uint64_t *this_level, size_t next_num)
 {
 	uint64_t *r;
 	if (!(this_level[next_num] & 1)) {
@@ -37,7 +40,7 @@ uint64_t *next_level(uint64_t *this_level, size_t next_num)
 	return r;
 }
 
-void kmap(paddr_t paddr, uint64_t vaddr, size_t len, uint64_t attr)
+static void kmap(paddr_t paddr, uint64_t vaddr, size_t len, uint64_t attr)
 {
 	uint64_t *pdpt;
 	uint64_t *pdt;
@@ -141,7 +144,7 @@ static paddr_t buddy_get_slab(struct mem_region_header *head, size_t depth, size
  * into two, then 4 bits representing that region split into 4, and so on, 
  * until a granularity of 4K is reached
  */
-paddr_t buddy_alloc(struct mem_region_header *head, size_t size)
+static paddr_t buddy_alloc_helper(struct mem_region_header *head, size_t size)
 {
 	if (npow2(size) != size) {
 		printf(LOG_WARN "buddy_alloc: size not a power of 2\n");
@@ -197,7 +200,7 @@ paddr_t buddy_alloc(struct mem_region_header *head, size_t size)
 	return 0;
 }
 
-void buddy_free(struct mem_region_header *head, paddr_t paddr)
+static void buddy_free_helper(struct mem_region_header *head, paddr_t paddr)
 {
 	/* find the region in the bitmap */
 	paddr_t offset = paddr - head->usable_base;
@@ -266,6 +269,36 @@ void buddy_free(struct mem_region_header *head, paddr_t paddr)
 				break;
 			}
 			cur = cur->next;
+		}
+	}
+}
+
+void *buddy_alloc(size_t size)
+{
+	if (size == 0)
+		return NULL;
+
+	for (size_t i = 0; i < num_regions; i++) {
+		struct mem_region_header *head = (void *)(mem_regions[num_regions - i - 1].base | hhdm_start);
+
+		paddr_t ret = buddy_alloc_helper(head, size);
+		if (ret != 0)
+			return (void *)(ret | hhdm_start);
+	}
+
+	return 0;
+}
+
+void buddy_free(void *ptr)
+{
+	paddr_t paddr = (paddr_t)ptr ^ hhdm_start;
+
+	for (size_t i = 0; i < num_regions; i++) {
+		struct mem_region_header *head = (void *)(mem_regions[num_regions - i - 1].base | hhdm_start);
+
+		if (paddr >= head->usable_base && paddr < (head->usable_base + head->usable_len)) {
+			buddy_free_helper(head, paddr);
+			return;
 		}
 	}
 }
@@ -342,5 +375,11 @@ void mem_early_init(char *mem, size_t len)
 		buddy_init_region(&regions[i]);
 	}
 
+	/* allocate space for permanent regions table and copy them */
+	struct mem_region_header *head = (struct mem_region_header *)(regions[0].base | hhdm_start);
+	mem_regions = (void *)(buddy_alloc_helper(head, 0x1000) | hhdm_start);
+	memcpy(mem_regions, regions, sizeof(struct mem_region) * nregions);
+
+	/* done */
 	printf(LOG_SUCCESS "Early memory map initialized\n");
 }

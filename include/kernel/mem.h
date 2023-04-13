@@ -81,9 +81,18 @@ extern uintptr_t data_end;
 extern uintptr_t bss_start;
 extern uintptr_t bss_end;
 
-int page_map(uintptr_t virt, uintptr_t phys);
+extern struct mem_region *regions;
+extern size_t num_regions;
+extern size_t max_regions;
+
 uint64_t cr3_read();
 void cr3_write(uint64_t cr3);
+uint64_t rbp_read();
+void rbp_write(uint64_t rbp);
+uint64_t rsp_read();
+void rsp_write(uint64_t rsp);
+void *buddy_alloc(size_t size);
+void buddy_free(void *paddr_hhdm);
 
 void mem_early_init(char *mem, size_t len);
 
