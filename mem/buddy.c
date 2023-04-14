@@ -1,5 +1,4 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
-#include "math.h"
 #include <limine/limine.h>
 
 #include <kernel/common.h>
@@ -12,7 +11,8 @@ struct limine_kernel_address_request kern_req = { .id = LIMINE_KERNEL_ADDRESS_RE
 
 static char *kmem;
 static size_t kmem_len;
-static struct page *pml4 ALIGN(0x1000);
+
+struct page *pml4 ALIGN(0x1000);
 
 struct mem_region *mem_regions;
 size_t num_regions;
@@ -51,11 +51,11 @@ static void buddy_init_region(struct mem_region *region)
 	/* 2 bits per page */
 	size_t bitmap_size_bytes = (region->len >> 14) + 1;
 
-	struct mem_region_header *head = (void *)(region->base | hhdm_start);
+	struct buddy_region_header *head = (void *)(region->base | hhdm_start);
 	memset(head->bitmap, 0, bitmap_size_bytes);
 
 	paddr_t usable_end = region->base + region->len;
-	paddr_t curpos = region->base + sizeof(struct mem_region_header) + bitmap_size_bytes;
+	paddr_t curpos = region->base + sizeof(struct buddy_region_header) + bitmap_size_bytes;
 	/* align to 4K */
 	curpos |= 0xFFF;
 	curpos += 1;
@@ -72,7 +72,7 @@ static void buddy_init_region(struct mem_region *region)
 	head->flist = flist;
 }
 
-static paddr_t buddy_get_slab(struct mem_region_header *head, size_t depth, size_t n)
+static paddr_t buddy_get_slab(struct buddy_region_header *head, size_t depth, size_t n)
 {
 	if (depth == 0) {
 		return head->usable_base;
@@ -81,12 +81,17 @@ static paddr_t buddy_get_slab(struct mem_region_header *head, size_t depth, size
 	return head->usable_base + (n * (head->usable_len >> depth));
 }
 
-/* This bitmap for this allocator is 2 bits per page. It begins with one bit 
- * representing the entire region, then 2 bits representing that region split 
- * into two, then 4 bits representing that region split into 4, and so on, 
- * until a granularity of 4K is reached
+/* The bitmap for this allocator is 2 bits per page within a region.
+ * It begins with one bit representing the entire region, then 2 bits 
+ * representing that region split into two, then 4 bits representing that region
+ * split into 4, and so on, until a granularity of 4K is reached
+ *
+ * Conceptually, the bitmap is a tree, where each node has two children, and is
+ * laid out flat in memory.
+ *
+ * The buddy allocator 
  */
-static paddr_t buddy_alloc_helper(struct mem_region_header *head, size_t size)
+static paddr_t buddy_alloc_helper(struct buddy_region_header *head, size_t size)
 {
 	if (npow2(size) != size) {
 		printf(LOG_WARN "buddy_alloc: size not a power of 2\n");
@@ -142,7 +147,7 @@ static paddr_t buddy_alloc_helper(struct mem_region_header *head, size_t size)
 	return 0;
 }
 
-static void buddy_free_helper(struct mem_region_header *head, paddr_t paddr)
+static void buddy_free_helper(struct buddy_region_header *head, paddr_t paddr)
 {
 	/* find the region in the bitmap */
 	paddr_t offset = paddr - head->usable_base;
@@ -221,7 +226,7 @@ void *buddy_alloc(size_t size)
 		return NULL;
 
 	for (size_t i = 0; i < num_regions; i++) {
-		struct mem_region_header *head = (void *)(mem_regions[num_regions - i - 1].base | hhdm_start);
+		struct buddy_region_header *head = (void *)(mem_regions[num_regions - i - 1].base | hhdm_start);
 
 		paddr_t ret = buddy_alloc_helper(head, size);
 		if (ret != 0)
@@ -236,7 +241,7 @@ void buddy_free(void *ptr)
 	paddr_t paddr = (paddr_t)ptr ^ hhdm_start;
 
 	for (size_t i = 0; i < num_regions; i++) {
-		struct mem_region_header *head = (void *)(mem_regions[num_regions - i - 1].base | hhdm_start);
+		struct buddy_region_header *head = (void *)(mem_regions[num_regions - i - 1].base | hhdm_start);
 
 		if (paddr >= head->usable_base && paddr < (head->usable_base + head->usable_len)) {
 			buddy_free_helper(head, paddr);
@@ -378,7 +383,7 @@ void mem_early_init(char *mem, size_t len)
 		buddy_init_region(&regions[i]);
 
 		if (!page_found) {
-			struct mem_region_header *head = (struct mem_region_header *)(regions[i].base | hhdm_start);
+			struct buddy_region_header *head = (struct buddy_region_header *)(regions[i].base | hhdm_start);
 			paddr_t r_alloc = buddy_alloc_helper(head, 0x1000);
 			if (r_alloc != 0) {
 				page_found = true;

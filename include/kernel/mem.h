@@ -52,7 +52,7 @@ struct mem_region {
 	size_t len;
 };
 
-struct mem_region_header {
+struct buddy_region_header {
 	paddr_t usable_base;
 	size_t usable_len;
 
