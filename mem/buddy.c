@@ -102,6 +102,11 @@ static paddr_t buddy_alloc_helper(struct buddy_region_header *head, size_t size)
 		printf(LOG_WARN "buddy_alloc: size not a power of 2\n");
 	}
 
+	if (size < 0x1000) {
+		printf(LOG_WARN "buddy_alloc: size too small\n");
+		return 0;
+	}
+
 	struct buddy_free_list *flist = head->flist;
 
 	while (flist != NULL) {
