@@ -89,7 +89,12 @@ static paddr_t buddy_get_slab(struct buddy_region_header *head, size_t depth, si
  * Conceptually, the bitmap is a tree, where each node has two children, and is
  * laid out flat in memory.
  *
- * The buddy allocator 
+ * The buddy allocator checks within a pre-defined power-of-2 region for a free
+ * region of the requested size. If the region is the correct size, it allocates
+ * it, and if it finds one that is too small, it skips it. If the region found 
+ * is too large, instead of skipping to the next, the allocator splits the 
+ * region in half recursively until it is of the correct size, and marks the 
+ * bitmap accordingly. 
  */
 static paddr_t buddy_alloc_helper(struct buddy_region_header *head, size_t size)
 {
