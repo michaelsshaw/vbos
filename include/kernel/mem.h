@@ -4,8 +4,6 @@
 
 #include <kernel/common.h>
 
-#define HHDM_START 0xffffffff80000000
-
 #define PAGE_XD (1 << 64)
 #define PAGE_PRESENT (1 << 0)
 #define PAGE_RW (1 << 1)
@@ -84,6 +82,8 @@ extern uintptr_t bss_end;
 extern struct mem_region *regions;
 extern size_t num_regions;
 extern size_t max_regions;
+
+extern struct page *pml4;
 
 uint64_t cr3_read();
 void cr3_write(uint64_t cr3);
