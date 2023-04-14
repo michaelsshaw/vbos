@@ -16,7 +16,7 @@ define DEFAULT_VAR =
 endef
 
 # User controllable CFLAGS.
-CFLAGS ?= -g -O2 -pipe -Wall -Wextra
+CFLAGS ?= -g -O0 -pipe -Wall -Wextra
 
 # User controllable linker flags. We set none by default.
 LDFLAGS ?=

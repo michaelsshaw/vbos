@@ -17,64 +17,6 @@ static struct page *pml4 ALIGN(0x1000);
 struct mem_region *mem_regions;
 size_t num_regions;
 
-static void *alloc_page()
-{
-	static uintptr_t hwm = 0;
-	void *r = (void *)(hwm + kmem);
-	if (hwm >= kmem_len)
-		printf(LOG_ERROR "Out of early kmem\n");
-	hwm += 0x1000;
-	return r;
-}
-
-static uint64_t *next_level(uint64_t *this_level, size_t next_num)
-{
-	uint64_t *r;
-	if (!(this_level[next_num] & 1)) {
-		r = alloc_page();
-		memset(r, 0, 4096);
-		this_level[next_num] = ((uintptr_t)r | 3) - hhdm_start;
-	} else {
-		r = (void *)(this_level[next_num] & -4096ull);
-	}
-	return r;
-}
-
-static void kmap(paddr_t paddr, uint64_t vaddr, size_t len, uint64_t attr)
-{
-	uint64_t *pdpt;
-	uint64_t *pdt;
-	uint64_t *pt;
-
-	size_t pdpn;
-	size_t pdn;
-	size_t ptn;
-	size_t pn;
-
-	if (pml4 == NULL) {
-		pml4 = alloc_page();
-		memset(pml4, 0, 0x1000);
-	}
-
-	len += paddr & 4095;
-	paddr &= -4096ull;
-	vaddr &= -4096ull;
-
-	len = (len + 4095) & -4096ull;
-
-	for (; len; len -= 4096, vaddr += 4096, paddr += 4096) {
-		pn = (vaddr >> 12) & 0x1FF;
-		ptn = (vaddr >> 21) & 0x1FF;
-		pdn = (vaddr >> 30) & 0x1FF;
-		pdpn = (vaddr >> 39) & 0x1FF;
-
-		pdpt = next_level((uint64_t *)pml4, pdpn);
-		pdt = next_level(pdpt, pdn);
-		pt = next_level(pdt, ptn);
-		pt[pn] = paddr | attr;
-	}
-}
-
 static void buddy_bitmap_set(char *bitmap, size_t depth, size_t n, bool b)
 {
 	size_t a = 1 << depth;
@@ -286,7 +228,7 @@ void *buddy_alloc(size_t size)
 			return (void *)(ret | hhdm_start);
 	}
 
-	return 0;
+	return NULL;
 }
 
 void buddy_free(void *ptr)
@@ -300,6 +242,64 @@ void buddy_free(void *ptr)
 			buddy_free_helper(head, paddr);
 			return;
 		}
+	}
+}
+
+static void *alloc_page_early()
+{
+	static uintptr_t hwm = 0;
+	void *r = (void *)(hwm + kmem);
+	if (hwm >= kmem_len)
+		printf(LOG_ERROR "Out of early kmem\n");
+	hwm += 0x1000;
+	return r;
+}
+
+static uint64_t *next_level(uint64_t *this_level, size_t next_num)
+{
+	uint64_t *r;
+	if (!(this_level[next_num] & 1)) {
+		r = alloc_page_early();
+		memset(r, 0, 4096);
+		this_level[next_num] = ((uintptr_t)r | 3) - hhdm_start;
+	} else {
+		r = (void *)(this_level[next_num] & -4096ull);
+	}
+	return r;
+}
+
+static void kmap_early(paddr_t paddr, uint64_t vaddr, size_t len, uint64_t attr)
+{
+	uint64_t *pdpt;
+	uint64_t *pdt;
+	uint64_t *pt;
+
+	size_t pdpn;
+	size_t pdn;
+	size_t ptn;
+	size_t pn;
+
+	if (pml4 == NULL) {
+		pml4 = alloc_page_early();
+		memset(pml4, 0, 0x1000);
+	}
+
+	len += paddr & 4095;
+	paddr &= -4096ull;
+	vaddr &= -4096ull;
+
+	len = (len + 4095) & -4096ull;
+
+	for (; len; len -= 4096, vaddr += 4096, paddr += 4096) {
+		pn = (vaddr >> 12) & 0x1FF;
+		ptn = (vaddr >> 21) & 0x1FF;
+		pdn = (vaddr >> 30) & 0x1FF;
+		pdpn = (vaddr >> 39) & 0x1FF;
+
+		pdpt = next_level((uint64_t *)pml4, pdpn);
+		pdt = next_level(pdpt, pdn);
+		pt = next_level(pdt, ptn);
+		pt[pn] = paddr | attr;
 	}
 }
 
@@ -357,11 +357,11 @@ void mem_early_init(char *mem, size_t len)
 	 * parsed from the bootloader, at which point we will switch to page 
 	 * tables that are allocated in the new regions.
 	 */
-	kmap(kpaddr, kvaddr, kernel_size, attrs.val);
+	kmap_early(kpaddr, kvaddr, kernel_size, attrs.val);
 
 	/* Identity map the regions */
 	for (unsigned int i = 0; i < nregions; i++) {
-		kmap(regions[i].base, regions[i].base | hhdm_start, regions[i].len, attrs.val);
+		kmap_early(regions[i].base, regions[i].base | hhdm_start, regions[i].len, attrs.val);
 	}
 
 	/* Switch to the temporary page tables */
@@ -370,14 +370,25 @@ void mem_early_init(char *mem, size_t len)
 	struct cr3 cr3 = { .pml4_addr = pml4_paddr >> 12 };
 	cr3_write(cr3.val);
 
-	/* Initialize the new regions */
+	/* Initialize the new regions and allocate space for the permanent 
+	 * regions table
+	 */
+	bool page_found = false;
 	for (unsigned int i = 0; i < nregions; i++) {
 		buddy_init_region(&regions[i]);
+
+		if (!page_found) {
+			struct mem_region_header *head = (struct mem_region_header *)(regions[i].base | hhdm_start);
+			paddr_t r_alloc = buddy_alloc_helper(head, 0x1000);
+			if (r_alloc != 0) {
+				page_found = true;
+				mem_regions = (void *)(r_alloc | hhdm_start);
+			}
+		}
 	}
 
-	/* allocate space for permanent regions table and copy them */
-	struct mem_region_header *head = (struct mem_region_header *)(regions[0].base | hhdm_start);
-	mem_regions = (void *)(buddy_alloc_helper(head, 0x1000) | hhdm_start);
+	/* copy the regions to the permanent regions table */
+	num_regions = nregions;
 	memcpy(mem_regions, regions, sizeof(struct mem_region) * nregions);
 
 	/* done */
