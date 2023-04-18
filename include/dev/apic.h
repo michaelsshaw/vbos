@@ -34,7 +34,6 @@
 #define LAPIC_LVT_ERR 0x370
 #define LAPIC_INIT_COUNT 0x380
 #define LAPIC_CUR_COUNT 0x390
-/* SPDX-License-Identifier: GPL-2.0-only */
 #define LAPIC_DIVIDE_CONFIG 0x3E0
 
 #ifndef __ASM__
