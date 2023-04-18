@@ -81,21 +81,14 @@ static paddr_t buddy_get_slab(struct buddy_region_header *head, size_t depth, si
 	return head->usable_base + (n * (head->usable_len >> depth));
 }
 
-/* The bitmap for this allocator is 2 bits per page within a region.
- * It begins with one bit representing the entire region, then 2 bits 
- * representing that region split into two, then 4 bits representing that region
- * split into 4, and so on, until a granularity of 4K is reached
- *
- * Conceptually, the bitmap is a tree, where each node has two children, and is
- * laid out flat in memory.
- *
- * The buddy allocator checks within a pre-defined power-of-2 region for a free
+/* The buddy allocator checks within a pre-defined power-of-2 free-list for a
  * region of the requested size. If the region is the correct size, it allocates
  * it, and if it finds one that is too small, it skips it. If the region found 
  * is too large, instead of skipping to the next, the allocator splits the 
  * region in half recursively until it is of the correct size, and marks the 
  * bitmap accordingly. 
  */
+
 static paddr_t buddy_alloc_helper(struct buddy_region_header *head, size_t size)
 {
 	if (npow2(size) != size) {
@@ -157,6 +150,23 @@ static paddr_t buddy_alloc_helper(struct buddy_region_header *head, size_t size)
 	return 0;
 }
 
+
+/* The free function uses the bitmap to determine the size of the region that
+ * is going to be freed, and then merges it with its buddy if it is free. For
+ * all other operations, the freelist is used instead of the bitmap
+ *
+ * The bitmap for this allocator is 2 bits per page within a region.
+ * It begins with one bit representing the entire region, then 2 bits 
+ * representing that region split into two, then 4 bits representing that region
+ * split into 4, and so on, until a granularity of 4K is reached
+ *
+ * Conceptually, the bitmap is a tree, where each node has two children, and is
+ * laid out flat in memory.
+ *
+ * After marking the bitmap and coalescing the regions, the free function
+ * searches the free-list for the correct position to insert the region, and
+ * inserts it.
+ */
 static void buddy_free_helper(struct buddy_region_header *head, paddr_t paddr)
 {
 	/* find the region in the bitmap */
@@ -235,6 +245,7 @@ void *buddy_alloc(size_t size)
 	if (size == 0)
 		return NULL;
 
+	/* Linear search because array is small */
 	for (size_t i = 0; i < num_regions; i++) {
 		struct buddy_region_header *head = (void *)(mem_regions[num_regions - i - 1].base | hhdm_start);
 
@@ -248,8 +259,12 @@ void *buddy_alloc(size_t size)
 
 void buddy_free(void *ptr)
 {
+	if (ptr == NULL)
+		return;
+
 	paddr_t paddr = (paddr_t)ptr ^ hhdm_start;
 
+	/* Linear search because array is small */
 	for (size_t i = 0; i < num_regions; i++) {
 		struct buddy_region_header *head = (void *)(mem_regions[num_regions - i - 1].base | hhdm_start);
 
