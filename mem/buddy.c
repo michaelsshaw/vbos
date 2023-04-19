@@ -17,6 +17,8 @@ struct page *pml4 ALIGN(0x1000);
 struct mem_region *mem_regions;
 size_t num_regions;
 
+bool mem_initialized = false;
+
 static void buddy_bitmap_set(char *bitmap, size_t depth, size_t n, bool b)
 {
 	size_t a = 1 << depth;
@@ -150,7 +152,6 @@ static paddr_t buddy_alloc_helper(struct buddy_region_header *head, size_t size)
 	return 0;
 }
 
-
 /* The free function uses the bitmap to determine the size of the region that
  * is going to be freed, and then merges it with its buddy if it is free. For
  * all other operations, the freelist is used instead of the bitmap
@@ -277,12 +278,16 @@ void buddy_free(void *ptr)
 
 static void *alloc_page_early()
 {
-	static uintptr_t hwm = 0;
-	void *r = (void *)(hwm + kmem);
-	if (hwm >= kmem_len)
-		printf(LOG_ERROR "Out of early kmem\n");
-	hwm += 0x1000;
-	return r;
+	if (mem_initialized) {
+		return buddy_alloc(0x1000);
+	} else {
+		static uintptr_t hwm = 0;
+		void *r = (void *)(hwm + kmem);
+		if (hwm >= kmem_len)
+			printf(LOG_ERROR "Out of early kmem\n");
+		hwm += 0x1000;
+		return r;
+	}
 }
 
 static uint64_t *next_level(uint64_t *this_level, size_t next_num)
@@ -293,7 +298,7 @@ static uint64_t *next_level(uint64_t *this_level, size_t next_num)
 		memset(r, 0, 4096);
 		this_level[next_num] = ((uintptr_t)r | 3) - hhdm_start;
 	} else {
-		r = (void *)(this_level[next_num] & -4096ull);
+		r = (void *)((this_level[next_num] & -4096ull) | hhdm_start);
 	}
 	return r;
 }
@@ -420,6 +425,23 @@ void mem_early_init(char *mem, size_t len)
 	/* copy the regions to the permanent regions table */
 	num_regions = nregions;
 	memcpy(mem_regions, regions, sizeof(struct mem_region) * nregions);
+
+	/* initialize and populate the new permanent kernel page tables 
+	 *
+	 * yes, this does involve repeating code
+	 */
+	mem_initialized = true;
+	pml4 = NULL;
+
+	kmap_early(kpaddr, kvaddr, kernel_size, attrs.val);
+	for (unsigned int i = 0; i < nregions; i++) {
+		kmap_early(regions[i].base, regions[i].base | hhdm_start, regions[i].len, attrs.val);
+	}
+
+	pml4_paddr = (uintptr_t)pml4;
+	pml4_paddr ^= hhdm_start;
+	cr3.pml4_addr = pml4_paddr >> 12;
+	cr3_write(cr3.val);
 
 	/* done */
 	printf(LOG_SUCCESS "Early memory map initialized\n");
