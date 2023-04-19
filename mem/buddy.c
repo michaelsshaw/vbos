@@ -4,15 +4,13 @@
 #include <kernel/common.h>
 #include <kernel/mem.h>
 
-#include <dev/apic.h>
-
 struct limine_memmap_request map_req = { .id = LIMINE_MEMMAP_REQUEST, .revision = 0 };
 struct limine_kernel_address_request kern_req = { .id = LIMINE_KERNEL_ADDRESS_REQUEST, .revision = 0 };
 
 static char *kmem;
 static size_t kmem_len;
 
-struct page *pml4 ALIGN(0x1000);
+struct page *pml4; 
 
 struct mem_region *mem_regions;
 size_t num_regions;
