@@ -93,6 +93,7 @@ uint64_t rsp_read();
 void rsp_write(uint64_t rsp);
 void *buddy_alloc(size_t size);
 void buddy_free(void *paddr_hhdm);
+void kmap(paddr_t paddr, uint64_t vaddr, size_t len, uint64_t attr);
 
 void mem_early_init(char *mem, size_t len);
 

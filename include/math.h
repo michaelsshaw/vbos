@@ -11,4 +11,16 @@ void bitmap_set(char *bitmap, size_t n);
 void bitmap_clear(char *bitmap, size_t n);
 uint8_t bitmap_get(char *bitmap, size_t n);
 
+#define MIN(a, b) ({ \
+    typeof(a) _a = (a); \
+    typeof(b) _b = (b); \
+    _a < _b ? _a : _b; \
+})
+
+#define MAX(a, b) ({ \
+    typeof(a) _a = (a); \
+    typeof(b) _b = (b); \
+    _a > _b ? _a : _b; \
+})
+
 #endif /* _MATH_H_ */
