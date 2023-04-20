@@ -10,12 +10,12 @@ struct limine_kernel_address_request kern_req = { .id = LIMINE_KERNEL_ADDRESS_RE
 static char *kmem;
 static size_t kmem_len;
 
-struct page *pml4; 
+struct page *pml4;
 
 struct mem_region *mem_regions;
 size_t num_regions;
 
-bool mem_initialized = false;
+static void *(*alloc_page)(void);
 
 static void buddy_bitmap_set(char *bitmap, size_t depth, size_t n, bool b)
 {
@@ -274,18 +274,19 @@ void buddy_free(void *ptr)
 	}
 }
 
+static void *buddy_alloc_page()
+{
+	return buddy_alloc(0x1000);
+}
+
 static void *alloc_page_early()
 {
-	if (mem_initialized) {
-		return buddy_alloc(0x1000);
-	} else {
-		static uintptr_t hwm = 0;
-		void *r = (void *)(hwm + kmem);
-		if (hwm >= kmem_len)
-			printf(LOG_ERROR "Out of early kmem\n");
-		hwm += 0x1000;
-		return r;
-	}
+	static uintptr_t hwm = 0;
+	void *r = (void *)(hwm + kmem);
+	if (hwm >= kmem_len)
+		printf(LOG_ERROR "Out of early kmem\n");
+	hwm += 0x1000;
+	return r;
 }
 
 static uint64_t *next_level(uint64_t *this_level, size_t next_num)
@@ -301,7 +302,7 @@ static uint64_t *next_level(uint64_t *this_level, size_t next_num)
 	return r;
 }
 
-static void kmap_early(paddr_t paddr, uint64_t vaddr, size_t len, uint64_t attr)
+void kmap(paddr_t paddr, uint64_t vaddr, size_t len, uint64_t attr)
 {
 	uint64_t *pdpt;
 	uint64_t *pdt;
@@ -313,7 +314,7 @@ static void kmap_early(paddr_t paddr, uint64_t vaddr, size_t len, uint64_t attr)
 	size_t pn;
 
 	if (pml4 == NULL) {
-		pml4 = alloc_page_early();
+		pml4 = alloc_page();
 		memset(pml4, 0, 0x1000);
 	}
 
@@ -338,6 +339,8 @@ static void kmap_early(paddr_t paddr, uint64_t vaddr, size_t len, uint64_t attr)
 
 void mem_early_init(char *mem, size_t len)
 {
+	alloc_page = alloc_page_early;
+
 	kmem = mem;
 	kmem_len = len;
 
@@ -390,11 +393,11 @@ void mem_early_init(char *mem, size_t len)
 	 * parsed from the bootloader, at which point we will switch to page 
 	 * tables that are allocated in the new regions.
 	 */
-	kmap_early(kpaddr, kvaddr, kernel_size, attrs.val);
+	kmap(kpaddr, kvaddr, kernel_size, attrs.val);
 
 	/* Identity map the regions */
 	for (unsigned int i = 0; i < nregions; i++) {
-		kmap_early(regions[i].base, regions[i].base | hhdm_start, regions[i].len, attrs.val);
+		kmap(regions[i].base, regions[i].base | hhdm_start, regions[i].len, attrs.val);
 	}
 
 	/* Switch to the temporary page tables */
@@ -428,12 +431,12 @@ void mem_early_init(char *mem, size_t len)
 	 *
 	 * yes, this does involve repeating code
 	 */
-	mem_initialized = true;
+	alloc_page = buddy_alloc_page;
 	pml4 = NULL;
 
-	kmap_early(kpaddr, kvaddr, kernel_size, attrs.val);
+	kmap(kpaddr, kvaddr, kernel_size, attrs.val);
 	for (unsigned int i = 0; i < nregions; i++) {
-		kmap_early(regions[i].base, regions[i].base | hhdm_start, regions[i].len, attrs.val);
+		kmap(regions[i].base, regions[i].base | hhdm_start, regions[i].len, attrs.val);
 	}
 
 	pml4_paddr = (uintptr_t)pml4;
