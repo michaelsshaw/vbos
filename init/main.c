@@ -27,6 +27,19 @@ static void done(void)
 	}
 }
 
+static inline void _pic_init()
+{
+	cli();
+	pic_mask(4, 0);
+	pic_init();
+	sti();
+	console_resize();
+
+	while (!console_ready())
+		;
+	iowait();
+}
+
 void kmain(void)
 {
 	hhdm_start = hhdm_req.response->offset;
@@ -46,15 +59,7 @@ void kmain(void)
 	mem_early_init(kmem, one_gb);
 	kmalloc_init();
 
-	cli();
-	pic_mask(4, 0);
-	pic_init();
-	sti();
-	console_resize();
-
-	while (!console_ready())
-		;
-	iowait();
+	_pic_init();
 
 	printf("\n# ");
 
