@@ -3,7 +3,7 @@
 #include <kernel/mem.h>
 #include <kernel/slab.h>
 
-#define SLAB_MIN_COUNT 16
+#define SLAB_MIN_COUNT 64
 
 size_t slab_sizes[] = { 16, 32, 64, 128, 256, 512, 1024, 2048 };
 struct slab *slab_cache[ARRAY_SIZE(slab_sizes)];
