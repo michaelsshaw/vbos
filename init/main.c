@@ -4,6 +4,7 @@
 #include <kernel/gdt.h>
 #include <kernel/idt.h>
 #include <kernel/mem.h>
+#include <kernel/slab.h>
 #include <kernel/pio.h>
 
 #include <dev/pic.h>
@@ -43,6 +44,7 @@ void kmain(void)
 	const uintptr_t one_gb = 0x40000000;
 	char kmem[one_gb] ALIGN(0x1000);
 	mem_early_init(kmem, one_gb);
+	kmalloc_init();
 
 	cli();
 	pic_mask(4, 0);

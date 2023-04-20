@@ -13,8 +13,19 @@ struct slab {
 	struct slab *next;
 };
 
+struct kmap_entry {
+	uintptr_t *ptr;
+	size_t size;
+	struct slab *slab;
+	struct kmap_entry *next;
+};
+
 struct slab *slab_create(size_t size);
 void *slab_alloc(struct slab *slab);
 void slab_free(struct slab *slab, void *ptr);
+
+void kmalloc_init();
+void *kmalloc(size_t size);
+void kfree(void *ptr);
 
 #endif /* _SLAB_H_ */
