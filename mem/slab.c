@@ -11,7 +11,7 @@ struct slab *slab_cache[ARRAY_SIZE(slab_sizes)];
 struct slab *kmap_slab = NULL;
 struct kmap_entry *kmem_map = NULL;
 
-void slab_range(struct slab *slab, uintptr_t *o_start, uintptr_t *o_end)
+static inline void slab_range(struct slab *slab, uintptr_t *o_start, uintptr_t *o_end)
 {
 	uintptr_t sslab = (uintptr_t)slab;
 	sslab = (sslab | 7) + 1;
