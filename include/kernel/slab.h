@@ -11,6 +11,7 @@ struct slab {
 	size_t free; /* number of free objects */
 	uintptr_t *nextfree;
 	struct slab *next;
+	struct slab *prev;
 };
 
 struct kmap_entry {

@@ -38,6 +38,9 @@ struct slab *slab_create(size_t size)
 
 	ret->nextfree = (uintptr_t *)((uintptr_t)ret + start);
 	ret->size = size;
+	ret->num = (asize - start) / size;
+	ret->next = NULL;
+	ret->prev = NULL;
 
 	uintptr_t *ptr = ret->nextfree;
 	while (ptr != NULL) {
@@ -61,6 +64,7 @@ void *slab_alloc(struct slab *slab)
 	if (slab->nextfree == NULL) {
 		if (slab->next == NULL) {
 			slab->next = slab_create(slab->size);
+			slab->next->prev = slab;
 			if (slab->next == NULL)
 				return NULL;
 		}
@@ -81,17 +85,32 @@ void slab_free(struct slab *slab, void *ptr)
 	if (ptr == NULL)
 		return;
 
-	uintptr_t low;
-	uintptr_t high;
-	slab_range(slab, &low, &high);
+	uintptr_t low = 0;
+	uintptr_t high = 0;
 
-	if ((uintptr_t)ptr < low || (uintptr_t)ptr > high) {
-		slab_free(slab->next, ptr);
-		return;
+	slab_range(slab, &low, &high);
+	while ((uintptr_t)ptr < low || (uintptr_t)ptr > high) {
+		slab_range(slab, &low, &high);
+		slab = slab->next;
+		if (slab == NULL)
+			return;
 	}
 
 	*(uintptr_t *)ptr = (uintptr_t)slab->nextfree;
 	slab->nextfree = ptr;
+	slab->free++;
+
+	/* delete the slab if it's empty and not a root slab */
+	if (slab->free == slab->num && slab->prev != NULL) {
+		struct slab *next = slab->next;
+		struct slab *prev = slab->prev;
+
+		prev->next = next;
+		if (next != NULL)
+			next->prev = prev;
+
+		buddy_free(slab);
+	}
 }
 
 void kmalloc_init()
