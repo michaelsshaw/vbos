@@ -28,3 +28,9 @@ rsp_write:
 rbp_write:
 	movq %rdi, %rbp
 	ret
+
+.global stack_init
+stack_init:
+	movq %rdi, %rsp
+	movq %rsi, %rbp
+	call yield

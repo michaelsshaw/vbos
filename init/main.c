@@ -13,6 +13,10 @@
 
 #include <limine/limine.h>
 
+#define KSTACK_SIZE 0x4000
+
+void stack_init(uintptr_t rsp, uintptr_t rbp);
+
 struct limine_hhdm_request hhdm_req = { .id = LIMINE_HHDM_REQUEST, .revision = 0 };
 
 uintptr_t hhdm_start;
@@ -20,7 +24,7 @@ uintptr_t data_end;
 uintptr_t bss_start;
 uintptr_t bss_end;
 
-static void done(void)
+void yield()
 {
 	for (;;) {
 		__asm__("hlt");
@@ -63,5 +67,7 @@ void kmain(void)
 
 	printf("\n# ");
 
-	done();
+	void *kstack = kmalloc(KSTACK_SIZE);
+	uintptr_t ptr = (uintptr_t)kstack + KSTACK_SIZE - 8;
+	stack_init(ptr, ptr);
 }
