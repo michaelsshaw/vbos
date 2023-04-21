@@ -108,7 +108,7 @@ static paddr_t buddy_alloc_helper(struct buddy_region_header *head, size_t size)
 			struct buddy_free_list *new = (struct buddy_free_list *)((uintptr_t)flist + flist->len / 2);
 			new->next = flist->next;
 			new->prev = flist;
-			new->len = flist->len >> 1;
+			new->len = MAX(flist->len >> 1, 0x1000ull);
 			new->depth = flist->depth + 1;
 
 			if (new->next != NULL)

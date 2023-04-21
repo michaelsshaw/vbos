@@ -4,6 +4,7 @@
 #include <kernel/slab.h>
 
 #define SLAB_MIN_COUNT 64
+#define SLAB_ALIGN 7
 
 size_t slab_sizes[] = { 16, 32, 64, 128, 256, 512, 1024, 2048 };
 struct slab *slab_cache[ARRAY_SIZE(slab_sizes)];
@@ -14,7 +15,7 @@ struct kmap_entry *kmem_map = NULL;
 static inline void slab_range(struct slab *slab, uintptr_t *o_start, uintptr_t *o_end)
 {
 	uintptr_t sslab = (uintptr_t)slab;
-	sslab = (sslab | 7) + 1;
+	sslab = (sslab | SLAB_ALIGN) + 1;
 
 	*o_start = sslab;
 	*o_end = sslab + (slab->size * slab->num);
@@ -34,24 +35,25 @@ struct slab *slab_create(size_t size)
 		return NULL;
 
 	/* slab area start position */
-	size_t start = (sizeof(struct slab) | 7) + 1;
 
-	ret->nextfree = (uintptr_t *)((uintptr_t)ret + start);
+	uintptr_t aret = (uintptr_t)ret;
+	uintptr_t start = (uintptr_t)ret + sizeof(struct slab);
+
+	start |= SLAB_ALIGN;
+	start += 1;
+
+	ret->num = (((aret + asize) - start) / size);
 	ret->size = size;
-	ret->num = (asize - start) / size;
 	ret->next = NULL;
 	ret->prev = NULL;
+	ret->nextfree = (uintptr_t *)start;
+	ret->free = ret->num;
 
-	uintptr_t *ptr = ret->nextfree;
-	while (ptr != NULL) {
-		if (ptr > (uintptr_t *)((uintptr_t)ret + asize - size)) {
-			*ptr = (uintptr_t)NULL;
-			ptr = NULL;
-		} else {
-			*ptr = (uintptr_t)ptr + size;
-			ptr = (uintptr_t *)*ptr;
-		}
+	for(size_t i = 0; i < ret->num - 1; i++) {
+		*(uintptr_t *)(start + (i * size)) = start + ((i + 1) * size);
 	}
+	*(uintptr_t *)(start + ((ret->num - 1) * size)) = 0;
+
 
 	return ret;
 }
