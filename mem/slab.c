@@ -3,8 +3,9 @@
 #include <kernel/mem.h>
 #include <kernel/slab.h>
 
-#define SLAB_MIN_COUNT 64
-#define SLAB_ALIGN 7
+#define SLAB_MIN_COUNT 256
+#define SLAB_MIN_SIZE 0x10000ull /* 64 KiB */
+#define SLAB_ALIGN 7 /* 8 byte alignment */
 
 size_t slab_sizes[] = { 16, 32, 64, 128, 256, 512, 1024, 2048 };
 struct slab *slab_cache[ARRAY_SIZE(slab_sizes)];
@@ -28,7 +29,7 @@ struct slab *slab_create(size_t size)
 
 	/* account for slab header and eight bytes of alignment */
 	size_t est = npow2(size * SLAB_MIN_COUNT + sizeof(struct slab) + 8);
-	size_t asize = MAX(est, 0x1000ull);
+	size_t asize = MAX(est, SLAB_MIN_SIZE);
 
 	struct slab *ret = buddy_alloc(asize);
 	if (ret == NULL)
@@ -49,11 +50,10 @@ struct slab *slab_create(size_t size)
 	ret->nextfree = (uintptr_t *)start;
 	ret->free = ret->num;
 
-	for(size_t i = 0; i < ret->num - 1; i++) {
+	for (size_t i = 0; i < ret->num - 1; i++) {
 		*(uintptr_t *)(start + (i * size)) = start + ((i + 1) * size);
 	}
 	*(uintptr_t *)(start + ((ret->num - 1) * size)) = 0;
-
 
 	return ret;
 }
