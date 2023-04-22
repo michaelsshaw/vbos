@@ -49,7 +49,7 @@ static uint8_t buddy_bitmap_get(char *bitmap, size_t depth, size_t n)
 static void buddy_init_region(struct mem_region *region)
 {
 	/* 2 bits per page */
-	if(!region->usable)
+	if (!region->usable)
 		return;
 
 	size_t bitmap_size_bytes = (region->len >> 14) + 1;
@@ -346,57 +346,63 @@ void kmap(paddr_t paddr, uint64_t vaddr, size_t len, uint64_t attr)
 	}
 }
 
-void mem_early_init(char *mem, size_t len)
+static size_t limine_parse_memregions()
 {
-	alloc_page = alloc_page_early;
-
-	kmem = mem;
-	kmem_len = len;
-
-	size_t kernel_size = 0;
-
+	size_t ret;
 	bool last_usable = false;
-	struct mem_region regions[64];
-	size_t nregions = 0;
-
-	/* Parse limine physical memory map and build a list of usable regions */
 	struct limine_memmap_response *res = map_req.response;
+
 	for (unsigned int i = 0; i < res->entry_count; i++) {
 		struct limine_memmap_entry *entry = res->entries[i];
 
 		switch (entry->type) {
 		case LIMINE_MEMMAP_KERNEL_AND_MODULES:
-			kernel_size = entry->length;
+			ret = entry->length;
 			last_usable = false;
 			break;
 		case LIMINE_MEMMAP_USABLE:
 		case LIMINE_MEMMAP_ACPI_RECLAIMABLE:
 		case LIMINE_MEMMAP_BOOTLOADER_RECLAIMABLE:
 			if (last_usable) {
-				regions[nregions - 1].len += entry->length;
+				mem_regions[num_regions - 1].len += entry->length;
 			} else {
-				regions[nregions].base = entry->base;
-				regions[nregions].len = entry->length;
-				regions[nregions].usable = (entry->type != LIMINE_MEMMAP_KERNEL_AND_MODULES);
-				nregions++;
+				mem_regions[num_regions].base = entry->base;
+				mem_regions[num_regions].len = entry->length;
+				mem_regions[num_regions].usable = (entry->type != LIMINE_MEMMAP_KERNEL_AND_MODULES);
+				num_regions++;
 			}
 
 			last_usable = true;
 			break;
 		default:
 			if (!last_usable) {
-				regions[nregions - 1].len += entry->length;
+				mem_regions[num_regions - 1].len += entry->length;
 			} else {
-				regions[nregions].base = entry->base;
-				regions[nregions].len = entry->length;
-				regions[nregions].usable = false;
-				nregions++;
+				mem_regions[num_regions].base = entry->base;
+				mem_regions[num_regions].len = entry->length;
+				mem_regions[num_regions].usable = false;
+				num_regions++;
 			}
 
 			last_usable = false;
 			break;
 		}
 	}
+
+	return ret;
+}
+
+void mem_early_init(char *mem, size_t len)
+{
+	alloc_page = alloc_page_early;
+	kmem = mem;
+	kmem_len = len;
+
+	struct mem_region regions[64];
+	mem_regions = regions;
+
+	/* Parse limine physical memory map and build a list of usable regions */
+	size_t kernel_size = limine_parse_memregions();
 
 	uint64_t kpaddr = kern_req.response->physical_base;
 	uint64_t kvaddr = kern_req.response->virtual_base;
@@ -415,7 +421,7 @@ void mem_early_init(char *mem, size_t len)
 	kmap(kpaddr, kvaddr, kernel_size, attrs.val);
 
 	/* Identity map the regions */
-	for (unsigned int i = 0; i < nregions; i++) {
+	for (unsigned int i = 0; i < num_regions; i++) {
 		kmap(regions[i].base, regions[i].base | hhdm_start, regions[i].len, attrs.val);
 	}
 
@@ -429,9 +435,10 @@ void mem_early_init(char *mem, size_t len)
 	 * regions table
 	 */
 	bool page_found = false;
-	for (unsigned int i = 0; i < nregions; i++) {
-		if(!regions[i].usable)
+	for (unsigned int i = 0; i < num_regions; i++) {
+		if (!regions[i].usable)
 			continue;
+
 		buddy_init_region(&regions[i]);
 
 		if (!page_found) {
@@ -445,21 +452,17 @@ void mem_early_init(char *mem, size_t len)
 	}
 
 	/* copy the regions to the permanent regions table */
-	num_regions = nregions;
-	memcpy(mem_regions, regions, sizeof(struct mem_region) * nregions);
+	memcpy(mem_regions, regions, sizeof(struct mem_region) * num_regions);
 
-	/* initialize and populate the new permanent kernel page tables 
-	 *
-	 * yes, this does involve repeating code
-	 */
+	/* initialize and populate the new permanent kernel page tables */
 	alloc_page = buddy_alloc_page;
 	pml4 = NULL;
 
+	struct mem_region lastregion = mem_regions[num_regions - 1];
 	kmap(kpaddr, kvaddr, kernel_size, attrs.val);
-	kmap(0, hhdm_start, 0x100000, attrs.val);
-	for (unsigned int i = 0; i < nregions; i++) {
-		kmap(regions[i].base, regions[i].base | hhdm_start, regions[i].len, attrs.val);
-	}
+
+	/* identity map the entire physical address space */
+	kmap(0, hhdm_start, lastregion.base + lastregion.len, attrs.val);
 
 	pml4_paddr = (uintptr_t)pml4;
 	pml4_paddr ^= hhdm_start;
