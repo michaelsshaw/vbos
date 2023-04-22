@@ -302,7 +302,7 @@ static uint64_t *next_level(uint64_t *this_level, size_t next_num)
 {
 	uint64_t *r;
 	if (!(this_level[next_num] & 1)) {
-		r = alloc_page_early();
+		r = alloc_page();
 		memset(r, 0, 4096);
 		this_level[next_num] = ((uintptr_t)r | 3) - hhdm_start;
 	} else {
@@ -456,10 +456,10 @@ void mem_early_init(char *mem, size_t len)
 	pml4 = NULL;
 
 	kmap(kpaddr, kvaddr, kernel_size, attrs.val);
+	kmap(0, hhdm_start, 0x100000, attrs.val);
 	for (unsigned int i = 0; i < nregions; i++) {
 		kmap(regions[i].base, regions[i].base | hhdm_start, regions[i].len, attrs.val);
 	}
-	kmap(0, hhdm_start, 0x100000, attrs.val);
 
 	pml4_paddr = (uintptr_t)pml4;
 	pml4_paddr ^= hhdm_start;
