@@ -50,6 +50,7 @@ struct cr3 {
 struct mem_region {
 	paddr_t base;
 	size_t len;
+	bool usable;
 };
 
 struct buddy_region_header {

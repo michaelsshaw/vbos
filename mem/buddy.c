@@ -49,6 +49,9 @@ static uint8_t buddy_bitmap_get(char *bitmap, size_t depth, size_t n)
 static void buddy_init_region(struct mem_region *region)
 {
 	/* 2 bits per page */
+	if(!region->usable)
+		return;
+
 	size_t bitmap_size_bytes = (region->len >> 14) + 1;
 
 	struct buddy_region_header *head = (void *)(region->base | hhdm_start);
@@ -246,6 +249,9 @@ void *buddy_alloc(size_t size)
 
 	/* Linear search because array is small */
 	for (size_t i = 0; i < num_regions; i++) {
+		if (!mem_regions[num_regions - i - 1].usable)
+			continue;
+
 		struct buddy_region_header *head = (void *)(mem_regions[num_regions - i - 1].base | hhdm_start);
 
 		paddr_t ret = buddy_alloc_helper(head, size);
@@ -265,6 +271,9 @@ void buddy_free(void *ptr)
 
 	/* Linear search because array is small */
 	for (size_t i = 0; i < num_regions; i++) {
+		if (!mem_regions[num_regions - i - 1].usable)
+			continue;
+
 		struct buddy_region_header *head = (void *)(mem_regions[num_regions - i - 1].base | hhdm_start);
 
 		if (paddr >= head->usable_base && paddr < (head->usable_base + head->usable_len)) {
@@ -368,12 +377,22 @@ void mem_early_init(char *mem, size_t len)
 			} else {
 				regions[nregions].base = entry->base;
 				regions[nregions].len = entry->length;
+				regions[nregions].usable = (entry->type != LIMINE_MEMMAP_KERNEL_AND_MODULES);
 				nregions++;
 			}
 
 			last_usable = true;
 			break;
 		default:
+			if (!last_usable) {
+				regions[nregions - 1].len += entry->length;
+			} else {
+				regions[nregions].base = entry->base;
+				regions[nregions].len = entry->length;
+				regions[nregions].usable = false;
+				nregions++;
+			}
+
 			last_usable = false;
 			break;
 		}
@@ -411,6 +430,8 @@ void mem_early_init(char *mem, size_t len)
 	 */
 	bool page_found = false;
 	for (unsigned int i = 0; i < nregions; i++) {
+		if(!regions[i].usable)
+			continue;
 		buddy_init_region(&regions[i]);
 
 		if (!page_found) {
@@ -438,6 +459,7 @@ void mem_early_init(char *mem, size_t len)
 	for (unsigned int i = 0; i < nregions; i++) {
 		kmap(regions[i].base, regions[i].base | hhdm_start, regions[i].len, attrs.val);
 	}
+	kmap(0, hhdm_start, 0x100000, attrs.val);
 
 	pml4_paddr = (uintptr_t)pml4;
 	pml4_paddr ^= hhdm_start;

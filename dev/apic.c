@@ -1,5 +1,6 @@
 #include <kernel/acpi.h>
 #include <kernel/mem.h>
+#include <kernel/slab.h>
 #include <dev/apic.h>
 
 #include <stdint.h>
@@ -81,7 +82,7 @@ int madt_parse_next_entry(int offset)
 		printf(LOG_INFO "LAPIC ID: %xh\n", m_lapic->apic_id);
 		break;
 	case MADT_IOAPIC:
-		ioapic_addr = m_ioapic->ioapic_addr;
+		ioapic_addr = m_ioapic->ioapic_addr | hhdm_start;
 		printf(LOG_INFO "IOAPIC address: %xh\n", m_ioapic->ioapic_addr);
 		break;
 	case MADT_IOAPIC_OVRD:
@@ -125,7 +126,7 @@ void apic_init()
 	while ((offset = madt_parse_next_entry(offset)))
 		;
 
-	lapic_addr = __madt->lapic_addr;
+	lapic_addr = __madt->lapic_addr | hhdm_start;
 
 	printf(LOG_INFO "IOAPIC ADDR: %X\n", ioapic_addr);
 	printf(LOG_INFO "LAPIC ADDR : %X\n", lapic_addr);

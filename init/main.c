@@ -8,6 +8,7 @@
 #include <kernel/pio.h>
 
 #include <dev/pic.h>
+#include <dev/apic.h>
 #include <dev/console.h>
 #include <dev/serial.h>
 
@@ -15,14 +16,14 @@
 
 #define KSTACK_SIZE 0x4000
 
-void stack_init(uintptr_t rsp, uintptr_t rbp);
-
 struct limine_hhdm_request hhdm_req = { .id = LIMINE_HHDM_REQUEST, .revision = 0 };
 
 uintptr_t hhdm_start;
 uintptr_t data_end;
 uintptr_t bss_start;
 uintptr_t bss_end;
+
+void stack_init(uintptr_t rsp, uintptr_t rbp);
 
 void yield()
 {
@@ -63,7 +64,10 @@ void kmain(void)
 	mem_early_init(kmem, one_gb);
 	kmalloc_init();
 
-	_pic_init();
+	cli();
+	acpi_init();
+	apic_init();
+	sti();
 
 	printf("\n# ");
 
