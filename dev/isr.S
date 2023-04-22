@@ -17,7 +17,6 @@
 		popq %rsi 						
 		movq $\nr, %rdi 					
 		call exception 						
-		call yield
 		iretq
 .endm
 

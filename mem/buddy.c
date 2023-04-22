@@ -249,9 +249,6 @@ void *buddy_alloc(size_t size)
 
 	/* Linear search because array is small */
 	for (size_t i = 0; i < num_regions; i++) {
-		if (!mem_regions[num_regions - i - 1].usable)
-			continue;
-
 		struct buddy_region_header *head = (void *)(mem_regions[num_regions - i - 1].base | hhdm_start);
 
 		paddr_t ret = buddy_alloc_helper(head, size);
@@ -271,9 +268,6 @@ void buddy_free(void *ptr)
 
 	/* Linear search because array is small */
 	for (size_t i = 0; i < num_regions; i++) {
-		if (!mem_regions[num_regions - i - 1].usable)
-			continue;
-
 		struct buddy_region_header *head = (void *)(mem_regions[num_regions - i - 1].base | hhdm_start);
 
 		if (paddr >= head->usable_base && paddr < (head->usable_base + head->usable_len)) {

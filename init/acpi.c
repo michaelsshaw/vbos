@@ -1,5 +1,4 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
-#include <kernel/mem.h>
 #include <kernel/acpi.h>
 #include <dev/apic.h>
 
@@ -20,7 +19,7 @@ void rsdt_print(struct rsdt *rsdt)
 
 	for (int i = 0; i < num_sdt; i++) {
 		/* 2 steps silences warning */
-		uint64_t sdt_addr = (uint64_t)rsdt->sdt[i] | hhdm_start;
+		uint64_t sdt_addr = (uint64_t)rsdt->sdt[i];
 		struct acpi_sdt_header *h = (struct acpi_sdt_header *)sdt_addr;
 
 		if (!(memcmp(h->signature, "APIC", 4))) {
@@ -38,7 +37,7 @@ void acpi_init()
 	rsdp = (struct rsdp *)rsdp_req.response->address;
 
 	/* 2 steps silences warning */
-	uint64_t rsdt_addr = (uint64_t)rsdp->rsdt_addr | hhdm_start;
+	uint64_t rsdt_addr = (uint64_t)rsdp->rsdt_addr;
 	struct rsdt *rsdt = (struct rsdt *)rsdt_addr;
 	rsdt_print(rsdt);
 
