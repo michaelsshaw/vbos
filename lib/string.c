@@ -39,11 +39,25 @@ int memcmp(const void *aa, const void *bb, size_t num)
 
 void *memset(void *str, int c, size_t n)
 {
-	unsigned char *s = (unsigned char *)str;
-	unsigned char j = (unsigned char)c;
-	for (size_t i = 0; i < n; i++) {
-		s[i] = j;
+	uintptr_t ptr = (uintptr_t)str;
+	uintptr_t val = (uintptr_t)c;
+	val |= val << 8;
+	val |= val << 16;
+	val |= val << 32;
+
+	for (size_t i = 0; i < (n >> 3); i++) {
+		*(uintptr_t *)ptr = val;
+		ptr += 8;
 	}
+
+	if(n & 7) {
+		ptr = (uintptr_t)str + (n & (~7ull));
+		for (size_t i = 0; i < (n & 7); i++) {
+			*(char *)ptr = c;
+			ptr++;
+		}
+	}
+
 	return str;
 }
 
