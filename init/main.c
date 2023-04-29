@@ -62,12 +62,15 @@ void kmain(void)
 	char kmem[one_gb] ALIGN(0x1000);
 	mem_early_init(kmem, one_gb);
 	kmalloc_init();
-
 	_pic_init();
 
-	printf("\n# ");
-
-	void *kstack = kmalloc(KSTACK_SIZE);
+	void *kstack = buddy_alloc(KSTACK_SIZE);
 	uintptr_t ptr = (uintptr_t)kstack + KSTACK_SIZE - 8;
 	stack_init(ptr, ptr);
+}
+
+void kmain_post_stack_init()
+{
+	printf("\n\n# ");
+	yield();
 }

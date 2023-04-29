@@ -392,7 +392,7 @@ void mem_early_init(char *mem, size_t len)
 	/* copy the regions to the permanent regions table */
 	memcpy(mem_regions, regions, sizeof(struct mem_region) * num_regions);
 
-	kmap_slab = slab_create(0x1000);
+	kmap_slab = slab_create(0x1000, SLAB_PAGE_ALIGN);
 
 	/* initialize and populate the new permanent kernel page tables */
 	alloc_page = kmap_alloc_page;

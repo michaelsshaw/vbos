@@ -50,7 +50,7 @@ void *memset(void *str, int c, size_t n)
 		ptr += 8;
 	}
 
-	if(n & 7) {
+	if (n & 7) {
 		ptr = (uintptr_t)str + (n & (~7ull));
 		for (size_t i = 0; i < (n & 7); i++) {
 			*(char *)ptr = c;

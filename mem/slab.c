@@ -5,6 +5,7 @@
 
 #define SLAB_MIN_COUNT 256
 #define SLAB_MIN_SIZE 0x10000ull /* 64 KiB */
+#define SLAB_ALIGN 7
 
 size_t slab_sizes[] = { 16, 32, 64, 128, 256, 512, 1024, 2048 };
 struct slab *slab_cache[ARRAY_SIZE(slab_sizes)];
@@ -15,13 +16,13 @@ struct kmap_entry *kmem_map = NULL;
 static inline void slab_range(struct slab *slab, uintptr_t *o_start, uintptr_t *o_end)
 {
 	uintptr_t sslab = (uintptr_t)slab;
-	sslab = (sslab | npow2(slab->size)) + 1;
+	sslab = (sslab | slab->align) + 1;
 
 	*o_start = sslab;
 	*o_end = sslab + (slab->size * slab->num);
 }
 
-struct slab *slab_create(size_t size)
+struct slab *slab_create(size_t size, uint64_t flags)
 {
 	if (size < sizeof(uintptr_t))
 		return NULL;
@@ -39,13 +40,19 @@ struct slab *slab_create(size_t size)
 	uintptr_t aret = (uintptr_t)ret;
 	uintptr_t start = (uintptr_t)ret + sizeof(struct slab);
 
-	start |= (npow2(size) - 1);
+	if (flags & SLAB_PAGE_ALIGN)
+		ret->align = 0xFFF;
+	else
+		ret->align = SLAB_ALIGN;
+
+	start |= ret->align;
 	start += 1;
 
 	ret->num = (((aret + asize) - start) / size);
 	ret->size = size;
 	ret->next = NULL;
 	ret->prev = NULL;
+	ret->flags = flags;
 	ret->nextfree = (uintptr_t *)start;
 	ret->free = ret->num;
 
@@ -67,7 +74,7 @@ void *slab_alloc(struct slab *slab)
 
 	if (slab->nextfree == NULL) {
 		if (slab->next == NULL) {
-			slab->next = slab_create(slab->size);
+			slab->next = slab_create(slab->size, slab->flags);
 			if (slab->next == NULL)
 				return NULL;
 			slab->next->prev = slab;
@@ -120,8 +127,8 @@ void slab_free(struct slab *slab, void *ptr)
 void kmalloc_init()
 {
 	for (size_t i = 0; i < ARRAY_SIZE(slab_sizes); i++)
-		slab_cache[i] = slab_create(slab_sizes[i]);
-	kmalloc_slab = slab_create(sizeof(struct kmap_entry));
+		slab_cache[i] = slab_create(slab_sizes[i], 0);
+	kmalloc_slab = slab_create(sizeof(struct kmap_entry), 0);
 }
 
 void *kmalloc(size_t size)

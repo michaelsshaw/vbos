@@ -5,10 +5,14 @@
 #include <kernel/common.h>
 #include <kernel/mem.h>
 
+#define SLAB_PAGE_ALIGN 0x01
+
 struct slab {
 	size_t size; /* size of each object */
 	size_t num; /* number of objects in this slab */
 	size_t free; /* number of free objects */
+	uint64_t flags;
+	size_t align;
 	uintptr_t *nextfree;
 	struct slab *next;
 	struct slab *prev;
@@ -21,7 +25,7 @@ struct kmap_entry {
 	struct kmap_entry *next;
 };
 
-struct slab *slab_create(size_t size);
+struct slab *slab_create(size_t size, uint64_t flags);
 void *slab_alloc(struct slab *slab);
 void slab_free(struct slab *slab, void *ptr);
 
