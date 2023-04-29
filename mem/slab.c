@@ -5,18 +5,17 @@
 
 #define SLAB_MIN_COUNT 256
 #define SLAB_MIN_SIZE 0x10000ull /* 64 KiB */
-#define SLAB_ALIGN 7 /* 8 byte alignment */
 
 size_t slab_sizes[] = { 16, 32, 64, 128, 256, 512, 1024, 2048 };
 struct slab *slab_cache[ARRAY_SIZE(slab_sizes)];
 
-struct slab *kmap_slab = NULL;
+static struct slab *kmalloc_slab = NULL;
 struct kmap_entry *kmem_map = NULL;
 
 static inline void slab_range(struct slab *slab, uintptr_t *o_start, uintptr_t *o_end)
 {
 	uintptr_t sslab = (uintptr_t)slab;
-	sslab = (sslab | SLAB_ALIGN) + 1;
+	sslab = (sslab | npow2(slab->size)) + 1;
 
 	*o_start = sslab;
 	*o_end = sslab + (slab->size * slab->num);
@@ -40,7 +39,7 @@ struct slab *slab_create(size_t size)
 	uintptr_t aret = (uintptr_t)ret;
 	uintptr_t start = (uintptr_t)ret + sizeof(struct slab);
 
-	start |= SLAB_ALIGN;
+	start |= (npow2(size) - 1);
 	start += 1;
 
 	ret->num = (((aret + asize) - start) / size);
@@ -50,10 +49,13 @@ struct slab *slab_create(size_t size)
 	ret->nextfree = (uintptr_t *)start;
 	ret->free = ret->num;
 
-	for (size_t i = 0; i < ret->num - 1; i++) {
-		*(uintptr_t *)(start + (i * size)) = start + ((i + 1) * size);
+	uintptr_t *ptr = (uintptr_t *)start;
+	for (size_t i = 0; i < ret->num; i++) {
+		*ptr = (uintptr_t)ptr + size;
+		if (i == ret->num - 1)
+			*ptr = 0;
+		ptr = (uintptr_t *)*ptr;
 	}
-	*(uintptr_t *)(start + ((ret->num - 1) * size)) = 0;
 
 	return ret;
 }
@@ -66,9 +68,9 @@ void *slab_alloc(struct slab *slab)
 	if (slab->nextfree == NULL) {
 		if (slab->next == NULL) {
 			slab->next = slab_create(slab->size);
-			slab->next->prev = slab;
 			if (slab->next == NULL)
 				return NULL;
+			slab->next->prev = slab;
 		}
 		return slab_alloc(slab->next);
 	}
@@ -119,7 +121,7 @@ void kmalloc_init()
 {
 	for (size_t i = 0; i < ARRAY_SIZE(slab_sizes); i++)
 		slab_cache[i] = slab_create(slab_sizes[i]);
-	kmap_slab = slab_create(sizeof(struct kmap_entry));
+	kmalloc_slab = slab_create(sizeof(struct kmap_entry));
 }
 
 void *kmalloc(size_t size)
@@ -144,7 +146,7 @@ void *kmalloc(size_t size)
 	if (ret == NULL)
 		return NULL;
 
-	struct kmap_entry *entry = slab_alloc(kmap_slab);
+	struct kmap_entry *entry = slab_alloc(kmalloc_slab);
 	if (entry == NULL) {
 		slab_free(slab, ret);
 		return NULL;
@@ -180,7 +182,7 @@ void kfree(void *ptr)
 			else
 				slab_free(entry->slab, entry->ptr);
 
-			slab_free(kmap_slab, entry);
+			slab_free(kmalloc_slab, entry);
 			return;
 		}
 

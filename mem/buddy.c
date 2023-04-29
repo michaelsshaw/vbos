@@ -2,6 +2,7 @@
 #include <limine/limine.h>
 
 #include <kernel/common.h>
+#include <kernel/slab.h>
 #include <kernel/mem.h>
 
 struct limine_memmap_request map_req = { .id = LIMINE_MEMMAP_REQUEST, .revision = 0 };
@@ -16,6 +17,7 @@ struct mem_region *mem_regions;
 size_t num_regions;
 
 static void *(*alloc_page)(void);
+static struct slab *kmap_slab;
 
 static void buddy_bitmap_set(char *bitmap, size_t depth, size_t n, int val)
 {
@@ -219,9 +221,9 @@ void buddy_free(void *ptr)
 	}
 }
 
-static void *buddy_alloc_page()
+static void *kmap_alloc_page()
 {
-	return buddy_alloc(0x1000);
+	return slab_alloc(kmap_slab);
 }
 
 static void *alloc_page_early()
@@ -284,7 +286,7 @@ void kmap(paddr_t paddr, uint64_t vaddr, size_t len, uint64_t attr)
 
 static size_t limine_parse_memregions()
 {
-	size_t ret;
+	size_t ret = 0;
 	bool last_usable = false;
 	struct limine_memmap_response *res = map_req.response;
 
@@ -390,8 +392,10 @@ void mem_early_init(char *mem, size_t len)
 	/* copy the regions to the permanent regions table */
 	memcpy(mem_regions, regions, sizeof(struct mem_region) * num_regions);
 
+	kmap_slab = slab_create(0x1000);
+
 	/* initialize and populate the new permanent kernel page tables */
-	alloc_page = buddy_alloc_page;
+	alloc_page = kmap_alloc_page;
 	pml4 = NULL;
 
 	struct mem_region lastregion = mem_regions[num_regions - 1];
