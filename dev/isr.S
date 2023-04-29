@@ -8,6 +8,7 @@
 		movq $\nr, %rdi                                         
 		movq $0, %rsi                                           
 		call exception                                          
+		call yield
 		iretq
 .endm
 
@@ -17,6 +18,7 @@
 		popq %rsi 						
 		movq $\nr, %rdi 					
 		call exception 						
+		call yield
 		iretq
 .endm
 

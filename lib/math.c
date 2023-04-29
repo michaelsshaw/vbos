@@ -22,14 +22,12 @@ size_t log2(size_t n)
 	return sizeof(n) * 8 - __builtin_clzll(n) - 1;
 }
 
-inline void bitmap_set(char *bitmap, size_t n)
+inline void bitmap_set(char *bitmap, size_t n, uint64_t b)
 {
-	bitmap[n >> 3] |= (1 << (n & 7));
-}
-
-inline void bitmap_clear(char *bitmap, size_t n)
-{
-	bitmap[n >> 3] &= (~(1 << (n & 7)));
+	if(b)
+		bitmap[n >> 3] |= (1 << (n & 7));
+	else
+		bitmap[n >> 3] &= (~(1 << (n & 7)));
 }
 
 inline uint8_t bitmap_get(char *bitmap, size_t n)

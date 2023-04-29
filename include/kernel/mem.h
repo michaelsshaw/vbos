@@ -4,6 +4,10 @@
 
 #include <kernel/common.h>
 
+#define BBMAP_FREE 0
+#define BBMAP_SPLIT 1
+#define BBMAP_USED 2
+
 #define PAGE_XD (1 << 64)
 #define PAGE_PRESENT (1 << 0)
 #define PAGE_RW (1 << 1)
@@ -56,19 +60,10 @@ struct mem_region {
 struct buddy_region_header {
 	paddr_t usable_base;
 	size_t usable_len;
-
-	struct buddy_free_list *flist;
+	size_t max_depth;
 
 	size_t bitmap_len;
 	char bitmap[];
-};
-
-struct buddy_free_list {
-	size_t len;
-	size_t depth;
-
-	struct buddy_free_list *next;
-	struct buddy_free_list *prev;
 };
 
 extern uintptr_t __data_end;

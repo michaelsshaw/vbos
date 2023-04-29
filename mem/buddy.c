@@ -17,33 +17,38 @@ size_t num_regions;
 
 static void *(*alloc_page)(void);
 
-static void buddy_bitmap_set(char *bitmap, size_t depth, size_t n, bool b)
+static void buddy_bitmap_set(char *bitmap, size_t depth, size_t n, int val)
 {
-	size_t a = 1 << depth;
-	a -= 1;
+	size_t a = 2 << depth;
+	a -= 2;
 
 	if (depth == 0) {
 		a = 0;
 		n = 0;
 	}
+	n <<= 1;
 
-	if (b)
-		bitmap_set(bitmap, n + a);
-	else
-		bitmap_clear(bitmap, n + a);
+	bitmap_set(bitmap, n + a, val & 0x02);
+	bitmap_set(bitmap, n + a + 1, val & 0x01);
 }
 
 static uint8_t buddy_bitmap_get(char *bitmap, size_t depth, size_t n)
 {
-	size_t a = 1 << depth;
-	a -= 1;
+	size_t a = 2 << depth;
+	a -= 2;
 
 	if (depth == 0) {
 		a = 0;
 		n = 0;
 	}
+	n <<= 1;
 
-	return bitmap_get(bitmap, n + a);
+	uint8_t ret = 0;
+	if (bitmap_get(bitmap, n + a))
+		ret |= 0x02;
+	if (bitmap_get(bitmap, n + a + 1))
+		ret |= 0x01;
+	return ret;
 }
 
 static void buddy_init_region(struct mem_region *region)
@@ -52,7 +57,7 @@ static void buddy_init_region(struct mem_region *region)
 	if (!region->usable)
 		return;
 
-	size_t bitmap_size_bytes = (region->len >> 14) + 1;
+	size_t bitmap_size_bytes = (region->len >> 13) + 1;
 
 	struct buddy_region_header *head = (void *)(region->base | hhdm_start);
 	memset(head->bitmap, 0, bitmap_size_bytes);
@@ -65,14 +70,7 @@ static void buddy_init_region(struct mem_region *region)
 
 	head->usable_base = curpos;
 	head->usable_len = (npow2(usable_end - curpos) >> 1);
-
-	struct buddy_free_list *flist = (struct buddy_free_list *)(head->usable_base | hhdm_start);
-	flist->next = NULL;
-	flist->prev = NULL;
-	flist->len = head->usable_len;
-	flist->depth = 0;
-
-	head->flist = flist;
+	head->max_depth = log2(head->usable_len >> 12);
 }
 
 static paddr_t buddy_get_slab(struct buddy_region_header *head, size_t depth, size_t n)
@@ -84,13 +82,51 @@ static paddr_t buddy_get_slab(struct buddy_region_header *head, size_t depth, si
 	return head->usable_base + (n * (head->usable_len >> depth));
 }
 
-/* The buddy allocator checks within a pre-defined power-of-2 free-list for a
- * region of the requested size. If the region is the correct size, it allocates
- * it, and if it finds one that is too small, it skips it. If the region found 
- * is too large, instead of skipping to the next, the allocator splits the 
- * region in half recursively until it is of the correct size, and marks the 
- * bitmap accordingly. 
- */
+static paddr_t buddy_alloc_traverse(struct buddy_region_header *head, size_t depth, size_t n, size_t tgt_depth)
+{
+	if (depth > tgt_depth)
+		return 0;
+	if (tgt_depth > head->max_depth)
+		return 0;
+
+	uint8_t val = buddy_bitmap_get(head->bitmap, depth, n);
+
+	switch (val) {
+	case BBMAP_USED:
+		if (n & 1)
+			return 0;
+		else
+			return buddy_alloc_traverse(head, depth, n + 1, tgt_depth);
+
+		break;
+	case BBMAP_SPLIT:
+		if (depth == tgt_depth) {
+			if (n & 1)
+				return 0;
+			else
+				return buddy_alloc_traverse(head, depth, n + 1, tgt_depth);
+		} else {
+			paddr_t ret = buddy_alloc_traverse(head, depth + 1, n << 1, tgt_depth);
+			if (ret)
+				return ret;
+			else
+				return buddy_alloc_traverse(head, depth + 1, (n << 1) + 1, tgt_depth);
+		}
+		break;
+	case BBMAP_FREE:
+		if (depth == tgt_depth) {
+			buddy_bitmap_set(head->bitmap, depth, n, BBMAP_USED);
+			return buddy_get_slab(head, depth, n);
+		} else {
+			buddy_bitmap_set(head->bitmap, depth, n, BBMAP_SPLIT);
+			return buddy_alloc_traverse(head, depth + 1, n << 1, tgt_depth);
+		}
+
+		break;
+	}
+
+	return 0;
+}
 
 static paddr_t buddy_alloc_helper(struct buddy_region_header *head, size_t size)
 {
@@ -103,72 +139,11 @@ static paddr_t buddy_alloc_helper(struct buddy_region_header *head, size_t size)
 		return 0;
 	}
 
-	struct buddy_free_list *flist = head->flist;
+	size_t tgt_depth = head->max_depth - log2(size >> 12);
 
-	while (flist != NULL) {
-		if (flist->len > size) {
-			/* split the region into two */
-			struct buddy_free_list *new = (struct buddy_free_list *)((uintptr_t)flist + flist->len / 2);
-			new->next = flist->next;
-			new->prev = flist;
-			new->len = MAX(flist->len >> 1, 0x1000ull);
-			new->depth = flist->depth + 1;
-
-			if (new->next != NULL)
-				new->next->prev = new;
-
-			/* Mark the bitmap */
-			size_t n = ((uintptr_t)flist ^ hhdm_start) - head->usable_base;
-			n /= flist->len;
-
-			buddy_bitmap_set(head->bitmap, flist->depth, n, true);
-
-			/* modify the original region */
-			flist->next = new;
-			flist->len = flist->len >> 1;
-			flist->depth = flist->depth + 1;
-
-		} else if (flist->len == size) {
-			/* remove the region from the free list */
-
-			if (flist->next != NULL) /* must be done first! */
-				flist->next->prev = flist->prev;
-
-			if (flist->prev != NULL)
-				flist->prev->next = flist->next;
-			else
-				head->flist = flist->next;
-
-			size_t n = ((uintptr_t)flist ^ hhdm_start) - head->usable_base;
-			n /= flist->len;
-
-			buddy_bitmap_set(head->bitmap, flist->depth, n, true);
-
-			return ((paddr_t)flist ^ hhdm_start);
-		} else {
-			flist = flist->next;
-		}
-	}
-
-	return 0;
+	return buddy_alloc_traverse(head, 0, 0, tgt_depth);
 }
 
-/* The free function uses the bitmap to determine the size of the region that
- * is going to be freed, and then merges it with its buddy if it is free. For
- * all other operations, the freelist is used instead of the bitmap
- *
- * The bitmap for this allocator is 2 bits per page within a region.
- * It begins with one bit representing the entire region, then 2 bits 
- * representing that region split into two, then 4 bits representing that region
- * split into 4, and so on, until a granularity of 4K is reached
- *
- * Conceptually, the bitmap is a tree, where each node has two children, and is
- * laid out flat in memory.
- *
- * After marking the bitmap and coalescing the regions, the free function
- * searches the free-list for the correct position to insert the region, and
- * inserts it.
- */
 static void buddy_free_helper(struct buddy_region_header *head, paddr_t paddr)
 {
 	/* find the region in the bitmap */
@@ -198,47 +173,14 @@ static void buddy_free_helper(struct buddy_region_header *head, paddr_t paddr)
 	depth = lastdepth;
 
 	/* mark the region as free */
-	buddy_bitmap_set(head->bitmap, depth, n, false);
+	buddy_bitmap_set(head->bitmap, depth, n, BBMAP_FREE);
 
 	/* merge with adjacent regions */
-	while (depth > 0 && !buddy_bitmap_get(head->bitmap, depth, n ^ 1)) {
+	while (depth > 0 && (buddy_bitmap_get(head->bitmap, depth, n ^ 1) == BBMAP_FREE)) {
 		n >>= 1;
 		depth--;
 
-		buddy_bitmap_set(head->bitmap, depth, n, false);
-	}
-
-	/* add the region to the free list */
-	/* TODO: Replace with binary tree traversal */
-	struct buddy_free_list *flist = (struct buddy_free_list *)(buddy_get_slab(head, depth, n) | hhdm_start);
-	flist->len = head->usable_len >> depth;
-	flist->depth = depth;
-
-	flist->next = NULL;
-	flist->prev = NULL;
-
-	if (head->flist == NULL) {
-		head->flist = flist;
-	} else if (head->flist > flist) {
-		flist->next = head->flist;
-		head->flist->prev = flist;
-		head->flist = flist;
-	} else {
-		struct buddy_free_list *cur = head->flist;
-
-		while (cur != NULL) {
-			if (cur < flist && (cur->next > flist || cur->next == NULL)) {
-				flist->next = cur->next;
-				flist->prev = cur;
-				cur->next = flist;
-
-				if (cur->next != NULL)
-					cur->next->prev = flist;
-
-				break;
-			}
-			cur = cur->next;
-		}
+		buddy_bitmap_set(head->bitmap, depth, n, BBMAP_FREE);
 	}
 }
 
@@ -264,7 +206,7 @@ void buddy_free(void *ptr)
 	if (ptr == NULL)
 		return;
 
-	paddr_t paddr = (paddr_t)ptr ^ hhdm_start;
+	paddr_t paddr = (paddr_t)ptr & ~hhdm_start;
 
 	/* Linear search because array is small */
 	for (size_t i = 0; i < num_regions; i++) {
@@ -421,7 +363,7 @@ void mem_early_init(char *mem, size_t len)
 
 	/* Switch to the temporary page tables */
 	uintptr_t pml4_paddr = (uintptr_t)pml4;
-	pml4_paddr ^= hhdm_start;
+	pml4_paddr &= (~hhdm_start);
 	struct cr3 cr3 = { .pml4_addr = pml4_paddr >> 12 };
 	cr3_write(cr3.val);
 
@@ -459,7 +401,7 @@ void mem_early_init(char *mem, size_t len)
 	kmap(0, hhdm_start, lastregion.base + lastregion.len, attrs.val);
 
 	pml4_paddr = (uintptr_t)pml4;
-	pml4_paddr ^= hhdm_start;
+	pml4_paddr &= (~hhdm_start);
 	cr3.pml4_addr = pml4_paddr >> 12;
 	cr3_write(cr3.val);
 

@@ -7,7 +7,7 @@
 
 size_t log2(size_t n);
 size_t npow2(size_t n);
-void bitmap_set(char *bitmap, size_t n);
+void bitmap_set(char *bitmap, size_t n, uint64_t b);
 void bitmap_clear(char *bitmap, size_t n);
 uint8_t bitmap_get(char *bitmap, size_t n);
 
