@@ -22,6 +22,7 @@ void console_init()
 {
 	memset(console.line, 0, 512);
 	console.resizemode = 0;
+	printf(LOG_SUCCESS "Console ready\n");
 }
 
 bool console_ready()
