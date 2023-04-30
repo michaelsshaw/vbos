@@ -51,17 +51,18 @@ void kmain(void)
 	bss_start = (uintptr_t)(&__bss_start);
 	bss_end = (uintptr_t)(&__bss_end);
 
+	serial_init();
 	gdt_init();
 	idt_init();
-
-	serial_init();
-	console_init();
 
 	/* Initialize early kernel memory array */
 	const uintptr_t one_gb = 0x40000000;
 	char kmem[one_gb] ALIGN(0x1000);
 	mem_early_init(kmem, one_gb);
 	kmalloc_init();
+
+	console_init();
+
 	_pic_init();
 
 	void *kstack = buddy_alloc(KSTACK_SIZE);
