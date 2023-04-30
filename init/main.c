@@ -62,6 +62,7 @@ void kmain(void)
 	kmalloc_init();
 
 	console_init();
+	acpi_init();
 
 	_pic_init();
 
