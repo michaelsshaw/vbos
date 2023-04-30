@@ -33,6 +33,7 @@ rbp_write:
 stack_init:
 	movq %rdi, %rsp
 	movq %rsi, %rbp
-__stack_init_no_escape:
 	call kmain_post_stack_init
+__stack_init_no_escape:
+	call yield
 	jmp __stack_init_no_escape
