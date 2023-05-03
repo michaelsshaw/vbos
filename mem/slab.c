@@ -7,11 +7,10 @@
 #define SLAB_MIN_SIZE 0x10000ull /* 64 KiB */
 #define SLAB_ALIGN 7
 
-size_t slab_sizes[] = { 16, 32, 64, 128, 256, 512, 1024, 2048 };
+size_t slab_sizes[] = { 16, 32, 64, 128, 256, 512, 1024, 2048, 4096 };
 struct slab *slab_cache[ARRAY_SIZE(slab_sizes)];
 
 static struct slab *kmalloc_slab = NULL;
-struct kmap_entry *kmem_map = NULL;
 
 static inline void slab_range(struct slab *slab, uintptr_t *o_start, uintptr_t *o_end)
 {
@@ -153,19 +152,6 @@ void *kmalloc(size_t size)
 	if (ret == NULL)
 		return NULL;
 
-	struct kmap_entry *entry = slab_alloc(kmalloc_slab);
-	if (entry == NULL) {
-		slab_free(slab, ret);
-		return NULL;
-	}
-
-	entry->ptr = ret;
-	entry->slab = slab;
-	entry->size = size;
-	entry->next = kmem_map;
-
-	kmem_map = entry;
-
 	return ret;
 }
 
@@ -174,26 +160,20 @@ void kfree(void *ptr)
 	if (ptr == NULL)
 		return;
 
-	struct kmap_entry *entry = kmem_map;
-	struct kmap_entry *prev = NULL;
+	for (size_t i = 0; i < ARRAY_SIZE(slab_sizes); i++) {
+		struct slab *slab = slab_cache[i];
+		while (slab != NULL) {
+			uintptr_t low = 0;
+			uintptr_t high = 0;
 
-	while (entry != NULL) {
-		if (entry->ptr == ptr) {
-			if (prev == NULL)
-				kmem_map = entry->next;
-			else
-				prev->next = entry->next;
-
-			if (entry->slab == NULL)
-				buddy_free(entry->ptr);
-			else
-				slab_free(entry->slab, entry->ptr);
-
-			slab_free(kmalloc_slab, entry);
-			return;
+			slab_range(slab_cache[i], &low, &high);
+			if ((uintptr_t)ptr >= low && (uintptr_t)ptr <= high) {
+				slab_free(slab_cache[i], ptr);
+				return;
+			}
+			slab = slab->next;
 		}
-
-		prev = entry;
-		entry = entry->next;
 	}
+
+	buddy_free(ptr);
 }
