@@ -7,10 +7,8 @@
 #define SLAB_MIN_SIZE 0x10000ull /* 64 KiB */
 #define SLAB_ALIGN 7
 
-size_t slab_sizes[] = { 16, 32, 64, 128, 256, 512, 1024, 2048, 4096 };
-struct slab *slab_cache[ARRAY_SIZE(slab_sizes)];
-
-static struct slab *kmalloc_slab = NULL;
+static size_t slab_sizes[] = { 16, 32, 64, 128, 256, 512, 1024, 2048, 4096 };
+static struct slab *slab_cache[ARRAY_SIZE(slab_sizes)];
 
 static inline void slab_range(struct slab *slab, uintptr_t *o_start, uintptr_t *o_end)
 {
@@ -127,7 +125,6 @@ void kmalloc_init()
 {
 	for (size_t i = 0; i < ARRAY_SIZE(slab_sizes); i++)
 		slab_cache[i] = slab_create(slab_sizes[i], 0);
-	kmalloc_slab = slab_create(sizeof(struct kmap_entry), 0);
 }
 
 void *kmalloc(size_t size)
