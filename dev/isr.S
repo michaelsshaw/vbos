@@ -24,15 +24,19 @@
 
 .global isr_serial_input
 isr_serial_input:
+	cli
 	call serial_trap
 	movb $4, %dil
 	call pic_eoi
+	sti
 	iretq
 
 .global isr_sched
 isr_sched:
+	cli
 	call sched_test
 	call pic_eoi
+	sti
 	iretq
 
 .global sti
