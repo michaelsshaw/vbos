@@ -31,6 +31,7 @@ void slab_free(struct slab *slab, void *ptr);
 
 void kmalloc_init();
 void *kmalloc(size_t size);
+void *kzalloc(size_t size);
 void kfree(void *ptr);
 
 #endif /* _SLAB_H_ */
