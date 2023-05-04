@@ -65,6 +65,8 @@ void kmain(void)
 	console_init();
 	acpi_init();
 
+	pci_init();
+
 	_pic_init();
 
 	void *kstack = buddy_alloc(KSTACK_SIZE);
@@ -74,8 +76,6 @@ void kmain(void)
 
 void kmain_post_stack_init()
 {
-	pci_init();
-
 	printf("\n\n# ");
 	yield();
 }

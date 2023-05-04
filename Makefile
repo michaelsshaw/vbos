@@ -16,7 +16,7 @@ define DEFAULT_VAR =
 endef
 
 # User controllable CFLAGS.
-CFLAGS ?= -g -O2 -pipe -Wall -Wextra
+CFLAGS ?= -g -O0 -pipe -Wall -Wextra
 
 # User controllable linker flags. We set none by default.
 LDFLAGS ?=
@@ -30,6 +30,7 @@ override CFLAGS +=	   		\
 	-fno-lto			\
 	-fno-pie			\
 	-fno-pic			\
+	-DKDEBUG			\
 	-m64				\
 	-march=x86-64			\
 	-mabi=sysv		   	\

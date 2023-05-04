@@ -102,6 +102,7 @@ printf_reverse:
 					printf_out(buf[(n - 1) - j]);
 					ret++;
 				}
+				break;
 			}
 		} else {
 			printf_out(c);

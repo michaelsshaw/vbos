@@ -219,6 +219,9 @@ void buddy_free(void *ptr)
 			return;
 		}
 	}
+
+	/* should never happen */
+	assert(0);
 }
 
 static void *kmap_alloc_page()
@@ -262,6 +265,7 @@ void kmap(paddr_t paddr, uint64_t vaddr, size_t len, uint64_t attr)
 
 	if (pml4 == NULL) {
 		pml4 = alloc_page();
+		assert(pml4 != NULL);
 		memset(pml4, 0, 0x1000);
 	}
 

@@ -10,7 +10,7 @@ uint16_t pci_config_read_word(uint8_t bus, uint8_t slot, uint8_t func, uint8_t o
 	uint32_t lfunc = func;
 	uint16_t tmp = 0;
 
-	addr = (lbus << 16) | (lslot << 11) | (lfunc << 8) | (offset & 0xfc) | ((uint32_t)0x80000000);
+	addr = (lbus << 16) | (lslot << 11) | (lfunc << 8) | (offset & 0xfc) | 0x80000000;
 
 	outl(PCIPM_CONFIG_ADDRESS, addr);
 	tmp = (uint16_t)((inl(PCIPM_CONFIG_DATA) >> ((offset & 2) << 3)) & 0xFFFF);
@@ -26,10 +26,12 @@ static void pci_print_bus(uint8_t bus)
 			continue;
 
 		uint8_t class = pci_config_read_word(bus, slot, 0, 0xA);
-		uint8_t subclass = (pci_config_read_word(bus, slot, 0, 0xA) >> 8);
-		uint8_t prog_if = (pci_config_read_word(bus, slot, 0, 0x8) >> 8);
+		if(class == 0xFF)
+			continue;
 
-		printf(LOG_INFO "PCI device: vendor:%xh class:%xh subclass:%xh prof_if:%xh\n", vendor_id, class, subclass, prog_if);
+		uint8_t subclass = (pci_config_read_word(bus, slot, 0, 0xA) >> 8);
+
+		printf(LOG_INFO "PCI device [bus:%xh  slot:%xh]: class=%xh sub=%xh\n", bus, slot, class, subclass);
 	}
 }
 

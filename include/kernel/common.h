@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
+#include <assert.h>
 
 #include <kernel/bitwise.h>
 
@@ -19,6 +20,8 @@
 #define KB 1024
 #define MB (1024 * KB)
 #define GB (1024 * MB)
+
+void yield();
 
 typedef uintptr_t paddr_t;
 
