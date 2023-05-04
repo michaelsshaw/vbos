@@ -34,6 +34,7 @@ int printf(const char *restrict fmt, ...)
 	va_start(args, fmt);
 
 	const char *convert = "0123456789ABCDEF";
+	char buf[11] = { 0 };
 
 	while ((c = *fmt++)) {
 		if (c == '%') {
@@ -52,19 +53,15 @@ int printf(const char *restrict fmt, ...)
 					i = -i;
 				}
 
-				char buf[11];
 				n = 0;
+				memset(buf, 0, sizeof(buf));
 
 				do {
 					buf[n] = convert[i % 10];
 					n++;
 				} while ((i /= 10));
 
-				for (int j = 0; j < n; j++) {
-					printf_out(buf[(n - 1) - j]);
-					ret++;
-				}
-				break;
+				goto printf_reverse;
 			case 's':
 				s = va_arg(args, char *);
 				ret += printf_write(s);
@@ -76,17 +73,21 @@ int printf(const char *restrict fmt, ...)
 				break;
 			case 'x':
 				i = va_arg(args, int);
-				for (uint32_t j = 0; j < (2 * sizeof(i)); j++) {
-					int sel = ((sizeof(i) * 2) - j - 1) * 4;
-					int num = (i >> sel) & 0xF;
-					printf_out(convert[num]);
-					ret++;
-				}
+				n = 0;
+
+				memset(buf, 0, sizeof(buf));
+
+				do {
+					buf[n] = convert[i & 0xF];
+					n++;
+				} while ((i >>= 4));
+
+				goto printf_reverse;
 				break;
 			case 'X':
 				l = va_arg(args, long);
-				for (uint64_t j = 0; j < (2 * sizeof(l)); j++) {
-					int sel = ((sizeof(l) * 2) - j - 1) * 4;
+				for (uint64_t j = 0; j < (sizeof(l) << 1); j++) {
+					int sel = ((sizeof(l) << 1) - j - 1) << 2;
 					int num = (l >> sel) & 0xF;
 					printf_out(convert[num]);
 					ret++;
@@ -95,6 +96,12 @@ int printf(const char *restrict fmt, ...)
 			default:
 				printf_out(c);
 				ret++;
+				break;
+printf_reverse:
+				for (int j = 0; j < n; j++) {
+					printf_out(buf[(n - 1) - j]);
+					ret++;
+				}
 			}
 		} else {
 			printf_out(c);

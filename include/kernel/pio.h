@@ -4,21 +4,16 @@
 
 #include <stdint.h>
 
-static inline void outb(uint16_t port, uint8_t val)
-{
-	__asm__ volatile("outb %0, %1" : : "a"(val), "Nd"(port));
-}
+#define genio(suffix, type)                          \
+	void out##suffix(uint16_t port, type value); \
+	type in##suffix(uint16_t port);
 
-static inline uint8_t inb(uint16_t port)
-{
-	uint8_t ret;
-	__asm__ volatile("inb %1, %0" : "=a"(ret) : "Nd"(port));
-	return ret;
-}
+genio(b, uint8_t);
+genio(w, uint16_t);
+genio(l, uint32_t);
 
-static inline void iowait()
-{
-	outb(0x80, 0);
-}
+#undef genio
+
+void iowait();
 
 #endif /* _PIO_H_ */

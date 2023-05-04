@@ -10,6 +10,7 @@
 #include <dev/pic.h>
 #include <dev/console.h>
 #include <dev/serial.h>
+#include <dev/pci.h>
 
 #include <limine/limine.h>
 
@@ -73,6 +74,8 @@ void kmain(void)
 
 void kmain_post_stack_init()
 {
+	pci_init();
+
 	printf("\n\n# ");
 	yield();
 }
