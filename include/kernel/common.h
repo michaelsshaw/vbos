@@ -24,5 +24,6 @@
 void yield();
 
 typedef uintptr_t paddr_t;
+typedef uint32_t paddr32_t;
 
 #endif /* _COMMON_H_ */

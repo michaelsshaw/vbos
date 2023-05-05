@@ -42,8 +42,41 @@ static void pci_scan_bus(uint8_t bus)
 		pci_devices[pci_device_count].class = class;
 		pci_devices[pci_device_count].subclass = subclass;
 
+		pci_devices[pci_device_count].bar0 = pci_config_read_word(bus, slot, 0, 0x10);
+		pci_devices[pci_device_count].bar0 |= ((uint32_t)pci_config_read_word(bus, slot, 0, 0x12) << 16);
+
+		pci_devices[pci_device_count].bar1 = pci_config_read_word(bus, slot, 0, 0x14);
+		pci_devices[pci_device_count].bar1 |= ((uint32_t)pci_config_read_word(bus, slot, 0, 0x16) << 16);
+
+		uint8_t header_type = pci_config_read_word(bus, slot, 0, 0xE) >> 16;
+		pci_devices[pci_device_count].header_type = header_type;
+
+		if (header_type == 0) {
+			pci_devices[pci_device_count].bar2 = pci_config_read_word(bus, slot, 0, 0x18);
+			pci_devices[pci_device_count].bar2 |= ((uint32_t)pci_config_read_word(bus, slot, 0, 0x1A) << 16);
+
+			pci_devices[pci_device_count].bar3 = pci_config_read_word(bus, slot, 0, 0x1C);
+			pci_devices[pci_device_count].bar3 |= ((uint32_t)pci_config_read_word(bus, slot, 0, 0x1E) << 16);
+
+			pci_devices[pci_device_count].bar4 = pci_config_read_word(bus, slot, 0, 0x20);
+			pci_devices[pci_device_count].bar4 |= ((uint32_t)pci_config_read_word(bus, slot, 0, 0x22) << 16);
+
+			pci_devices[pci_device_count].bar5 = pci_config_read_word(bus, slot, 0, 0x24);
+			pci_devices[pci_device_count].bar5 |= ((uint32_t)pci_config_read_word(bus, slot, 0, 0x26) << 16);
+		}
+
 		pci_device_count++;
 	}
+}
+
+struct pci_device *pci_find_device(uint8_t class, uint8_t subclass)
+{
+	for (int i = 0; i < pci_device_count; i++) {
+		if (pci_devices[i].class == class && pci_devices[i].subclass == subclass)
+			return &pci_devices[i];
+	}
+
+	return NULL;
 }
 
 void pci_init()
@@ -58,9 +91,9 @@ void pci_init()
 	/* Print PCI devices */
 	for (int i = 0; i < pci_device_count; i++) {
 		struct pci_device *dev = &pci_devices[i];
-		const char fmt[] = LOG_DEBUG "PCI device BUS[%d:%d] CLASS[%d:%d] vendor_id=%xh device_id=%xh\n";
+		const char fmt[] = LOG_DEBUG "PCI device BUS[%d:%d] CLASS[%d:%d] vendor_id=%xh device_id=%xh, header_type=%d\n";
 
-		printf(fmt, dev->bus, dev->slot, dev->class, dev->subclass, dev->vendor_id, dev->device_id);
+		printf(fmt, dev->bus, dev->slot, dev->class, dev->subclass, dev->vendor_id, dev->device_id, dev->header_type);
 	}
 #endif /* KDEBUG */
 }
