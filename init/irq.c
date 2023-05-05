@@ -69,11 +69,6 @@ irq_decl(0x0F);
 void idt_load(); /* descriptor.S */
 void __irq_handler_base(); /* isr.S */
 
-void sched_test()
-{
-	printf("a");
-}
-
 void idt_insert(uint16_t gate, uint8_t type, uint8_t ist, uint16_t segment, void *func)
 {
 	uintptr_t f = (uintptr_t)(func);
