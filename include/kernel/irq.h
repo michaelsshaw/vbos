@@ -4,7 +4,7 @@
 
 #include <kernel/common.h>
 
-int irq_map(uint8_t irq, uint8_t ist, void *func);
+int irq_map(uint8_t irq, void *func);
 void irq_unmap(uint8_t irq);
 int irq_highest_free();
 

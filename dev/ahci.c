@@ -7,6 +7,10 @@
 
 static hbamem_t *abar = NULL;
 
+static void ahci_irq_handler()
+{
+}
+
 void ahci_init()
 {
 	struct pci_device *dev = pci_find_device(0x01, 0x06);
@@ -21,6 +25,14 @@ void ahci_init()
 		printf(LOG_ERROR "AHCI controller not enabled\n");
 		return;
 	}
+
+	/* setup device irq number */
+	uint8_t irq = irq_highest_free();
+	uint16_t tmp = pci_config_read_word(dev->bus, dev->slot, 0, 0x3C);
+	tmp &= 0xFF00;
+	tmp |= irq;
+	pci_config_write_word(dev->bus, dev->slot, 0, 0x3C, tmp);
+	irq_map(irq, ahci_irq_handler);
 
 	printf(LOG_SUCCESS "AHCI controller ready\n");
 }

@@ -9,6 +9,7 @@
 void isr_serial_input();
 void isr_serial_input_1();
 void serial_write(char c);
+void serial_trap();
 int serial_init();
 
 #endif

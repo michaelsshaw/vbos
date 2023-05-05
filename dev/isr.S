@@ -22,22 +22,15 @@
 		iretq
 .endm
 
-.global isr_serial_input
-isr_serial_input:
-	cli
-	call serial_trap
-	movb $4, %dil
-	call pic_eoi
-	sti
-	iretq
-
-.global isr_sched
-isr_sched:
-	cli
-	call sched_test
-	call pic_eoi
-	sti
-	iretq
+.macro irq nr
+	.global _irq_\nr 					
+	_irq_\nr: 						
+		cli
+		movq $\nr, %rdi 					
+		call irq 						
+		sti
+		iretq
+.endm
 
 .global sti
 sti:
@@ -81,3 +74,21 @@ exception 0x1C
 exception_err 0x1D
 exception_err 0x1E
 exception 0x1F
+
+irq 0x00
+irq 0x01
+irq 0x02
+irq 0x03
+irq 0x04
+irq 0x05
+irq 0x06
+irq 0x07
+irq 0x08
+irq 0x09
+irq 0x0A
+irq 0x0B
+irq 0x0C
+irq 0x0D
+irq 0x0E
+irq 0x0F
+
