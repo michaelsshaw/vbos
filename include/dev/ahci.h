@@ -179,6 +179,49 @@ struct fis_set_device_bits {
 	uint8_t errorl : 3;
 } PACKED;
 
+struct hba_cmd_header {
+	uint8_t cmd_fis_len : 5;
+	uint8_t atapi : 1;
+	uint8_t write : 1;
+	uint8_t prefetch: 1;
+
+	uint8_t reset : 1;
+	uint8_t bist : 1;
+	uint8_t clear_busy : 1;
+	uint8_t reserved : 1;
+	uint8_t pmp : 4;
+
+	uint16_t prdt_len;
+
+	volatile uint32_t prdb_count;
+
+	uint32_t cmd_table_base_low;
+	uint32_t cmd_table_base_high;
+
+	uint32_t reserved2[4];
+} PACKED;
+
+struct hba_prdt_entry {
+	uint32_t data_base_low;
+	uint32_t data_base_high;
+
+	uint32_t reserved;
+
+	uint32_t byte_count : 22;
+	uint32_t reserved2 : 9;
+	uint32_t interrupt : 1;
+} PACKED;
+
+struct hba_cmd_tbl {
+	uint8_t cfis[64];
+
+	uint8_t acmd[16];
+
+	uint8_t reserved[48];
+
+	struct hba_prdt_entry prdt_entry[1];
+} PACKED;
+
 typedef volatile struct {
 	/* 0x00 */
 	uint32_t clb;

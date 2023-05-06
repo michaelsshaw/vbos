@@ -14,11 +14,11 @@ static void ahci_irq_handler()
 void ahci_init()
 {
 	struct pci_device *dev = pci_find_device(0x01, 0x06);
+	/* check interrupt number */
 	if (dev == NULL) {
 		printf(LOG_ERROR "Failed to find AHCI device\n");
 		return;
 	}
-
 	abar = (hbamem_t *)((uintptr_t)dev->bar5 | hhdm_start);
 
 	if (!(abar->ghc & (1 << 31))) {
@@ -27,12 +27,14 @@ void ahci_init()
 	}
 
 	/* setup device irq number */
-	uint8_t irq = irq_highest_free();
-	uint16_t tmp = pci_config_read_word(dev->bus, dev->slot, 0, 0x3C);
-	tmp &= 0xFF00;
+	uint16_t irq = irq_highest_free();
+	uint32_t tmp = pci_config_read_long(dev->bus, dev->slot, 0, 0x3C);
+	tmp &= 0xFFFFFF00;
 	tmp |= irq;
-	pci_config_write_word(dev->bus, dev->slot, 0, 0x3C, tmp);
+	pci_config_write_long(dev->bus, dev->slot, 0, 0x3C, tmp);
 	irq_map(irq, ahci_irq_handler);
+
+	tmp = pci_config_read_long(dev->bus, dev->slot, 0, 0x3C);
 
 	printf(LOG_SUCCESS "AHCI controller ready\n");
 }

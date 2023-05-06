@@ -11,6 +11,7 @@
 #include <dev/console.h>
 #include <dev/serial.h>
 #include <dev/pci.h>
+#include <dev/ahci.h>
 
 #include <limine/limine.h>
 
@@ -67,8 +68,6 @@ void kmain(void)
 
 	pci_init();
 
-	_pic_init();
-
 	void *kstack = buddy_alloc(KSTACK_SIZE);
 	uintptr_t ptr = (uintptr_t)kstack + KSTACK_SIZE - 8;
 	stack_init(ptr, ptr);
@@ -76,6 +75,10 @@ void kmain(void)
 
 void kmain_post_stack_init()
 {
+	ahci_init();
+
+	_pic_init();
+
 	printf("\n\n# ");
 	yield();
 }

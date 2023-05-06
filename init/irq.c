@@ -104,7 +104,7 @@ void irq_unmap(uint8_t irq)
 
 int irq_highest_free()
 {
-	for (int i = 0; i < 16; i++) {
+	for (int i = 15; i >= 0; i--) {
 		if (!irq_mapped[i])
 			return i;
 	}
