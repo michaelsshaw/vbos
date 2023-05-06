@@ -161,6 +161,24 @@ struct fis_pio_setup {
 	uint16_t reserved5;
 } PACKED;
 
+struct fis_set_device_bits {
+	/* 0x00 */
+	uint8_t fis_type;
+
+	uint8_t pmult : 4;
+	uint8_t reserved : 2;
+	uint8_t interrupt : 1;
+	uint8_t n : 1;
+
+	uint8_t statusl : 3;
+	uint8_t reserved2 : 1;
+	uint8_t statush : 3;
+	uint8_t reserved3 : 1;
+
+	/* 0x04 */
+	uint8_t errorl : 3;
+} PACKED;
+
 typedef volatile struct {
 	/* 0x00 */
 	uint32_t clb;
@@ -220,6 +238,30 @@ typedef volatile struct {
 	/* 0x100 */
 	hbaport_t ports[32];
 } PACKED hbamem_t;
+
+typedef volatile struct {
+	/* 0x00 */
+	struct fis_dma_setup dfis;
+	uint32_t reserved;
+
+	/* 0x20 */
+	struct fis_pio_setup pfis;
+	uint32_t reserved1[3];
+
+	/* 0x40 */
+	struct fis_reg_d2h rfis;
+	uint32_t reserved2;
+
+	struct fis_set_device_bits sdbfis;
+
+	/* 0x60 */
+	uint8_t ufis[64];
+
+
+	/* 0xA0 */
+	uint8_t reserved3[0x60];
+
+} PACKED hbafis_t;
 
 void ahci_init();
 
