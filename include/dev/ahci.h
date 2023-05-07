@@ -197,7 +197,7 @@ struct hba_cmd_header {
 	uint8_t cmd_fis_len : 5;
 	uint8_t atapi : 1;
 	uint8_t write : 1;
-	uint8_t prefetch: 1;
+	uint8_t prefetch : 1;
 
 	uint8_t reset : 1;
 	uint8_t bist : 1;
@@ -313,11 +313,17 @@ typedef volatile struct {
 	/* 0x60 */
 	uint8_t ufis[64];
 
-
 	/* 0xA0 */
 	uint8_t reserved3[0x60];
 
 } PACKED hbafis_t;
+
+struct sata_device {
+	struct pci_device *controller;
+	uint8_t port;
+
+	hbamem_t *abar;
+};
 
 void ahci_init();
 

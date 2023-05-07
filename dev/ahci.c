@@ -8,6 +8,9 @@
 
 static hbamem_t *abar = NULL;
 
+static uint8_t sata_device_count = 0;
+static struct sata_device sata_devices[32] = {0};
+
 static void ahci_irq_handler()
 {
 }
@@ -35,7 +38,7 @@ static int ahci_port_type(hbaport_t *port)
 	}
 }
 
-static void ahci_probe_ports(hbamem_t *abar)
+static void ahci_probe_ports(struct pci_device *dev, hbamem_t *abar)
 {
 	uint32_t pi = abar->pi;
 	for (int i = 0; i < 32; i++) {
@@ -43,6 +46,10 @@ static void ahci_probe_ports(hbamem_t *abar)
 			uint32_t type = ahci_port_type(&abar->ports[i]);
 			if (type == AHCI_DEV_SATA) {
 				printf(LOG_INFO "SATA drive found at port %d\n", i);
+				sata_devices[sata_device_count].port = i;
+				sata_devices[sata_device_count].controller = dev;
+				sata_devices[sata_device_count].abar = abar;
+				sata_device_count++;
 			} else if (type == AHCI_DEV_SATAPI) {
 				printf(LOG_INFO "SATAPI drive found at port %d\n", i);
 			} else if (type == AHCI_DEV_SEMB) {
@@ -70,17 +77,17 @@ void ahci_init()
 		return;
 	}
 
-	ahci_probe_ports(abar);
+	ahci_probe_ports(dev, abar);
 
 	/* setup device irq number */
 	uint16_t irq = irq_highest_free();
-	uint32_t tmp = pci_config_read_long(dev->bus, dev->slot, 0, 0x3C);
+	uint32_t tmp = pci_config_read_long(dev->bus, dev->slot, dev->func, 0x3C);
 	tmp &= 0xFFFFFF00;
 	tmp |= irq;
-	pci_config_write_long(dev->bus, dev->slot, 0, 0x3C, tmp);
+	pci_config_write_long(dev->bus, dev->slot, dev->func, 0x3C, tmp);
 	irq_map(irq, ahci_irq_handler);
 
-	tmp = pci_config_read_long(dev->bus, dev->slot, 0, 0x3C);
+	tmp = pci_config_read_long(dev->bus, dev->slot, dev->func, 0x3C);
 
 	printf(LOG_SUCCESS "AHCI controller ready\n");
 }
