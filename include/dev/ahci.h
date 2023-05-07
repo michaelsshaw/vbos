@@ -17,6 +17,20 @@
 
 #define ATA_CMD_IDENT 0xEC
 
+#define SATA_SIG_ATA 0x00000101
+#define SATA_SIG_ATAPI 0xEB140101
+#define SATA_SIG_SEMB 0xC33C0101
+#define SATA_SIG_PM 0x96690101
+
+#define AHCI_DEV_NULL 0
+#define AHCI_DEV_SATA 1
+#define AHCI_DEV_SEMB 2
+#define AHCI_DEV_PM 3
+#define AHCI_DEV_SATAPI 4
+
+#define HBA_PORT_IPM_ACTIVE 1
+#define HBA_PORT_DET_PRESENT 3
+
 struct fis_reg_h2d {
 	/* 0x00 */
 	uint8_t fis_type;
@@ -195,15 +209,13 @@ struct hba_cmd_header {
 
 	volatile uint32_t prdb_count;
 
-	uint32_t cmd_table_base_low;
-	uint32_t cmd_table_base_high;
+	paddr_t cmd_table_base;
 
 	uint32_t reserved2[4];
 } PACKED;
 
 struct hba_prdt_entry {
-	uint32_t data_base_low;
-	uint32_t data_base_high;
+	paddr_t data_base;
 
 	uint32_t reserved;
 
@@ -224,10 +236,8 @@ struct hba_cmd_tbl {
 
 typedef volatile struct {
 	/* 0x00 */
-	uint32_t clb;
-	uint32_t clbu;
-	uint32_t fb;
-	uint32_t fbu;
+	paddr_t clb;
+	paddr_t fb;
 
 	/* 0x10 */
 	uint32_t is;

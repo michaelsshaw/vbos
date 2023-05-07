@@ -56,7 +56,6 @@ static void pci_scan_bus(uint8_t bus)
 		pci_devices[pci_device_count].subclass = subclass;
 
 		pci_devices[pci_device_count].bar0 = pci_config_read_long(bus, slot, 0, 0x10);
-
 		pci_devices[pci_device_count].bar1 = pci_config_read_long(bus, slot, 0, 0x14);
 
 		uint8_t header_type = (pci_config_read_long(bus, slot, 0, 0xC) >> 24) & 0xFF;
@@ -64,11 +63,8 @@ static void pci_scan_bus(uint8_t bus)
 
 		if (header_type == 0) {
 			pci_devices[pci_device_count].bar2 = pci_config_read_long(bus, slot, 0, 0x18);
-
 			pci_devices[pci_device_count].bar3 = pci_config_read_long(bus, slot, 0, 0x1C);
-
 			pci_devices[pci_device_count].bar4 = pci_config_read_long(bus, slot, 0, 0x20);
-
 			pci_devices[pci_device_count].bar5 = pci_config_read_long(bus, slot, 0, 0x24);
 		}
 
