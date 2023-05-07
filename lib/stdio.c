@@ -34,7 +34,7 @@ int printf(const char *restrict fmt, ...)
 	va_start(args, fmt);
 
 	const char *convert = "0123456789ABCDEF";
-	char buf[11] = { 0 };
+	char buf[16] = { 0 };
 
 	while ((c = *fmt++)) {
 		if (c == '%') {
