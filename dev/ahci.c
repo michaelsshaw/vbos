@@ -246,13 +246,5 @@ void ahci_init()
 	pci_config_write_long(dev->bus, dev->slot, dev->func, 0x3C, tmp);
 	irq_map(irq, ahci_irq_handler);
 
-	char *buf = kmalloc(512);
-	ahci_access_sectors(&sata_devices[1], 0, 1, (paddr_t)buf & (~hhdm_start), false);
-	buf[511] = 0;
-	printf("AHCI: %s\n", buf);
-
-	memcpy(buf, "Hello, World!", 13);
-	ahci_access_sectors(&sata_devices[1], 0, 1, (paddr_t)buf & (~hhdm_start), true);
-
 	printf(LOG_SUCCESS "AHCI controller ready\n");
 }
