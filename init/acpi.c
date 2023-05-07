@@ -12,6 +12,7 @@ struct limine_rsdp_request rsdp_req = { .id = LIMINE_RSDP_REQUEST, .revision = 0
 
 static struct rsdp *rsdp = NULL;
 struct madt *__madt = NULL;
+struct mcfg *__mcfg = NULL;
 
 static void rsdt_parse(struct rsdt *rsdt)
 {
@@ -28,6 +29,10 @@ static void rsdt_parse(struct rsdt *rsdt)
 
 		if (!(memcmp(h->signature, "APIC", 4))) {
 			__madt = (struct madt *)h;
+		}
+
+		if(!(memcmp(h->signature, "MCFG", 4))) {
+			__mcfg = (struct mcfg *)h;
 		}
 
 #ifdef KDEBUG

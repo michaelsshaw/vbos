@@ -20,6 +20,9 @@ static int ahci_port_type(hbaport_t *port)
 	if (det != HBA_PORT_DET_PRESENT)
 		return AHCI_DEV_NULL;
 
+	if(port->clb_low == 0 && port->clb_high == 0)
+		return AHCI_DEV_NULL;
+
 	switch (port->sig) {
 	case SATA_SIG_ATAPI:
 		return AHCI_DEV_SATAPI;

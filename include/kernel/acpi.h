@@ -31,9 +31,22 @@ struct rsdt {
 	uint32_t sdt[];
 } PACKED;
 
+struct mcfg {
+	struct acpi_sdt_header h;
+	uint64_t reserved;
+	struct {
+		uint64_t base_addr;
+		uint16_t seg_group;
+		uint8_t start_bus;
+		uint8_t end_bus;
+		uint32_t reserved;
+	} PACKED cfg[];
+} PACKED;
+
 void acpi_init();
 
 extern struct madt *__madt;
+extern struct mcfg *__mcfg;
 
 #endif /* __ASM__ */
 #endif /* _ACPI_H_ */

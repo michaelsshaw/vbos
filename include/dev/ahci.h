@@ -236,8 +236,11 @@ struct hba_cmd_tbl {
 
 typedef volatile struct {
 	/* 0x00 */
-	paddr_t clb;
-	paddr_t fb;
+	paddr32_t clb_low;
+	paddr32_t clb_high;
+
+	paddr32_t fb_low;
+	paddr32_t fb_high;
 
 	/* 0x10 */
 	uint32_t is;
@@ -286,7 +289,7 @@ typedef volatile struct {
 	uint8_t reserved[0x74];
 
 	/* 0xA0 */
-	char vendor[0x60];
+	uint8_t vendor[0x60];
 
 	/* 0x100 */
 	hbaport_t ports[32];
