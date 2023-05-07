@@ -246,7 +246,7 @@ static void *alloc_page_early()
 	return r;
 }
 
-static uint64_t *next_level(uint64_t *this_level, size_t next_num)
+static uint64_t *pagemap_traverse(uint64_t *this_level, size_t next_num)
 {
 	uint64_t *r;
 	if (!(this_level[next_num] & 1)) {
@@ -288,9 +288,9 @@ void kmap(paddr_t paddr, uint64_t vaddr, size_t len, uint64_t attr)
 		pdn = (vaddr >> 30) & 0x1FF;
 		pdpn = (vaddr >> 39) & 0x1FF;
 
-		pdpt = next_level((uint64_t *)pml4, pdpn);
-		pdt = next_level(pdpt, pdn);
-		pt = next_level(pdt, ptn);
+		pdpt = pagemap_traverse((uint64_t *)pml4, pdpn);
+		pdt = pagemap_traverse(pdpt, pdn);
+		pt = pagemap_traverse(pdt, ptn);
 		pt[pn] = paddr | attr;
 	}
 }
