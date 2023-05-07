@@ -339,5 +339,6 @@ struct sata_device {
 };
 
 void ahci_init();
+bool ahci_access_sectors(struct sata_device *dev, paddr_t lba, uint16_t count, paddr_t buf, bool write);
 
 #endif /* _AHCI_H_ */
