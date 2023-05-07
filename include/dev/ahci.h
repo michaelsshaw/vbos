@@ -15,6 +15,10 @@
 #define FIS_PIO_SETUP 0x5F
 #define FIS_DEV_BITS 0xA1
 
+#define ATA_DEV_BUSY 0x80
+#define ATA_DEV_DRQ 0x08
+
+#define ATA_CMD_READ_DMA_EX 0x25
 #define ATA_CMD_IDENT 0xEC
 
 #define SATA_SIG_ATA 0x00000101
@@ -28,8 +32,14 @@
 #define AHCI_DEV_PM 3
 #define AHCI_DEV_SATAPI 4
 
-#define HBA_PORT_IPM_ACTIVE 1
-#define HBA_PORT_DET_PRESENT 3
+#define HBA_PORT_IPM_ACTIVE 0x1
+#define HBA_PORT_DET_PRESENT 0x3
+
+#define HBA_PORT_CMD_ST 0x1
+#define HBA_PORT_CMD_FRE 0x10
+#define HBA_PORT_CMD_FR 0x4000
+#define HBA_PORT_CMD_CR 0x8000
+#define HBA_PORT_IS_TFES 0x40000000
 
 struct fis_reg_h2d {
 	/* 0x00 */
@@ -236,11 +246,9 @@ struct hba_cmd_tbl {
 
 typedef volatile struct {
 	/* 0x00 */
-	paddr32_t clb_low;
-	paddr32_t clb_high;
+	paddr_t clb;
 
-	paddr32_t fb_low;
-	paddr32_t fb_high;
+	paddr_t fb;
 
 	/* 0x10 */
 	uint32_t is;

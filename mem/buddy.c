@@ -8,6 +8,11 @@
 struct limine_memmap_request map_req = { .id = LIMINE_MEMMAP_REQUEST, .revision = 0 };
 struct limine_kernel_address_request kern_req = { .id = LIMINE_KERNEL_ADDRESS_REQUEST, .revision = 0 };
 
+#ifdef KDEBUG
+static const char *limine_types[] = { "USABLE", "RESERVED",   "ACPI_RECLAIMABLE", "ACPI_NVS", "BAD_MEMORY", "BOOTLOADER_RECLAIMABLE",
+				    "KERN",   "FRAMEBUFFER" };
+#endif
+
 static char *kmem;
 static size_t kmem_len;
 
@@ -296,6 +301,13 @@ static size_t limine_parse_memregions()
 
 	for (unsigned int i = 0; i < res->entry_count; i++) {
 		struct limine_memmap_entry *entry = res->entries[i];
+
+#ifdef KDEBUG
+		const char *type_str = "base=%X, len=%x %s\n";
+		printf(LOG_DEBUG "Memmap entry: ");
+		printf(type_str, entry->base, entry->length, limine_types[entry->type]);
+
+#endif
 
 		switch (entry->type) {
 		case LIMINE_MEMMAP_KERNEL_AND_MODULES:
