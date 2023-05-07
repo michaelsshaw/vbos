@@ -13,6 +13,7 @@
 #include <dev/pci.h>
 #include <dev/ahci.h>
 
+#define LIMINE_INTERNAL_MODULE_REQUIRED (1 << 0)
 #include <limine/limine.h>
 
 #define KSTACK_SIZE 0x4000
@@ -20,6 +21,12 @@
 void stack_init(uintptr_t rsp, uintptr_t rbp);
 
 struct limine_hhdm_request hhdm_req = { .id = LIMINE_HHDM_REQUEST, .revision = 0 };
+struct limine_kernel_file_request module_req = { .id = LIMINE_KERNEL_FILE_REQUEST, .revision = 0 };
+
+static char *kcmdline;
+static char *kpath;
+static struct limine_uuid kroot_disk;
+static struct limine_uuid kroot_part;
 
 uintptr_t hhdm_start;
 uintptr_t data_end;
@@ -43,7 +50,6 @@ static inline void _pic_init()
 
 	while (!console_ready())
 		;
-	iowait();
 }
 
 void kmain(void)
@@ -62,6 +68,24 @@ void kmain(void)
 	char kmem[one_gb] ALIGN(0x1000);
 	mem_early_init(kmem, one_gb);
 	kmalloc_init();
+
+	struct limine_kernel_file_response *resp = module_req.response;
+
+	struct limine_file *kfile = (struct limine_file *)((paddr_t)resp->kernel_file | hhdm_start);
+
+	kcmdline = kzalloc(strlen(kfile->cmdline) + 1);
+	strcpy(kcmdline, kfile->cmdline);
+
+	kpath = kzalloc(strlen(kfile->path) + 1);
+	strcpy(kpath, kfile->path);
+
+	kroot_disk = kfile->gpt_disk_uuid;
+	kroot_part = kfile->gpt_part_uuid;
+
+#ifdef KDEBUG
+	printf(LOG_DEBUG "Kernel file: path='%s' cmdline='%s'\n", kpath, kcmdline);
+	printf(LOG_DEBUG "Root partition: disk=%X-%X part=%X-%X\n", kroot_disk.a, kroot_disk.b, kroot_part.a, kroot_part.b);
+#endif /* KDEBUG */
 
 	console_init();
 	acpi_init();

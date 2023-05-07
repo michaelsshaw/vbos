@@ -21,6 +21,8 @@ struct page *pml4;
 struct mem_region *mem_regions;
 size_t num_regions;
 
+paddr_t kcr3 = 0;
+
 static void *(*alloc_page)(void);
 static struct slab *kmap_slab;
 
@@ -431,6 +433,7 @@ void mem_early_init(char *mem, size_t len)
 	pml4_paddr = (uintptr_t)pml4;
 	pml4_paddr &= (~hhdm_start);
 	cr3.pml4_addr = pml4_paddr >> 12;
+	kcr3 = cr3.val;
 	cr3_write(cr3.val);
 
 	/* done */

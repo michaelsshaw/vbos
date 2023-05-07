@@ -19,6 +19,7 @@
 #define ATA_DEV_DRQ 0x08
 
 #define ATA_CMD_READ_DMA_EX 0x25
+#define ATA_CMD_WRITE_DMA_EX 0x35
 #define ATA_CMD_IDENT 0xEC
 
 #define SATA_SIG_ATA 0x00000101
@@ -31,6 +32,10 @@
 #define AHCI_DEV_SEMB 2
 #define AHCI_DEV_PM 3
 #define AHCI_DEV_SATAPI 4
+
+#define AHCI_GHC_ENABLE 0x1
+#define AHCI_GHC_IE 0x2
+#define AHCI_GHC_AE 0x80000000
 
 #define HBA_PORT_IPM_ACTIVE 0x1
 #define HBA_PORT_DET_PRESENT 0x3

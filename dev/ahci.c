@@ -1,7 +1,9 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 #include "stdio.h"
 #include <kernel/mem.h>
+#include <kernel/slab.h>
 #include <kernel/irq.h>
+#include <kernel/pio.h>
 
 #include <dev/ahci.h>
 #include <dev/pci.h>
@@ -15,6 +17,7 @@ static paddr_t ahci_pbase = 0;
 
 static void ahci_irq_handler()
 {
+	printf(LOG_ERROR "AHCI INTERRUPT\n");
 }
 
 static int ahci_port_type(hbaport_t *port)
@@ -110,14 +113,16 @@ static int cmdslot(hbaport_t *port)
 {
 	uint32_t slots = (port->sact | port->ci);
 	for (int i = 0; i < 32; i++) {
-		if ((slots & 1) == 0)
+		if ((slots & 1))
+			slots >>= 1;
+		else
 			return i;
-		slots >>= 1;
 	}
+
 	return -1;
 }
 
-bool ahci_read_sectors(struct sata_device *dev, paddr_t lba, uint16_t count, paddr_t buf)
+bool ahci_access_sectors(struct sata_device *dev, paddr_t lba, uint16_t count, paddr_t buf, bool write)
 {
 	hbaport_t *port = &dev->abar->ports[dev->port];
 
@@ -154,7 +159,7 @@ bool ahci_read_sectors(struct sata_device *dev, paddr_t lba, uint16_t count, pad
 	struct fis_reg_h2d *cmdfis = (struct fis_reg_h2d *)(&cmdtbl->cfis);
 	cmdfis->fis_type = FIS_REG_H2D;
 	cmdfis->cmd_mode = 1;
-	cmdfis->command = ATA_CMD_READ_DMA_EX;
+	cmdfis->command = write ? ATA_CMD_WRITE_DMA_EX : ATA_CMD_READ_DMA_EX;
 
 	cmdfis->lba0 = (uint8_t)lba;
 	cmdfis->lba1 = (uint8_t)(lba >> 8);
@@ -177,8 +182,10 @@ bool ahci_read_sectors(struct sata_device *dev, paddr_t lba, uint16_t count, pad
 		return false;
 	}
 
+	/* issue command */
 	port->ci = 1 << slot;
 
+	/* wait for completion */
 	while (1) {
 		if ((port->ci & (1 << slot)) == 0)
 			break;
@@ -188,7 +195,8 @@ bool ahci_read_sectors(struct sata_device *dev, paddr_t lba, uint16_t count, pad
 		}
 	}
 
-	if(port->is & HBA_PORT_IS_TFES) {
+	/* check again */
+	if (port->is & HBA_PORT_IS_TFES) {
 		printf(LOG_ERROR "AHCI: Read disk error\n");
 		return false;
 	}
@@ -201,18 +209,35 @@ void ahci_init()
 	struct pci_device *dev = pci_find_device(0x01, 0x06);
 	/* check interrupt number */
 	if (dev == NULL) {
-		printf(LOG_ERROR "Failed to find AHCI device\n");
+		printf(LOG_WARN "No SATA controllers found\n");
 		return;
 	}
 	abar = (hbamem_t *)((uintptr_t)dev->bar5 | hhdm_start);
 
 	if (!(abar->ghc & (1 << 31))) {
-		printf(LOG_ERROR "AHCI controller not enabled\n");
+		printf(LOG_WARN "AHCI controller not enabled\n");
 		return;
 	}
 
+	/* enable AHCI interrupts */
+	abar->ghc |= AHCI_GHC_IE;
+	abar->ghc |= AHCI_GHC_AE;
+
+	size_t ahci_zone_size = 0x100000;
+	ahci_pbase = (paddr_t)buddy_alloc(ahci_zone_size) & (~hhdm_start); /* 1 MiB */
 	ahci_probe_ports(dev, abar);
-	ahci_pbase = (paddr_t)buddy_alloc(0x100000); /* 1 MiB */
+
+	/* map ahci zone with cache disabled (pcd=1) */
+	struct page attrs;
+	attrs.val = 1;
+	attrs.rw = 1;
+	attrs.pcd = 1;
+	kmap(ahci_pbase, ahci_pbase | hhdm_start, ahci_zone_size, attrs.val);
+
+	if (sata_device_count == 0) {
+		printf(LOG_WARN "No SATA devices found\n");
+		return;
+	}
 
 	/* setup device irq number */
 	uint16_t irq = irq_highest_free();
@@ -222,7 +247,13 @@ void ahci_init()
 	pci_config_write_long(dev->bus, dev->slot, dev->func, 0x3C, tmp);
 	irq_map(irq, ahci_irq_handler);
 
-	tmp = pci_config_read_long(dev->bus, dev->slot, dev->func, 0x3C);
+	char *buf = kmalloc(512);
+	ahci_access_sectors(&sata_devices[1], 0, 1, (paddr_t)buf & (~hhdm_start), false);
+	buf[511] = 0;
+	printf("AHCI: %s\n", buf);
+
+	memcpy(buf, "Hello, World!", 13);
+	ahci_access_sectors(&sata_devices[1], 0, 1, (paddr_t)buf & (~hhdm_start), true);
 
 	printf(LOG_SUCCESS "AHCI controller ready\n");
 }

@@ -80,6 +80,7 @@ extern size_t num_regions;
 extern size_t max_regions;
 
 extern struct page *pml4;
+extern paddr_t kcr3;
 
 uint64_t cr3_read();
 void cr3_write(uint64_t cr3);
