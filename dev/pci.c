@@ -49,6 +49,7 @@ static struct pci_device *pci_scan_function(uint8_t bus, uint8_t slot, uint8_t f
 
 	pci_devices[pci_device_count].bus = bus;
 	pci_devices[pci_device_count].slot = slot;
+	pci_devices[pci_device_count].func = func;
 	pci_devices[pci_device_count].vendor_id = vendor_id;
 	pci_devices[pci_device_count].device_id = device_id;
 	pci_devices[pci_device_count].class = class;

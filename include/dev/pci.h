@@ -11,6 +11,8 @@ struct pci_device {
 	uint8_t bus;
 	uint8_t slot;
 
+	uint8_t func;
+
 	uint8_t class;
 	uint8_t subclass;
 
