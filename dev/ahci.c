@@ -1,5 +1,4 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
-#include "stdio.h"
 #include <kernel/mem.h>
 #include <kernel/slab.h>
 #include <kernel/irq.h>
