@@ -147,7 +147,7 @@ bool ahci_access_sectors(struct sata_device *dev, paddr_t lba, uint16_t count, p
 		cmdtbl->prdt_entry[i].data_base = buf;
 		cmdtbl->prdt_entry[i].byte_count = 8 * 1024 - 1;
 		cmdtbl->prdt_entry[i].interrupt = 1;
-		buf += 4 * 1024;
+		buf += 8 * 1024;
 		count -= 16;
 	}
 
