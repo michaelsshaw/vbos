@@ -47,30 +47,31 @@ static struct pci_device *pci_scan_function(uint8_t bus, uint8_t slot, uint8_t f
 	if (vendor_id == 0xFFFF || class == 0xFF)
 		return NULL;
 
-	pci_devices[pci_device_count].bus = bus;
-	pci_devices[pci_device_count].slot = slot;
-	pci_devices[pci_device_count].func = func;
-	pci_devices[pci_device_count].vendor_id = vendor_id;
-	pci_devices[pci_device_count].device_id = device_id;
-	pci_devices[pci_device_count].class = class;
-	pci_devices[pci_device_count].subclass = subclass;
+	struct pci_device *dev = &pci_devices[pci_device_count];
+	dev->bus = bus;
+	dev->slot = slot;
+	dev->func = func;
+	dev->vendor_id = vendor_id;
+	dev->device_id = device_id;
+	dev->class = class;
+	dev->subclass = subclass;
 
-	pci_devices[pci_device_count].bar0 = pci_config_read_long(bus, slot, func, 0x10);
-	pci_devices[pci_device_count].bar1 = pci_config_read_long(bus, slot, func, 0x14);
+	dev->bar0 = pci_config_read_long(bus, slot, func, 0x10);
+	dev->bar1 = pci_config_read_long(bus, slot, func, 0x14);
 
 	uint8_t header_type = (pci_config_read_long(bus, slot, 0, 0xC) >> 16) & 0xFF;
-	pci_devices[pci_device_count].header_type = header_type;
+	dev->header_type = header_type;
 
 	if ((header_type & 0x0F) == 0) {
-		pci_devices[pci_device_count].bar2 = pci_config_read_long(bus, slot, func, 0x18);
-		pci_devices[pci_device_count].bar3 = pci_config_read_long(bus, slot, func, 0x1C);
-		pci_devices[pci_device_count].bar4 = pci_config_read_long(bus, slot, func, 0x20);
-		pci_devices[pci_device_count].bar5 = pci_config_read_long(bus, slot, func, 0x24);
+		dev->bar2 = pci_config_read_long(bus, slot, func, 0x18);
+		dev->bar3 = pci_config_read_long(bus, slot, func, 0x1C);
+		dev->bar4 = pci_config_read_long(bus, slot, func, 0x20);
+		dev->bar5 = pci_config_read_long(bus, slot, func, 0x24);
 	}
 
 	pci_device_count++;
 
-	return &pci_devices[pci_device_count - 1];
+	return dev;
 }
 
 static void pci_scan_bus(uint8_t bus)
