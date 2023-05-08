@@ -9,6 +9,8 @@
 
 static size_t slab_sizes[] = { 16, 32, 64, 128, 256, 512, 1024, 2048, 4096 };
 static struct slab *slab_cache[ARRAY_SIZE(slab_sizes)];
+static size_t dma_sizes[] = { 0x1000, 0x10000, 0x100000, 0x1000000 };
+static struct slab *slab_cache_dma[ARRAY_SIZE(slab_sizes)];
 
 static inline void slab_range(struct slab *slab, uintptr_t *o_start, uintptr_t *o_end)
 {
@@ -37,16 +39,23 @@ struct slab *slab_create(size_t size, uint64_t flags)
 	uintptr_t aret = (uintptr_t)ret;
 	uintptr_t start = (uintptr_t)ret + sizeof(struct slab);
 
-	if (flags & SLAB_PAGE_ALIGN)
+	if (flags & SLAB_PAGE_ALIGN) {
 		ret->align = 0xFFF;
-	else
+	} else if (flags & SLAB_DMA_64K) {
+		ret->align = 0xFFFF;
+		struct page attrs = kdefault_attrs;
+		attrs.pcd = 1;
+		kmap((paddr_t)(ret) & (~hhdm_start), (paddr_t)ret, asize, attrs.val);
+	} else {
 		ret->align = SLAB_ALIGN;
+	}
 
 	start |= ret->align;
 	start += 1;
 
 	ret->num = (((aret + asize) - start) / size);
 	ret->size = size;
+	ret->tsize = asize;
 	ret->next = NULL;
 	ret->prev = NULL;
 	ret->flags = flags;
@@ -117,6 +126,12 @@ void slab_free(struct slab *slab, void *ptr)
 		if (next != NULL)
 			next->prev = prev;
 
+		if (slab->flags & SLAB_DMA_64K) {
+			struct page attrs = kdefault_attrs;
+			attrs.pcd = 0;
+			kmap((paddr_t)slab & (~hhdm_start), (paddr_t)slab, slab->tsize, attrs.val);
+		}
+
 		buddy_free(slab);
 	}
 }
@@ -125,25 +140,36 @@ void kmalloc_init()
 {
 	for (size_t i = 0; i < ARRAY_SIZE(slab_sizes); i++)
 		slab_cache[i] = slab_create(slab_sizes[i], 0);
+	for (size_t i = 0; i < ARRAY_SIZE(dma_sizes); i++)
+		slab_cache_dma[i] = slab_create(dma_sizes[i], SLAB_DMA_64K);
 }
 
-void *kmalloc(size_t size)
+static void *kmalloc_table(size_t size, size_t *sizes, size_t nsizes, struct slab **cache, bool fb_disable)
 {
-	void *ret = NULL;
 	struct slab *slab = NULL;
-
-	if (size > slab_sizes[ARRAY_SIZE(slab_sizes) - 1]) {
-		ret = buddy_alloc(npow2(size));
+	if (size > sizes[nsizes - 1] && !fb_disable) {
+		return buddy_alloc(npow2(size));
 	} else {
-		for (size_t i = 0; i < ARRAY_SIZE(slab_sizes); i++) {
-			if (size <= slab_sizes[i]) {
-				size = slab_sizes[i];
-				slab = slab_cache[i];
-				ret = slab_alloc(slab);
-
-				break;
+		for (size_t i = 0; i < nsizes; i++) {
+			if (size <= sizes[i]) {
+				size = sizes[i];
+				slab = cache[i];
+				return slab_alloc(slab);
 			}
 		}
+	}
+
+	return NULL;
+}
+
+void *kmalloc(size_t size, uint64_t flags)
+{
+	void *ret = NULL;
+
+	if (flags & ALLOC_DMA) {
+		ret = kmalloc_table(size, dma_sizes, ARRAY_SIZE(dma_sizes), slab_cache_dma, true);
+	} else {
+		ret = kmalloc_table(size, slab_sizes, ARRAY_SIZE(slab_sizes), slab_cache, false);
 	}
 
 	if (ret == NULL)
@@ -152,9 +178,9 @@ void *kmalloc(size_t size)
 	return ret;
 }
 
-void *kzalloc(size_t size)
+void *kzalloc(size_t size, uint64_t flags)
 {
-	void *ret = kmalloc(size);
+	void *ret = kmalloc(size, flags);
 	if (ret == NULL)
 		return NULL;
 
@@ -162,25 +188,45 @@ void *kzalloc(size_t size)
 	return ret;
 }
 
+static bool kfree_helper(void *ptr, struct slab *slab)
+{
+	while (slab != NULL) {
+		uintptr_t low = 0;
+		uintptr_t high = 0;
+
+		slab_range(slab, &low, &high);
+		if ((uintptr_t)ptr >= low && (uintptr_t)ptr <= high) {
+			slab_free(slab, ptr);
+			return true;
+		}
+		slab = slab->next;
+	}
+
+	return false;
+}
+
 void kfree(void *ptr)
 {
 	if (ptr == NULL)
 		return;
 
-	for (size_t i = 0; i < ARRAY_SIZE(slab_sizes); i++) {
-		struct slab *slab = slab_cache[i];
-		while (slab != NULL) {
-			uintptr_t low = 0;
-			uintptr_t high = 0;
-
-			slab_range(slab_cache[i], &low, &high);
-			if ((uintptr_t)ptr >= low && (uintptr_t)ptr <= high) {
-				slab_free(slab_cache[i], ptr);
+	size_t nslabsizes = ARRAY_SIZE(slab_sizes);
+	size_t ndmasizes = ARRAY_SIZE(dma_sizes);
+	size_t max = MAX(nslabsizes, ndmasizes);
+	for (size_t i = 0; i < max; i++) {
+		if (i < nslabsizes) {
+			struct slab *slab = slab_cache[i];
+			if (kfree_helper(ptr, slab))
 				return;
-			}
-			slab = slab->next;
+		}
+
+		if (i < ndmasizes) {
+			struct slab *slab = slab_cache_dma[i];
+			if (kfree_helper(ptr, slab))
+				return;
 		}
 	}
 
+	/* if we get here, it's a buddy allocation */
 	buddy_free(ptr);
 }

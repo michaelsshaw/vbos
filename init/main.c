@@ -73,10 +73,10 @@ void kmain(void)
 
 	struct limine_file *kfile = (struct limine_file *)((paddr_t)resp->kernel_file | hhdm_start);
 
-	kcmdline = kzalloc(strlen(kfile->cmdline) + 1);
+	kcmdline = kzalloc(strlen(kfile->cmdline) + 1, ALLOC_KERN);
 	strcpy(kcmdline, kfile->cmdline);
 
-	kpath = kzalloc(strlen(kfile->path) + 1);
+	kpath = kzalloc(strlen(kfile->path) + 1, ALLOC_KERN);
 	strcpy(kpath, kfile->path);
 
 	kroot_disk = kfile->gpt_disk_uuid;

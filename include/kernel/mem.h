@@ -17,6 +17,7 @@
 
 #define ALIGN(_a) __attribute__((aligned(_a)))
 
+
 struct page { /* I would rather refer to this as a struct */
 	union {
 		struct {
@@ -81,6 +82,7 @@ extern size_t max_regions;
 
 extern struct page *pml4;
 extern paddr_t kcr3;
+extern struct page kdefault_attrs;
 
 uint64_t cr3_read();
 void cr3_write(uint64_t cr3);

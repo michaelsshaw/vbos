@@ -99,7 +99,7 @@ struct pci_device *pci_find_device(uint8_t class, uint8_t subclass)
 
 void pci_init()
 {
-	pci_devices = kzalloc(sizeof(struct pci_device) * MAX_PCI_DEVICES);
+	pci_devices = kzalloc(sizeof(struct pci_device) * MAX_PCI_DEVICES, ALLOC_KERN);
 	pci_device_count = 0;
 
 	for (int bus = 0; bus < 256; bus++)

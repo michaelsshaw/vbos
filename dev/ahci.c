@@ -143,17 +143,13 @@ bool ahci_access_sectors(struct sata_device *dev, paddr_t lba, uint16_t count, p
 	memset(cmdtbl, 0, sizeof(struct hba_cmd_tbl) + (cmdheader->prdt_len - 1) * sizeof(struct hba_prdt_entry));
 
 	int i;
-	for (i = 0; i < cmdheader->prdt_len - 1; i++) {
+	for (i = 0; i < cmdheader->prdt_len; i++) {
 		cmdtbl->prdt_entry[i].data_base = buf;
 		cmdtbl->prdt_entry[i].byte_count = 8 * 1024 - 1;
 		cmdtbl->prdt_entry[i].interrupt = 1;
 		buf += 8 * 1024;
 		count -= 16;
 	}
-
-	cmdtbl->prdt_entry[i].data_base = buf;
-	cmdtbl->prdt_entry[i].byte_count = (count << 9) - 1;
-	cmdtbl->prdt_entry[i].interrupt = 1;
 
 	struct fis_reg_h2d *cmdfis = (struct fis_reg_h2d *)(&cmdtbl->cfis);
 	cmdfis->fis_type = FIS_REG_H2D;

@@ -21,6 +21,8 @@ struct page *pml4;
 struct mem_region *mem_regions;
 size_t num_regions;
 
+struct page kdefault_attrs;
+
 paddr_t kcr3 = 0;
 
 static void *(*alloc_page)(void);
@@ -367,6 +369,8 @@ void mem_early_init(char *mem, size_t len)
 	attrs.val = 1;
 	attrs.rw = 1;
 	attrs.xd = 0;
+
+	kdefault_attrs.val = attrs.val;
 
 	/* These page tables are initialized on the kernel stack
 	 *

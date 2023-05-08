@@ -6,9 +6,14 @@
 #include <kernel/mem.h>
 
 #define SLAB_PAGE_ALIGN 0x01
+#define SLAB_DMA_64K 0x02
+
+#define ALLOC_KERN 0x01
+#define ALLOC_DMA 0x02
 
 struct slab {
 	size_t size; /* size of each object */
+	size_t tsize; /* total size of this slab */
 	size_t num; /* number of objects in this slab */
 	size_t free; /* number of free objects */
 	uint64_t flags;
@@ -30,8 +35,8 @@ void *slab_alloc(struct slab *slab);
 void slab_free(struct slab *slab, void *ptr);
 
 void kmalloc_init();
-void *kmalloc(size_t size);
-void *kzalloc(size_t size);
+void *kmalloc(size_t size, uint64_t flags);
+void *kzalloc(size_t size, uint64_t flags);
 void kfree(void *ptr);
 
 #endif /* _SLAB_H_ */
