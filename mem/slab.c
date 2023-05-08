@@ -3,13 +3,13 @@
 #include <kernel/mem.h>
 #include <kernel/slab.h>
 
-#define SLAB_MIN_COUNT 256
+#define SLAB_MIN_COUNT 16
 #define SLAB_MIN_SIZE 0x10000ull /* 64 KiB */
 #define SLAB_ALIGN 7
 
 static size_t slab_sizes[] = { 16, 32, 64, 128, 256, 512, 1024, 2048, 4096 };
 static struct slab *slab_cache[ARRAY_SIZE(slab_sizes)];
-static size_t dma_sizes[] = { 0x1000, 0x10000, 0x100000, 0x1000000 };
+static size_t dma_sizes[] = { 0x1000, 0x10000, 0x100000 };
 static struct slab *slab_cache_dma[ARRAY_SIZE(slab_sizes)];
 
 static inline void slab_range(struct slab *slab, uintptr_t *o_start, uintptr_t *o_end)
