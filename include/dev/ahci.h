@@ -33,7 +33,6 @@
 #define AHCI_DEV_PM 3
 #define AHCI_DEV_SATAPI 4
 
-#define AHCI_GHC_ENABLE 0x1
 #define AHCI_GHC_IE 0x2
 #define AHCI_GHC_AE 0x80000000
 

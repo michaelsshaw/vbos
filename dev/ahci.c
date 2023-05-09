@@ -142,15 +142,6 @@ bool ahci_access_sectors(struct sata_device *dev, paddr_t lba, uint16_t count, p
 	struct hba_cmd_tbl *cmdtbl = (struct hba_cmd_tbl *)(cmdheader->cmd_table_base | hhdm_start);
 	memset(cmdtbl, 0, sizeof(struct hba_cmd_tbl) + (cmdheader->prdt_len - 1) * sizeof(struct hba_prdt_entry));
 
-	int i;
-	for (i = 0; i < cmdheader->prdt_len; i++) {
-		cmdtbl->prdt_entry[i].data_base = buf;
-		cmdtbl->prdt_entry[i].byte_count = 8 * 1024 - 1;
-		cmdtbl->prdt_entry[i].interrupt = 1;
-		buf += 8 * 1024;
-		count -= 16;
-	}
-
 	struct fis_reg_h2d *cmdfis = (struct fis_reg_h2d *)(&cmdtbl->cfis);
 	cmdfis->fis_type = FIS_REG_H2D;
 	cmdfis->cmd_mode = 1;
@@ -166,6 +157,15 @@ bool ahci_access_sectors(struct sata_device *dev, paddr_t lba, uint16_t count, p
 
 	cmdfis->count_low = count & 0xff;
 	cmdfis->count_high = (count >> 8) & 0xff;
+
+	int i;
+	for (i = 0; i < cmdheader->prdt_len; i++) {
+		cmdtbl->prdt_entry[i].data_base = buf;
+		cmdtbl->prdt_entry[i].byte_count = 8 * 1024 - 1;
+		cmdtbl->prdt_entry[i].interrupt = 1;
+		buf += 8 * 1024;
+		count -= 16;
+	}
 
 	/* wait until port is free */
 	while ((port->tfd & (ATA_DEV_BUSY | ATA_DEV_DRQ)) && spin < 1000000) {
@@ -196,6 +196,10 @@ bool ahci_access_sectors(struct sata_device *dev, paddr_t lba, uint16_t count, p
 		return false;
 	}
 
+	/* disk read success */
+#ifdef KDEBUG
+	printf(LOG_DEBUG "Read %d sectors from disk\n", count);
+#endif
 	return true;
 }
 
