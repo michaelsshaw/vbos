@@ -307,7 +307,7 @@ static size_t limine_parse_memregions()
 		struct limine_memmap_entry *entry = res->entries[i];
 
 #ifdef KDEBUG
-		const char *type_str = "base=%X, len=%x %s\n";
+		const char *type_str = "base=%X, len=%X %s\n";
 		printf(LOG_DEBUG "Memmap entry: ");
 		printf(type_str, entry->base, entry->length, limine_types[entry->type]);
 
