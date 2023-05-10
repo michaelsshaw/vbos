@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 #include <kernel/common.h>
 #include <kernel/mem.h>
+#include <kernel/rbtree.h>
 #include <kernel/slab.h>
 
 #define SLAB_ALIGN 7
@@ -9,6 +10,8 @@ static size_t slab_sizes[] = { 16, 32, 64, 128, 256, 512, 1024, 2048, 4096 };
 static struct slab *slab_cache[ARRAY_SIZE(slab_sizes)];
 static size_t dma_sizes[] = { 0x1000, 0x10000, 0x100000 };
 static struct slab *slab_cache_dma[ARRAY_SIZE(slab_sizes)];
+
+static struct rbtree kmalloc_tree = { NULL };
 
 static inline void slab_range(struct slab *slab, uintptr_t *o_start, uintptr_t *o_end)
 {
@@ -135,7 +138,7 @@ void slab_free(struct slab *slab, void *ptr)
 void kmalloc_init()
 {
 	for (size_t i = 0; i < ARRAY_SIZE(slab_sizes); i++)
-		slab_cache[i] = slab_create(slab_sizes[i], 128 * KB,0);
+		slab_cache[i] = slab_create(slab_sizes[i], 128 * KB, 0);
 	for (size_t i = 0; i < ARRAY_SIZE(dma_sizes); i++)
 		slab_cache_dma[i] = slab_create(dma_sizes[i], 8 * MB, SLAB_DMA_64K);
 }
@@ -143,19 +146,34 @@ void kmalloc_init()
 static void *kmalloc_table(size_t size, size_t *sizes, size_t nsizes, struct slab **cache, bool fb_disable)
 {
 	struct slab *slab = NULL;
+	void *ret = NULL;
 	if (size > sizes[nsizes - 1] && !fb_disable) {
-		return buddy_alloc(npow2(size));
+		ret = buddy_alloc(npow2(size));
 	} else {
 		for (size_t i = 0; i < nsizes; i++) {
 			if (size <= sizes[i]) {
 				size = sizes[i];
 				slab = cache[i];
-				return slab_alloc(slab);
+				ret = slab_alloc(slab);
+				break;
 			}
 		}
 	}
 
-	return NULL;
+	if (ret == NULL)
+		return NULL;
+
+	struct rbnode *n = rbt_insert(&kmalloc_tree, (uint64_t)ret);
+	if (n == NULL) {
+		if (slab != NULL)
+			slab_free(slab, ret);
+		else
+			buddy_free(ret);
+		return NULL;
+	}
+	n->value = (uint64_t)slab;
+
+	return ret;
 }
 
 void *kmalloc(size_t size, uint64_t flags)
@@ -167,9 +185,6 @@ void *kmalloc(size_t size, uint64_t flags)
 	} else {
 		ret = kmalloc_table(size, slab_sizes, ARRAY_SIZE(slab_sizes), slab_cache, false);
 	}
-
-	if (ret == NULL)
-		return NULL;
 
 	return ret;
 }
@@ -184,45 +199,37 @@ void *kzalloc(size_t size, uint64_t flags)
 	return ret;
 }
 
-static bool kfree_helper(void *ptr, struct slab *slab)
-{
-	while (slab != NULL) {
-		uintptr_t low = 0;
-		uintptr_t high = 0;
-
-		slab_range(slab, &low, &high);
-		if ((uintptr_t)ptr >= low && (uintptr_t)ptr <= high) {
-			slab_free(slab, ptr);
-			return true;
-		}
-		slab = slab->next;
-	}
-
-	return false;
-}
-
 void kfree(void *ptr)
 {
 	if (ptr == NULL)
 		return;
 
-	size_t nslabsizes = ARRAY_SIZE(slab_sizes);
-	size_t ndmasizes = ARRAY_SIZE(dma_sizes);
-	size_t max = MAX(nslabsizes, ndmasizes);
-	for (size_t i = 0; i < max; i++) {
-		if (i < nslabsizes) {
-			struct slab *slab = slab_cache[i];
-			if (kfree_helper(ptr, slab))
-				return;
-		}
+	struct rbnode *n = rbt_search(&kmalloc_tree, (uint64_t)ptr);
+	if (n == NULL)
+		return;
 
-		if (i < ndmasizes) {
-			struct slab *slab = slab_cache_dma[i];
-			if (kfree_helper(ptr, slab))
-				return;
-		}
-	}
+	struct slab *slab = (struct slab *)n->value;
+	if (slab != NULL)
+		slab_free(slab, ptr);
+	else
+		buddy_free(ptr);
 
-	/* if we get here, it's a buddy allocation */
-	buddy_free(ptr);
+	rbt_delete(&kmalloc_tree, n);
+}
+
+void slabtypes_init()
+{
+	rbt_slab_init();
+
+	/* LAST! */
+	kmalloc_init();
+}
+
+void malloc_post()
+{
+	bool verify = rbt_verify(&kmalloc_tree);
+	if(!verify)
+		printf(LOG_ERROR, "kmalloc tree is corrupted!\n");
+	else
+		printf(LOG_SUCCESS "kmalloc tree is OK!\n");
 }

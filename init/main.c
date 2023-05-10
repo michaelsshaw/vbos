@@ -68,7 +68,8 @@ void kmain(void)
 	const uintptr_t one_gb = 0x40000000;
 	char kmem[one_gb] ALIGN(0x1000);
 	mem_early_init(kmem, one_gb);
-	kmalloc_init();
+
+	slabtypes_init();
 
 	struct limine_kernel_file_response *resp = module_req.response;
 
