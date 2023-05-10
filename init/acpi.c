@@ -31,7 +31,7 @@ static void rsdt_parse(struct rsdt *rsdt)
 			__madt = (struct madt *)h;
 		}
 
-		if(!(memcmp(h->signature, "MCFG", 4))) {
+		if (!(memcmp(h->signature, "MCFG", 4))) {
 			__mcfg = (struct mcfg *)h;
 		}
 
