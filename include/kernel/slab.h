@@ -30,7 +30,7 @@ struct kmap_entry {
 	struct kmap_entry *next;
 };
 
-struct slab *slab_create(size_t size, uint64_t flags);
+struct slab *slab_create(size_t size, size_t cache_size, uint64_t flags);
 void *slab_alloc(struct slab *slab);
 void slab_free(struct slab *slab, void *ptr);
 

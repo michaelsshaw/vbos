@@ -3,8 +3,6 @@
 #include <kernel/mem.h>
 #include <kernel/slab.h>
 
-#define SLAB_MIN_COUNT 128
-#define SLAB_MIN_SIZE 0x10000ull /* 64 KiB */
 #define SLAB_ALIGN 7
 
 static size_t slab_sizes[] = { 16, 32, 64, 128, 256, 512, 1024, 2048, 4096 };
@@ -21,18 +19,16 @@ static inline void slab_range(struct slab *slab, uintptr_t *o_start, uintptr_t *
 	*o_end = sslab + (slab->size * slab->num);
 }
 
-struct slab *slab_create(size_t size, uint64_t flags)
+struct slab *slab_create(size_t size, size_t cache_size, uint64_t flags)
 {
 	if (size < sizeof(uintptr_t))
 		return NULL;
 
-	/* account for slab header and eight bytes of alignment */
-	size_t est = npow2(size * SLAB_MIN_COUNT + sizeof(struct slab) + 8);
-	size_t asize = MAX(est, SLAB_MIN_SIZE);
-
-	struct slab *ret = buddy_alloc(asize);
+	struct slab *ret = buddy_alloc(cache_size);
 	if (ret == NULL)
 		return NULL;
+
+	cache_size = npow2(cache_size);
 
 	/* slab area start position */
 
@@ -45,7 +41,7 @@ struct slab *slab_create(size_t size, uint64_t flags)
 		ret->align = 0xFFFF;
 		struct page attrs = kdefault_attrs;
 		attrs.pcd = 1;
-		kmap((paddr_t)(ret) & (~hhdm_start), (paddr_t)ret, asize, attrs.val);
+		kmap((paddr_t)(ret) & (~hhdm_start), (paddr_t)ret, cache_size, attrs.val);
 	} else {
 		ret->align = SLAB_ALIGN;
 	}
@@ -53,9 +49,9 @@ struct slab *slab_create(size_t size, uint64_t flags)
 	start |= ret->align;
 	start += 1;
 
-	ret->num = (((aret + asize) - start) / size);
+	ret->num = (((aret + cache_size) - start) / size);
 	ret->size = size;
-	ret->tsize = asize;
+	ret->tsize = cache_size;
 	ret->next = NULL;
 	ret->prev = NULL;
 	ret->flags = flags;
@@ -80,7 +76,7 @@ void *slab_alloc(struct slab *slab)
 
 	if (slab->nextfree == NULL) {
 		if (slab->next == NULL) {
-			slab->next = slab_create(slab->size, slab->flags);
+			slab->next = slab_create(slab->size, slab->tsize, slab->flags);
 			if (slab->next == NULL)
 				return NULL;
 			slab->next->prev = slab;
@@ -139,9 +135,9 @@ void slab_free(struct slab *slab, void *ptr)
 void kmalloc_init()
 {
 	for (size_t i = 0; i < ARRAY_SIZE(slab_sizes); i++)
-		slab_cache[i] = slab_create(slab_sizes[i], 0);
+		slab_cache[i] = slab_create(slab_sizes[i], 128 * KB,0);
 	for (size_t i = 0; i < ARRAY_SIZE(dma_sizes); i++)
-		slab_cache_dma[i] = slab_create(dma_sizes[i], SLAB_DMA_64K);
+		slab_cache_dma[i] = slab_create(dma_sizes[i], 8 * MB, SLAB_DMA_64K);
 }
 
 static void *kmalloc_table(size_t size, size_t *sizes, size_t nsizes, struct slab **cache, bool fb_disable)

@@ -9,8 +9,9 @@ struct limine_memmap_request map_req = { .id = LIMINE_MEMMAP_REQUEST, .revision 
 struct limine_kernel_address_request kern_req = { .id = LIMINE_KERNEL_ADDRESS_REQUEST, .revision = 0 };
 
 #ifdef KDEBUG
-static const char *limine_types[] = { "USABLE", "RESERVED",   "ACPI_RECLAIMABLE", "ACPI_NVS", "BAD_MEMORY", "BOOTLOADER_RECLAIMABLE",
-				    "KERN",   "FRAMEBUFFER" };
+static const char *limine_types[] = { "USABLE",	  "RESERVED",	"ACPI_RECLAIMABLE",
+				      "ACPI_NVS", "BAD_MEMORY", "BOOTLOADER_RECLAIMABLE",
+				      "KERN",	  "FRAMEBUFFER" };
 #endif
 
 static char *kmem;
@@ -414,7 +415,7 @@ void mem_early_init(char *mem, size_t len)
 	/* copy the regions to the permanent regions table */
 	memcpy(mem_regions, regions, sizeof(struct mem_region) * num_regions);
 
-	kmap_slab = slab_create(0x1000, SLAB_PAGE_ALIGN);
+	kmap_slab = slab_create(0x1000, 4 * MB, SLAB_PAGE_ALIGN);
 
 	/* initialize and populate the new permanent kernel page tables */
 	alloc_page = kmap_alloc_page;
