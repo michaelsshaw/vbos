@@ -421,15 +421,9 @@ void mem_early_init(char *mem, size_t len)
 	pml4 = NULL;
 
 	/* map the kernel */
-	struct mem_region lastregion = mem_regions[num_regions - 1];
+	kmap(0, hhdm_start, 4 * GB, attrs.val | PAGE_PCD);
 	kmap(kpaddr, kvaddr, kernel_size, attrs.val);
 
-	/* identity map the entire physical address space */
-	attrs.pcd = 1;
-	kmap(0, hhdm_start, lastregion.base + lastregion.len, attrs.val);
-
-	/* remap usable regions with pcd=0 */
-	attrs.pcd = 0;
 	for (unsigned int i = 0; i < num_regions; i++) {
 		kmap(regions[i].base, regions[i].base | hhdm_start, regions[i].len, attrs.val);
 	}
