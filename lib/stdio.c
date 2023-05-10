@@ -21,7 +21,7 @@ static int printf_write(const char *restrict s)
 }
 
 /* this is seriously the approach i'm going with for now */
-int snprintf(char *str, char *restrict fmt, size_t size, ...)
+int snprintf(char *str, const char *restrict fmt, size_t size, ...)
 {
 	int ret = 0;
 	char c;

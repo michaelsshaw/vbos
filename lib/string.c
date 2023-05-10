@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 #include <string.h>
+#include <kernel/slab.h>
 
 void *memcpy(void *dest, const void *src, size_t num)
 {
@@ -72,5 +73,45 @@ int atoi(const char *a)
 		ret += b * (a[i] - '0');
 		b *= 10;
 	}
+	return ret;
+}
+
+char *strchr(const char *s, int c)
+{
+	while (*s) {
+		if (*s == c)
+			return (char *)s;
+		s++;
+	}
+	return NULL;
+}
+
+char **strsplit(const char *s, char delim, int *n)
+{
+	int num = 0;
+	for (int i = 0; s[i]; i++) {
+		if (s[i] == delim)
+			num++;
+	}
+
+	char **ret = kmalloc((num + 2) * sizeof(char *), ALLOC_KERN);
+	int idx = 0;
+	int last = 0;
+	for (int i = 0; s[i]; i++) {
+		if (s[i] == delim) {
+			ret[idx] = kmalloc(i - last + 1, ALLOC_KERN);
+			memcpy(ret[idx], s + last, i - last);
+			ret[idx][i - last] = 0;
+			idx++;
+			last = i + 1;
+		}
+	}
+	ret[idx] = kmalloc(strlen(s) - last + 1, ALLOC_KERN);
+	memcpy(ret[idx], s + last, strlen(s) - last);
+	ret[idx][strlen(s) - last] = 0;
+	idx++;
+	ret[idx] = NULL;
+	if (n)
+		*n = idx;
 	return ret;
 }

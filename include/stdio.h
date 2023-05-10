@@ -16,6 +16,6 @@
 #define LOG_INFO "[LOG] "
 
 int printf(const char *restrict fmt, ...);
-int snprintf(char *str, char *restrict fmt, size_t size, ...);
+int snprintf(char *str, const char *restrict fmt, size_t size, ...);
 
 #endif /* _SDTIO_H_ */
