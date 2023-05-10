@@ -266,6 +266,7 @@ void ahci_init()
 	}
 	abar = (hbamem_t *)((uintptr_t)dev->bar5 | hhdm_start);
 
+
 	if (!(abar->ghc & (1 << 31))) {
 		printf(LOG_WARN "AHCI controller not enabled\n");
 		return;

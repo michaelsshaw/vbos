@@ -3,7 +3,7 @@
 #include <kernel/mem.h>
 #include <kernel/slab.h>
 
-#define SLAB_MIN_COUNT 16
+#define SLAB_MIN_COUNT 128
 #define SLAB_MIN_SIZE 0x10000ull /* 64 KiB */
 #define SLAB_ALIGN 7
 

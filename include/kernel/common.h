@@ -17,9 +17,9 @@
 #define PACKED __attribute__((packed))
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 
-#define KB 1024
-#define MB (1024 * KB)
-#define GB (1024 * MB)
+#define KB (1024ull)
+#define MB (KB * KB)
+#define GB (KB * MB)
 
 void yield();
 

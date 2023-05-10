@@ -19,6 +19,8 @@ struct pci_device {
 	uint16_t vendor_id;
 	uint16_t device_id;
 
+	uint16_t segment_group;
+
 	uint8_t header_type;
 
 	paddr32_t bar0;
