@@ -138,6 +138,7 @@ static int cmdslot(hbaport_t *port)
 bool ahci_access_sectors(struct sata_device *dev, paddr_t lba, uint16_t count, paddr_t buf, bool write)
 {
 	hbaport_t *port = &dev->abar->ports[dev->port];
+	uint16_t ocount = count;
 
 	/* clear pending interrupt */
 	port->is = (uint32_t)-1;
@@ -212,7 +213,7 @@ bool ahci_access_sectors(struct sata_device *dev, paddr_t lba, uint16_t count, p
 
 	/* disk read success */
 #ifdef KDEBUG
-	printf(LOG_DEBUG "Read %d sectors from disk\n", count);
+	printf(LOG_DEBUG "Read %d sectors from disk\n", ocount);
 #endif
 	return true;
 }
@@ -223,11 +224,14 @@ static int ahci_block_read(struct block_device *dev, void *buf, size_t offset, s
 
 	/* repeat every 64K, due to the current limitations of this driver */
 	while (sector_count > 0) {
-		if (!ahci_access_sectors(sdev, offset, MIN(sector_count, 128u), (paddr_t)buf, false))
+		size_t n = MIN(sector_count, 128u);
+		if (!ahci_access_sectors(sdev, offset, n, (paddr_t)buf & ~hhdm_start, false))
 			return -1;
-		sector_count -= MIN(sector_count, 128u);
+		if(sector_count <= 128)
+			break;
+		sector_count -= 128ull;
 		offset += 128;
-		buf += 128 << 9;
+		buf += (128 << 9);
 	}
 
 	return 0;
@@ -239,11 +243,14 @@ static int ahci_block_write(struct block_device *dev, void *buf, size_t offset, 
 
 	/* repeat every 64K, same as above */
 	while (sector_count > 0) {
-		if (!ahci_access_sectors(sdev, offset, MIN(sector_count, 128u), (paddr_t)buf, true))
+		size_t n = MIN(sector_count, 128u);
+		if (!ahci_access_sectors(sdev, offset, n, (paddr_t)buf & ~hhdm_start, true))
 			return -1;
-		sector_count -= MIN(sector_count, 128u);
+		if(sector_count <= 128)
+			break;
+		sector_count -= 128ull;
 		offset += 128;
-		buf += 128 << 9;
+		buf += (128 << 9);
 	}
 
 	return 0;

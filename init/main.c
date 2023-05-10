@@ -6,6 +6,7 @@
 #include <kernel/mem.h>
 #include <kernel/slab.h>
 #include <kernel/pio.h>
+#include <kernel/block.h>
 
 #include <dev/pic.h>
 #include <dev/console.h>
