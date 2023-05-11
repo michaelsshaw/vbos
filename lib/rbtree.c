@@ -67,60 +67,41 @@ static struct rbnode *rbt_uncle(struct rbnode *node)
 
 static void rbt_insert_fixup(struct rbtree *tree, struct rbnode *node)
 {
-	/* Case 0: node is root */
-	if ((uintptr_t)tree == (uintptr_t)node || node->parent == NULL) {
-		node->color = RB_BLACK;
-		return;
-	}
-
 	while (node->parent && node->parent->color == RB_RED) {
-		/* Case 1: node's uncle is red */
-		struct rbnode *uncle_node = rbt_uncle(node);
-
-		/* NULL nodes are black */
-		if (uncle_node && uncle_node->color == RB_RED) {
-			uncle_node->color = RB_BLACK;
-			node->parent->color = RB_BLACK;
-			node->parent->parent->color = RB_RED;
-			node = node->parent->parent;
-		}
-
-		/* required for further cases */
-		if (!node->parent || !node->parent->parent)
-			return;
-
-		/* Case 2: node's uncle is black and node is a right child of a parent 
-		 * that is a left child, or vice versa 
-		 *
-		 * This will also set the node equal to its former parent (new child) to
-		 * fallthrough to case 3
-		 */
-		if (node == node->parent->right && node->parent == node->parent->parent->left) {
-			rbt_rotate_left(tree, node->parent);
-			node = node->left;
-		} else if (node == node->parent->left && node->parent == node->parent->parent->right) {
-			rbt_rotate_right(tree, node->parent);
-			node = node->right;
-		}
-
-		/* Case 3: Node's uncle is black and node, parent and grandparent form
-		 * a line
-		 */
-
-		/* check again because case 2 might have changed the parent */
-		if (!node->parent || !node->parent->parent)
-			return;
-
-		if (node == node->parent->left && node->parent == node->parent->parent->left) {
-			node->parent->color = RB_BLACK;
-			node->parent->parent->color = RB_RED;
-			rbt_rotate_right(tree, node->parent->parent);
-		} else if (node == node->parent->right && node->parent == node->parent->parent->right) {
-			node->parent->color = RB_BLACK;
-			node->parent->parent->color = RB_RED;
-			rbt_rotate_left(tree, node->parent->parent);
+		if (node->parent->parent && node->parent == node->parent->parent->left) {
+			struct rbnode *uncle = rbt_uncle(node);
+			if (uncle && uncle->color == RB_RED) {
+				uncle->color = RB_BLACK;
+				node->parent->color = RB_BLACK;
+				node->parent->parent->color = RB_RED;
+				node = node->parent->parent;
+			} else if (node == node->parent->right) {
+				node = node->parent;
+				rbt_rotate_left(tree, node);
+			} else {
+				node->parent->color = RB_BLACK;
+				node->parent->parent->color = RB_RED;
+				rbt_rotate_right(tree, node->parent->parent);
+			}
+		} else {
+			struct rbnode *uncle = rbt_uncle(node);
+			if (uncle && uncle->color == RB_RED) {
+				uncle->color = RB_BLACK;
+				node->parent->color = RB_BLACK;
+				node->parent->parent->color = RB_RED;
+				node = node->parent->parent;
+			} else if (node == node->parent->left) {
+				node = node->parent;
+				rbt_rotate_right(tree, node);
+			} else {
+				node->parent->color = RB_BLACK;
+				node->parent->parent->color = RB_RED;
+				rbt_rotate_left(tree, node->parent->parent);
+			}
 		}
 	}
+	if (tree->root)
+		tree->root->color = RB_BLACK;
 }
 
 struct rbnode *rbt_insert(struct rbtree *tree, uint64_t key)
@@ -195,7 +176,8 @@ static void rbt_delete_fixup(struct rbtree *tree, struct rbnode *node)
 				sibling = node->parent->right;
 			}
 
-			if (sibling->left->color == RB_BLACK && sibling->right->color == RB_BLACK) {
+			if ((!sibling->left || sibling->left->color == RB_BLACK) &&
+			    (!sibling->right || sibling->right->color == RB_BLACK)) {
 				sibling->color = RB_RED;
 				node = node->parent;
 				continue;
@@ -213,10 +195,43 @@ static void rbt_delete_fixup(struct rbtree *tree, struct rbnode *node)
 				rbt_rotate_left(tree, node->parent);
 				node = tree->root;
 			}
+		} else {
+			if (!sibling || !sibling->right || !sibling->right) {
+				node = node->parent;
+				continue;
+			}
+
+			if (sibling && sibling->color == RB_RED) {
+				sibling->color = RB_BLACK;
+				node->parent->color = RB_RED;
+				rbt_rotate_right(tree, node->parent);
+				sibling = node->parent->right;
+			}
+
+			if ((!sibling->right || sibling->left->color == RB_BLACK) &&
+			    (!sibling->right || sibling->right->color == RB_BLACK)) {
+				sibling->color = RB_RED;
+				node = node->parent;
+				continue;
+			} else {
+				if (sibling->right->color == RB_BLACK) {
+					sibling->right->color = RB_BLACK;
+					sibling->color = RB_RED;
+					rbt_rotate_right(tree, sibling);
+					sibling = node->parent->right;
+				}
+
+				sibling->color = node->parent->color;
+				node->parent->color = RB_BLACK;
+				sibling->right->color = RB_BLACK;
+				rbt_rotate_right(tree, node->parent);
+				node = tree->root;
+			}
 		}
 	}
 
 	node->color = RB_BLACK;
+	tree->root->color = RB_BLACK;
 }
 
 static struct rbnode *rbt_minimum(struct rbnode *node)
@@ -298,4 +313,38 @@ struct rbnode *rbt_search(struct rbtree *tree, uint64_t key)
 	}
 
 	return NULL;
+}
+
+void rbtree_print_diagram_fancy(struct rbtree *tree, struct rbnode *node, int indent)
+{
+	if (node == NULL) {
+		printf("<empty tree>\n");
+		return;
+	}
+
+	if (node->right != NULL) {
+		rbtree_print_diagram_fancy(tree, node->right, indent + 4);
+	}
+
+	if (indent) {
+		for (int i = 0; i < indent; i++) {
+			printf(" ");
+		}
+	}
+
+	if (node->right != NULL) {
+		printf(" /\n");
+		for (int i = 0; i < indent; i++) {
+			printf(" ");
+		}
+	}
+	printf("%s%X%s\n", node->color == RB_RED ? "\033[31m" : "\033[0m", node->key, "\033[0m");
+
+	if (node->left != NULL) {
+		for (int i = 0; i < indent; i++) {
+			printf(" ");
+		}
+		printf(" \\\n");
+		rbtree_print_diagram_fancy(tree, node->left, indent + 4);
+	}
 }

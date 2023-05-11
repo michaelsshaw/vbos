@@ -14,7 +14,8 @@ struct rbnode {
 	int color;
 
 	uint64_t key;
-	uint64_t value; /* extra value */
+	uint64_t value; /* extra values */
+	uint64_t value2;
 };
 
 /* we use this rbtree structure because the root node will potentially be
