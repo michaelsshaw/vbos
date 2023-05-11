@@ -106,12 +106,13 @@ static void kmalloc_init_test()
 	void *a = kmalloc(0x1000, ALLOC_KERN);
 	kfree(a);
 	void *b = kmalloc(0x1000, ALLOC_KERN);
-	kfree(b);
 	if (a != b) {
 		printf(LOG_DEBUG "kmalloc consistency test failed\n");
 	} else {
 		printf(LOG_DEBUG "kmalloc consistency test passed\n");
 	}
+
+	kfree(b);
 }
 #endif /* KDEBUG */
 
