@@ -225,11 +225,7 @@ void slabtypes_init()
 	kmalloc_init();
 }
 
-void malloc_post()
+bool kmalloc_verify()
 {
-	bool verify = rbt_verify(&kmalloc_tree);
-	if(!verify)
-		printf(LOG_ERROR, "kmalloc tree is corrupted!\n");
-	else
-		printf(LOG_SUCCESS "kmalloc tree is OK!\n");
+	return rbt_verify(&kmalloc_tree);
 }
