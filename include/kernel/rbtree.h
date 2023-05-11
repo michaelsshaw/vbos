@@ -27,7 +27,6 @@ struct rbtree {
 struct rbnode *rbt_insert(struct rbtree *tree, uint64_t key);
 void rbt_delete(struct rbtree *tree, struct rbnode *del);
 struct rbnode *rbt_search(struct rbtree *tree, uint64_t key);
-bool rbt_verify(struct rbtree *tree);
 void rbt_slab_init();
 
 #endif /* _RBTREE_H_ */

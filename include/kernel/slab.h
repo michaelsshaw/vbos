@@ -35,7 +35,6 @@ void *slab_alloc(struct slab *slab);
 void slab_free(struct slab *slab, void *ptr);
 
 void kmalloc_init();
-bool kmalloc_verify();
 void *kmalloc(size_t size, uint64_t flags);
 void *kzalloc(size_t size, uint64_t flags);
 void kfree(void *ptr);

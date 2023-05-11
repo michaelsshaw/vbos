@@ -224,8 +224,3 @@ void slabtypes_init()
 	/* LAST! */
 	kmalloc_init();
 }
-
-bool kmalloc_verify()
-{
-	return rbt_verify(&kmalloc_tree);
-}

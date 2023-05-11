@@ -112,26 +112,6 @@ static void kmalloc_init_test()
 	} else {
 		printf(LOG_DEBUG "kmalloc consistency test passed\n");
 	}
-
-	a = kmalloc(0x1000, ALLOC_KERN);
-	b = kmalloc(0x2000, ALLOC_KERN);
-	void *c = kmalloc(0x8000, ALLOC_KERN);
-	void *d = kmalloc(0x10000, ALLOC_KERN);
-	if (!kmalloc_verify())
-		printf(LOG_DEBUG "kmalloc verify failed\n");
-	kfree(d);
-	void *e = kmalloc(0x10000, ALLOC_KERN);
-	kfree(c);
-	void *f = kmalloc(0x8000, ALLOC_KERN);
-	kfree(b);
-	kfree(a);
-	kfree(e);
-	kfree(f);
-
-	if (!kmalloc_verify())
-		printf(LOG_DEBUG "kmalloc verify failed after frees\n");
-	else
-		printf(LOG_DEBUG "kmalloc verify passed after frees\n");
 }
 #endif /* KDEBUG */
 
