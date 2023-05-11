@@ -21,13 +21,12 @@ static void rbt_rotate_right(struct rbtree *tree, struct rbnode *node)
 
 	left->parent = node->parent;
 
-	if (node->parent == NULL) {
+	if (node->parent == NULL)
 		tree->root = left;
-	} else if (node == node->parent->right) {
+	else if (node == node->parent->right)
 		node->parent->right = left;
-	} else {
+	else
 		node->parent->left = left;
-	}
 
 	left->right = node;
 	node->parent = left;
@@ -150,13 +149,12 @@ struct rbnode *rbt_insert(struct rbtree *tree, uint64_t key)
 	new->right = NULL;
 	new->color = RB_RED;
 
-	if (parent == NULL) {
+	if (parent == NULL)
 		tree->root = new;
-	} else if (key < parent->key) {
+	else if (key < parent->key)
 		parent->left = new;
-	} else {
+	else
 		parent->right = new;
-	}
 
 	rbt_insert_fixup(tree, new);
 	return new;
@@ -164,17 +162,15 @@ struct rbnode *rbt_insert(struct rbtree *tree, uint64_t key)
 
 static void rbt_transplant(struct rbtree *tree, struct rbnode *old, struct rbnode *new)
 {
-	if (old->parent == NULL) {
+	if (old->parent == NULL)
 		tree->root = new;
-	} else if (old == old->parent->left) {
+	else if (old == old->parent->left)
 		old->parent->left = new;
-	} else {
+	else
 		old->parent->right = new;
-	}
 
-	if (new != NULL) {
+	if (new != NULL)
 		new->parent = old->parent;
-	}
 }
 
 static void rbt_delete_fixup(struct rbtree *tree, struct rbnode *node)
