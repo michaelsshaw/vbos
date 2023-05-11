@@ -293,53 +293,43 @@ struct rbnode *rbt_search(struct rbtree *tree, uint64_t key)
 	return NULL;
 }
 
-static int rbt_black_height(struct rbtree *tree)
+bool rbt_verify_node(struct rbtree *tree, struct rbnode *node)
 {
-	struct rbnode *node = tree->root;
-	int black_count = 0;
+	if (node == NULL)
+		return true;
 
-	while (node != NULL) {
-		if (node->color == RB_BLACK)
-			black_count++;
+	if (node->color != RB_RED && node->color != RB_BLACK)
+		return false;
 
-		node = node->left;
+	if (node->color == RB_RED) {
+		if (node->left && node->left->color == RB_RED)
+			return false;
+		if (node->right && node->right->color == RB_RED)
+			return false;
 	}
 
-	return black_count;
+	int left_black = rbt_verify_node(tree, node->left);
+	int right_black = rbt_verify_node(tree, node->right);
+
+	if (left_black == -1 || right_black == -1)
+		return -1;
+
+	if (left_black != right_black)
+		return -1;
+
+	if (node->color == RB_BLACK)
+		return left_black + 1;
+
+	return left_black;
 }
 
-/* verify that the tree is a valid red-black tree */
 bool rbt_verify(struct rbtree *tree)
 {
-	struct rbnode *node = tree->root;
-	struct rbnode *prev = NULL;
-	int black_count = 0;
+	if (tree->root == NULL)
+		return true;
 
-	while (node != NULL) {
-		if (node->left != NULL && node->left->parent != node)
-			return false;
-
-		if (node->right != NULL && node->right->parent != node)
-			return false;
-
-		if (node->color == RB_BLACK)
-			black_count++;
-
-		if (node->left != NULL && node->left->key > node->key)
-			return false;
-
-		if (node->right != NULL && node->right->key < node->key)
-			return false;
-
-		prev = node;
-		node = node->left;
-	}
-
-	if (prev != NULL && prev != rbt_minimum(tree->root))
+	if (tree->root->color != RB_BLACK)
 		return false;
 
-	if (black_count != rbt_black_height(tree))
-		return false;
-
-	return true;
+	return rbt_verify_node(tree, tree->root);
 }
