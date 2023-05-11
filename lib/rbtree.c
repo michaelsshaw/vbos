@@ -272,6 +272,17 @@ void rbt_delete(struct rbtree *tree, struct rbnode *del)
 	}
 }
 
+void rbt_destroy(struct rbtree *tree, struct rbnode *node)
+{
+	if (node == NULL)
+		return;
+
+	rbt_destroy(tree, node->left);
+	rbt_destroy(tree, node->right);
+
+	rbt_delete(tree, node);
+}
+
 struct rbnode *rbt_search(struct rbtree *tree, uint64_t key)
 {
 	struct rbnode *node = tree->root;
@@ -288,4 +299,3 @@ struct rbnode *rbt_search(struct rbtree *tree, uint64_t key)
 
 	return NULL;
 }
-
