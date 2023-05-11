@@ -205,8 +205,10 @@ void kfree(void *ptr)
 		return;
 
 	struct rbnode *n = rbt_search(&kmalloc_tree, (uint64_t)ptr);
-	if (n == NULL)
+	if (n == NULL) {
+		printf(LOG_ERROR "kmalloc: invalid free: %p\n", ptr);
 		return;
+	}
 
 	struct slab *slab = (struct slab *)n->value;
 	if (slab != NULL)
