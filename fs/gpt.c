@@ -18,22 +18,22 @@ void block_gpt_init(struct block_device *dev)
 		goto free_header;
 
 	if (block_read(dev, header, 1, 1)) {
-		printf(LOG_ERROR "Failed to read GPT header for device %s\n", dev->name);
+		kprintf(LOG_ERROR "Failed to read GPT header for device %s\n", dev->name);
 		goto free_entries;
 	}
 
 	if (header->signature != GPT_HEADER_SIGNATURE) {
-		printf(LOG_ERROR "Invalid GPT header signature for device %s\n", dev->name);
+		kprintf(LOG_ERROR "Invalid GPT header signature for device %s\n", dev->name);
 		goto free_entries;
 	}
 
 	if (header->entry_size != sizeof(struct gpt_entry)) {
-		printf(LOG_ERROR "Invalid GPT entry size for device %s\n", dev->name);
+		kprintf(LOG_ERROR "Invalid GPT entry size for device %s\n", dev->name);
 		goto free_entries;
 	}
 
 	if (block_read(dev, entries, header->lba_first, 1)) {
-		printf(LOG_ERROR "Failed to read GPT entries for device %s\n", dev->name);
+		kprintf(LOG_ERROR "Failed to read GPT entries for device %s\n", dev->name);
 		goto free_entries;
 	}
 
@@ -42,7 +42,7 @@ void block_gpt_init(struct block_device *dev)
 	dev->gpt_entries_count = header->entry_count;
 
 #ifdef KDEBUG
-	printf(LOG_DEBUG "GPT header for device %s loaded\n", dev->name);
+	kprintf(LOG_DEBUG "GPT header for device %s loaded\n", dev->name);
 #endif
 	return; /* Success */
 

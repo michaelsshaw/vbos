@@ -15,7 +15,11 @@
 #define LOG_SUCCESS "[" COL_GREEN_BLACK "RDY" COL_RESET "] "
 #define LOG_INFO "[LOG] "
 
-int printf(const char *restrict fmt, ...);
+#include <stddef.h>
+#include <stdarg.h>
+
+int kprintf(const char *restrict fmt, ...);
 int snprintf(char *str, const char *restrict fmt, size_t size, ...);
+int vsnprintf(char *str, const char *restrict fmt, size_t size, va_list args);
 
 #endif /* _SDTIO_H_ */

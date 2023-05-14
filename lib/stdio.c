@@ -20,8 +20,7 @@ static int printf_write(const char *restrict s)
 	return ret;
 }
 
-/* this is seriously the approach i'm going with for now */
-int snprintf(char *str, const char *restrict fmt, size_t size, ...)
+int vsnprintf(char *str, const char *restrict fmt, size_t size, va_list args)
 {
 	int ret = 0;
 	char c;
@@ -30,9 +29,6 @@ int snprintf(char *str, const char *restrict fmt, size_t size, ...)
 	long l;
 
 	int n;
-
-	va_list args;
-	va_start(args, size);
 
 	const char *convert = "0123456789ABCDEF";
 	char buf[16] = { 0 };
@@ -127,96 +123,22 @@ out:
 	return ret;
 }
 
-int printf(const char *restrict fmt, ...)
+int snprintf(char *str, const char *restrict fmt, size_t size, ...)
 {
-	int ret = 0;
-	char c;
-	char *s;
-	int i;
-	long l;
+	va_list args;
+	va_start(args, size);
+	int ret = vsnprintf(str, fmt, size, args);
+	va_end(args);
+	return ret;
+}
 
-	int n;
-
+int kprintf(const char *restrict fmt, ...)
+{
+	char buf[1024] = { 0 };
 	va_list args;
 	va_start(args, fmt);
-
-	const char *convert = "0123456789ABCDEF";
-	char buf[16] = { 0 };
-
-	while ((c = *fmt++)) {
-		if (c == '%') {
-			c = *fmt++;
-			switch (c) {
-			case '\0':
-				printf_out('%');
-				ret++;
-				goto out;
-			case 'd':
-				i = va_arg(args, int);
-
-				if (i < 0) {
-					printf_out('-');
-					ret++;
-					i = -i;
-				}
-
-				n = 0;
-				memset(buf, 0, sizeof(buf));
-
-				do {
-					buf[n] = convert[i % 10];
-					n++;
-				} while ((i /= 10));
-
-				goto printf_reverse;
-			case 's':
-				s = va_arg(args, char *);
-				ret += printf_write(s);
-				break;
-			case 'c':
-				i = va_arg(args, int);
-				ret++;
-				printf_out(i);
-				break;
-			case 'x':
-				i = va_arg(args, int);
-				n = 0;
-
-				memset(buf, 0, sizeof(buf));
-
-				do {
-					buf[n] = convert[i & 0xF];
-					n++;
-				} while ((i >>= 4));
-
-				goto printf_reverse;
-				break;
-			case 'X':
-				l = va_arg(args, long);
-				for (uint64_t j = 0; j < (sizeof(l) << 1); j++) {
-					int sel = ((sizeof(l) << 1) - j - 1) << 2;
-					int num = (l >> sel) & 0xF;
-					printf_out(convert[num]);
-					ret++;
-				}
-				break;
-			default:
-				printf_out(c);
-				ret++;
-				break;
-printf_reverse:
-				for (int j = 0; j < n; j++) {
-					printf_out(buf[(n - 1) - j]);
-					ret++;
-				}
-				break;
-			}
-		} else {
-			printf_out(c);
-			ret++;
-		}
-	}
-out:
+	int ret = vsnprintf(buf, fmt, 1024, args);
 	va_end(args);
+	printf_write(buf);
 	return ret;
 }

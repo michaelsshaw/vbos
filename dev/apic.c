@@ -69,7 +69,7 @@ int madt_parse_next_entry(int offset)
 	int type = madt[offset];
 	int len = madt[offset + 1];
 
-	printf(LOG_INFO "MADT Entry %d: %s\n", n_madt_entries, madt_entry_types[type]);
+	kprintf(LOG_INFO "MADT Entry %d: %s\n", n_madt_entries, madt_entry_types[type]);
 
 	/* Can't declare variables inside switch statement */
 	struct madt_ioapic *m_ioapic = (struct madt_ioapic *)madt;
@@ -78,11 +78,11 @@ int madt_parse_next_entry(int offset)
 	switch (type) {
 	case MADT_LAPIC:
 		lapic_id = m_lapic->apic_id;
-		printf(LOG_INFO "LAPIC ID: %xh\n", m_lapic->apic_id);
+		kprintf(LOG_INFO "LAPIC ID: %xh\n", m_lapic->apic_id);
 		break;
 	case MADT_IOAPIC:
 		ioapic_addr = m_ioapic->ioapic_addr;
-		printf(LOG_INFO "IOAPIC address: %xh\n", m_ioapic->ioapic_addr);
+		kprintf(LOG_INFO "IOAPIC address: %xh\n", m_ioapic->ioapic_addr);
 		break;
 	case MADT_IOAPIC_OVRD:
 		break;
@@ -95,7 +95,7 @@ int madt_parse_next_entry(int offset)
 	case MADT_X2_LAPIC:
 		break;
 	default:
-		printf(LOG_WARN "Unrecognized MADT entry #%d, type=%d\n", n_madt_entries, type);
+		kprintf(LOG_WARN "Unrecognized MADT entry #%d, type=%d\n", n_madt_entries, type);
 		break;
 	}
 
@@ -114,33 +114,33 @@ void apic_eoi()
 void apic_init()
 {
 	if (__madt == NULL) {
-		printf(LOG_WARN "Failed to locate MADT\n");
+		kprintf(LOG_WARN "Failed to locate MADT\n");
 		return;
 	}
 
 	int offset = 0x2C;
 	int length = __madt->h.length;
-	printf(LOG_INFO "MADT Length: %x\n", length);
+	kprintf(LOG_INFO "MADT Length: %x\n", length);
 
 	while ((offset = madt_parse_next_entry(offset)))
 		;
 
 	lapic_addr = __madt->lapic_addr;
 
-	printf(LOG_INFO "IOAPIC ADDR: %X\n", ioapic_addr);
-	printf(LOG_INFO "LAPIC ADDR : %X\n", lapic_addr);
+	kprintf(LOG_INFO "IOAPIC ADDR: %X\n", ioapic_addr);
+	kprintf(LOG_INFO "LAPIC ADDR : %X\n", lapic_addr);
 
 	uint32_t r = ioapic_read(ioapic_addr, 0);
 	r |= 0x04000000;
 
 	ioapic_write(ioapic_addr, 0, r);
-	printf(LOG_WARN "IOAPIC ID:%x\n", r);
+	kprintf(LOG_WARN "IOAPIC ID:%x\n", r);
 
-	printf(LOG_WARN "LAPIC_ID:%xh\n", lapic_id);
+	kprintf(LOG_WARN "LAPIC_ID:%xh\n", lapic_id);
 	ioapic_redirect_insert(4, 0x21, 0, 0);
 	/* Set spurious interrupt vector to 0xFF and enable the LAPIC */
 	lapic_id = lapic_write(lapic_addr, 0xF0, 0x1FF);
-	printf(LOG_WARN "%x\n", lapic_id);
+	kprintf(LOG_WARN "%x\n", lapic_id);
 
-	printf(LOG_SUCCESS "APIC initialized\n");
+	kprintf(LOG_SUCCESS "APIC initialized\n");
 }

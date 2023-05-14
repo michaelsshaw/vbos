@@ -33,5 +33,5 @@ void gdt_init()
 
 	gdt_load();
 
-	printf(LOG_SUCCESS "GDT initialized\n");
+	kprintf(LOG_SUCCESS "GDT initialized\n");
 }

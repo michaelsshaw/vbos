@@ -180,5 +180,5 @@ void idt_init()
 	__idtr.offset = (uint64_t)__idt;
 	idt_load();
 
-	printf(LOG_SUCCESS "IDT successfully loaded\n");
+	kprintf(LOG_SUCCESS "IDT successfully loaded\n");
 }

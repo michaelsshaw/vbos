@@ -159,7 +159,7 @@ static void rbt_delete_fixup(struct rbtree *tree, struct rbnode *node)
 	if (!node)
 		return;
 
-	struct rbnode *sibling;
+	struct rbnode *sibling = NULL;
 	while (node != tree->root && node->color == RB_BLACK) {
 		if (node == node->parent->left) {
 			sibling = node->parent->right;
@@ -318,7 +318,7 @@ struct rbnode *rbt_search(struct rbtree *tree, uint64_t key)
 void rbtree_print_diagram_fancy(struct rbtree *tree, struct rbnode *node, int indent)
 {
 	if (node == NULL) {
-		printf("<empty tree>\n");
+		kprintf("<empty tree>\n");
 		return;
 	}
 
@@ -328,23 +328,23 @@ void rbtree_print_diagram_fancy(struct rbtree *tree, struct rbnode *node, int in
 
 	if (indent) {
 		for (int i = 0; i < indent; i++) {
-			printf(" ");
+			kprintf(" ");
 		}
 	}
 
 	if (node->right != NULL) {
-		printf(" /\n");
+		kprintf(" /\n");
 		for (int i = 0; i < indent; i++) {
-			printf(" ");
+			kprintf(" ");
 		}
 	}
-	printf("%s%X%s\n", node->color == RB_RED ? "\033[31m" : "\033[0m", node->key, "\033[0m");
+	kprintf("%s%X%s\n", node->color == RB_RED ? "\033[31m" : "\033[0m", node->key, "\033[0m");
 
 	if (node->left != NULL) {
 		for (int i = 0; i < indent; i++) {
-			printf(" ");
+			kprintf(" ");
 		}
-		printf(" \\\n");
+		kprintf(" \\\n");
 		rbtree_print_diagram_fancy(tree, node->left, indent + 4);
 	}
 }

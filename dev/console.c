@@ -22,7 +22,7 @@ void console_init()
 {
 	memset(console.line, 0, 512);
 	console.resizemode = 0;
-	printf(LOG_SUCCESS "Console ready\n");
+	kprintf(LOG_SUCCESS "Console ready\n");
 }
 
 bool console_ready()
@@ -37,18 +37,18 @@ void console_resize()
 	memset(console.resize_cols, 0, 8);
 	console.l_resize_rows = 0;
 	console.l_resize_cols = 0;
-	printf("\e[s"); /* save cursor position */
+	kprintf("\e[s"); /* save cursor position */
 
-	printf("\e[999;999H"); /* move cursor FAR away */
-	printf("\e[6n"); /* cursor position request */
-	printf("\e[u"); /* restore cursor position */
+	kprintf("\e[999;999H"); /* move cursor FAR away */
+	kprintf("\e[6n"); /* cursor position request */
+	kprintf("\e[u"); /* restore cursor position */
 	memset(console.line, 0, 512);
 }
 
 void console_input(char c)
 {
 	if (!console.resizemode) {
-		printf("%c", c);
+		kprintf("%c", c);
 	} else {
 		if (c == 'R') {
 			/* detect end of escape sequence */

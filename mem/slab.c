@@ -206,7 +206,7 @@ void kfree(void *ptr)
 
 	struct rbnode *n = rbt_search(&kmalloc_tree, (uint64_t)ptr);
 	if (n == NULL) {
-		printf(LOG_ERROR "kmalloc: invalid free: %X\n", ptr);
+		kprintf(LOG_ERROR "kmalloc: invalid free: %X\n", ptr);
 		return;
 	}
 

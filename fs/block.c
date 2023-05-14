@@ -29,7 +29,7 @@ struct block_device *block_register(char *name, struct block_device_ops *ops, vo
 	block_devices_count++;
 
 #ifdef KDEBUG
-	printf(LOG_DEBUG "Registered block device %s\n", name);
+	kprintf(LOG_DEBUG "Registered block device %s\n", name);
 #endif
 
 	return bdev;

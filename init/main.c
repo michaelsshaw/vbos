@@ -85,8 +85,8 @@ void kmain(void)
 	kroot_part = kfile->gpt_part_uuid;
 
 #ifdef KDEBUG
-	printf(LOG_DEBUG "Kernel file: path='%s' cmdline='%s'\n", kpath, kcmdline);
-	printf(LOG_DEBUG "Root partition: disk=%X-%X part=%X-%X\n", kroot_disk.a, kroot_disk.b, kroot_part.a, kroot_part.b);
+	kprintf(LOG_DEBUG "Kernel file: path='%s' cmdline='%s'\n", kpath, kcmdline);
+	kprintf(LOG_DEBUG "Root partition: disk=%X-%X part=%X-%X\n", kroot_disk.a, kroot_disk.b, kroot_part.a, kroot_part.b);
 #endif /* KDEBUG */
 
 	console_init();
@@ -99,33 +99,12 @@ void kmain(void)
 	stack_init(ptr, ptr);
 }
 
-#ifdef KDEBUG
-static void kmalloc_init_test()
-{
-	/* consistency test */
-	void *a = kmalloc(0x1000, ALLOC_KERN);
-	kfree(a);
-	void *b = kmalloc(0x1000, ALLOC_KERN);
-	if (a != b) {
-		printf(LOG_DEBUG "kmalloc consistency test failed\n");
-	} else {
-		printf(LOG_DEBUG "kmalloc consistency test passed\n");
-	}
-
-	kfree(b);
-}
-#endif /* KDEBUG */
-
 void kmain_post_stack_init()
 {
 	ahci_init();
 
 	_pic_init();
 
-#ifdef KDEBUG
-	kmalloc_init_test();
-#endif /* KDEBUG */
-
-	printf("\n\n# ");
+	kprintf("\n\n# ");
 	yield();
 }

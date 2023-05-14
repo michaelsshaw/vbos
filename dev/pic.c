@@ -33,7 +33,7 @@ void pic_eoi(uint8_t irq)
 
 void exception(int vector, int error)
 {
-	printf(LOG_WARN "EXCEPTION: %x, error code: %d\n", vector, error);
+	kprintf(LOG_WARN "EXCEPTION: %x, error code: %d\n", vector, error);
 }
 
 void pic_init()
@@ -63,5 +63,5 @@ void pic_init()
 	outb(PIC2_DATA, mask2);
 
 	pic_eoi(15);
-	printf(LOG_SUCCESS "8259 PIC initialized\n");
+	kprintf(LOG_SUCCESS "8259 PIC initialized\n");
 }

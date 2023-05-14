@@ -111,7 +111,7 @@ void pci_init()
 		struct pci_device *dev = &pci_devices[i];
 		const char fmt[] = LOG_DEBUG "PCI device BUS[%d:%d] CLASS[%d:%d] vendor_id=%xh device_id=%xh, header_type=%d\n";
 
-		printf(fmt, dev->bus, dev->slot, dev->class, dev->subclass, dev->vendor_id, dev->device_id, dev->header_type);
+		kprintf(fmt, dev->bus, dev->slot, dev->class, dev->subclass, dev->vendor_id, dev->device_id, dev->header_type);
 	}
 #endif /* KDEBUG */
 }

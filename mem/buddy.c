@@ -143,11 +143,11 @@ static paddr_t buddy_alloc_traverse(struct buddy_region_header *head, size_t dep
 static paddr_t buddy_alloc_helper(struct buddy_region_header *head, size_t size)
 {
 	if (npow2(size) != size) {
-		printf(LOG_WARN "buddy_alloc: size not a power of 2\n");
+		kprintf(LOG_WARN "buddy_alloc: size not a power of 2\n");
 	}
 
 	if (size < 0x1000) {
-		printf(LOG_WARN "buddy_alloc: size too small\n");
+		kprintf(LOG_WARN "buddy_alloc: size too small\n");
 		return 0;
 	}
 
@@ -244,7 +244,7 @@ static void *alloc_page_early()
 	static uintptr_t hwm = 0;
 	void *r = (void *)(hwm + kmem);
 	if (hwm >= kmem_len)
-		printf(LOG_ERROR "Out of early kmem\n");
+		kprintf(LOG_ERROR "Out of early kmem\n");
 	hwm += 0x1000;
 	return r;
 }
@@ -309,8 +309,8 @@ static size_t limine_parse_memregions()
 
 #ifdef KDEBUG
 		const char *type_str = "base=%X, len=%X %s\n";
-		printf(LOG_DEBUG "Memmap entry: ");
-		printf(type_str, entry->base, entry->length, limine_types[entry->type]);
+		kprintf(LOG_DEBUG "Memmap entry: ");
+		kprintf(type_str, entry->base, entry->length, limine_types[entry->type]);
 
 #endif
 
@@ -436,5 +436,5 @@ void mem_early_init(char *mem, size_t len)
 	cr3_write(cr3.val);
 
 	/* done */
-	printf(LOG_SUCCESS "Early memory map initialized\n");
+	kprintf(LOG_SUCCESS "Early memory map initialized\n");
 }

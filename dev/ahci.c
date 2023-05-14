@@ -25,7 +25,7 @@ static paddr_t ahci_pbase = 0;
 
 static void ahci_irq_handler()
 {
-	printf(LOG_ERROR "AHCI INTERRUPT\n");
+	kprintf(LOG_ERROR "AHCI INTERRUPT\n");
 }
 
 static int ahci_port_type(hbaport_t *port)
@@ -116,13 +116,13 @@ static void ahci_probe_ports(struct pci_device *dev, hbamem_t *abar)
 
 				ahci_rebase(&abar->ports[i], i);
 				sata_device_count++;
-				printf(LOG_INFO "SATA drive found at port %d\n", i);
+				kprintf(LOG_INFO "SATA drive found at port %d\n", i);
 			} else if (type == AHCI_DEV_SATAPI) {
-				printf(LOG_INFO "SATAPI drive found at port %d\n", i);
+				kprintf(LOG_INFO "SATAPI drive found at port %d\n", i);
 			} else if (type == AHCI_DEV_SEMB) {
-				printf(LOG_INFO "SEMB drive found at port %d\n", i);
+				kprintf(LOG_INFO "SEMB drive found at port %d\n", i);
 			} else if (type == AHCI_DEV_PM) {
-				printf(LOG_INFO "PM drive found at port %d\n", i);
+				kprintf(LOG_INFO "PM drive found at port %d\n", i);
 			}
 		}
 		pi >>= 1;
@@ -195,7 +195,7 @@ bool ahci_access_sectors(struct sata_device *dev, paddr_t lba, uint16_t count, p
 	}
 
 	if (spin == 1000000) {
-		printf(LOG_ERROR "AHCI: Port is hung\n");
+		kprintf(LOG_ERROR "AHCI: Port is hung\n");
 		return false;
 	}
 
@@ -207,20 +207,20 @@ bool ahci_access_sectors(struct sata_device *dev, paddr_t lba, uint16_t count, p
 		if ((port->ci & (1 << slot)) == 0)
 			break;
 		if (port->is & HBA_PORT_IS_TFES) {
-			printf(LOG_ERROR "AHCI: Read disk error\n");
+			kprintf(LOG_ERROR "AHCI: Read disk error\n");
 			return false;
 		}
 	}
 
 	/* check again */
 	if (port->is & HBA_PORT_IS_TFES) {
-		printf(LOG_ERROR "AHCI: Read disk error\n");
+		kprintf(LOG_ERROR "AHCI: Read disk error\n");
 		return false;
 	}
 
 	/* disk read success */
 #ifdef KDEBUG
-	printf(LOG_DEBUG "Read %d sectors from disk\n", ocount);
+	kprintf(LOG_DEBUG "Read %d sectors from disk\n", ocount);
 #endif
 	return true;
 }
@@ -268,13 +268,13 @@ void ahci_init()
 	struct pci_device *dev = pci_find_device(0x01, 0x06);
 	/* check interrupt number */
 	if (dev == NULL) {
-		printf(LOG_WARN "No SATA controllers found\n");
+		kprintf(LOG_WARN "No SATA controllers found\n");
 		return;
 	}
 	abar = (hbamem_t *)((uintptr_t)dev->bar5 | hhdm_start);
 
 	if (!(abar->ghc & (1 << 31))) {
-		printf(LOG_WARN "AHCI controller not enabled\n");
+		kprintf(LOG_WARN "AHCI controller not enabled\n");
 		return;
 	}
 
@@ -294,7 +294,7 @@ void ahci_init()
 	kmap(ahci_pbase, ahci_pbase | hhdm_start, ahci_zone_size, attrs.val);
 
 	if (sata_device_count == 0) {
-		printf(LOG_WARN "No SATA devices found\n");
+		kprintf(LOG_WARN "No SATA devices found\n");
 		return;
 	}
 
@@ -306,5 +306,5 @@ void ahci_init()
 	pci_config_write_long(dev->bus, dev->slot, dev->func, 0x3C, tmp);
 	irq_map(irq, ahci_irq_handler);
 
-	printf(LOG_SUCCESS "AHCI controller ready\n");
+	kprintf(LOG_SUCCESS "AHCI controller ready\n");
 }
