@@ -334,6 +334,8 @@ struct sata_device {
 	struct pci_device *controller;
 	uint8_t port;
 
+	size_t sector_size;
+	size_t sector_count;
 	hbamem_t *abar;
 };
 

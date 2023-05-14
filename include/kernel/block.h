@@ -3,6 +3,7 @@
 #define _BLOCK_H_
 
 #include <kernel/common.h>
+#include <kernel/gpt.h>
 
 struct block_device;
 
@@ -16,9 +17,16 @@ struct block_device {
 	struct block_device_ops ops;
 	void *data;
 	size_t size;
+
+	size_t block_count;
+	size_t block_size;
+
+	struct gpt_header *gpt_header;
+	struct gpt_entry *gpt_entries;
+	size_t gpt_entries_count;
 };
 
-struct block_device *block_register(char *name, struct block_device_ops *ops, void *data);
+struct block_device *block_register(char *name, struct block_device_ops *ops, void *data, size_t block_count, size_t block_size);
 int block_read(struct block_device *bdev, void *buf, size_t offset, size_t size);
 int block_write(struct block_device *bdev, void *buf, size_t offset, size_t size);
 

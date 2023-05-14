@@ -103,9 +103,16 @@ static void ahci_probe_ports(struct pci_device *dev, hbamem_t *abar)
 				sdev->controller = dev;
 				sdev->abar = abar;
 
-				char *name = kzalloc(32, ALLOC_KERN);
-				snprintf(name, "ahci%d", 32, sata_device_count);
-				block_register(name, &ahci_block_ops, sdev);
+				char *name = kzalloc(16, ALLOC_KERN);
+				name[15] = 0;
+
+				snprintf(name, "ahci%d", 15, sata_device_count);
+
+				size_t sector_count = ((size_t)abar->ports[i].ssts) << 32 | abar->ports[i].ssts;
+				sdev->sector_count = sector_count;
+
+				sdev->sector_size = 512;
+				block_register(name, &ahci_block_ops, sdev, sector_count, sdev->sector_size);
 
 				ahci_rebase(&abar->ports[i], i);
 				sata_device_count++;
@@ -227,7 +234,7 @@ static int ahci_block_read(struct block_device *dev, void *buf, size_t offset, s
 		size_t n = MIN(sector_count, 128u);
 		if (!ahci_access_sectors(sdev, offset, n, (paddr_t)buf & ~hhdm_start, false))
 			return -1;
-		if(sector_count <= 128)
+		if (sector_count <= 128)
 			break;
 		sector_count -= 128ull;
 		offset += 128;
@@ -246,7 +253,7 @@ static int ahci_block_write(struct block_device *dev, void *buf, size_t offset, 
 		size_t n = MIN(sector_count, 128u);
 		if (!ahci_access_sectors(sdev, offset, n, (paddr_t)buf & ~hhdm_start, true))
 			return -1;
-		if(sector_count <= 128)
+		if (sector_count <= 128)
 			break;
 		sector_count -= 128ull;
 		offset += 128;
@@ -265,7 +272,6 @@ void ahci_init()
 		return;
 	}
 	abar = (hbamem_t *)((uintptr_t)dev->bar5 | hhdm_start);
-
 
 	if (!(abar->ghc & (1 << 31))) {
 		printf(LOG_WARN "AHCI controller not enabled\n");
