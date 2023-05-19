@@ -38,12 +38,12 @@ struct gpt_header {
 
 /* GPT LBA 2 */
 struct gpt_entry {
-	uint8_t guid[16];
-	uint8_t guid_parent[16];
+	uint64_t type_guid[2];
+	uint64_t unique_guid[2];
 	uint64_t lba_first;
 	uint64_t lba_last;
-	uint8_t attr[8];
-	char name[72];
+	uint64_t flags;
+	uint8_t name[72];
 } PACKED;
 
 void block_gpt_init(struct block_device *dev);

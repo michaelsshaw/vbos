@@ -11,7 +11,7 @@
 #define ALLOC_KERN 0x01
 #define ALLOC_DMA 0x02
 
-struct slab {
+typedef struct _slab {
 	size_t size; /* size of each object */
 	size_t tsize; /* total size of this slab */
 	size_t num; /* number of objects in this slab */
@@ -19,20 +19,20 @@ struct slab {
 	uint64_t flags;
 	size_t align;
 	uintptr_t *nextfree;
-	struct slab *next;
-	struct slab *prev;
-};
+	struct _slab *next;
+	struct _slab *prev;
+} slab_t;
 
 struct kmap_entry {
 	uintptr_t *ptr;
 	size_t size;
-	struct slab *slab;
+	slab_t *slab;
 	struct kmap_entry *next;
 };
 
-struct slab *slab_create(size_t size, size_t cache_size, uint64_t flags);
-void *slab_alloc(struct slab *slab);
-void slab_free(struct slab *slab, void *ptr);
+slab_t *slab_create(size_t size, size_t cache_size, uint64_t flags);
+void *slab_alloc(slab_t *slab);
+void slab_free(slab_t *slab, void *ptr);
 
 void kmalloc_init();
 void *kmalloc(size_t size, uint64_t flags);

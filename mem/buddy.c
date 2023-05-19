@@ -27,7 +27,7 @@ struct page kdefault_attrs;
 paddr_t kcr3 = 0;
 
 static void *(*alloc_page)(void);
-static struct slab *kmap_slab;
+static slab_t *kmap_slab;
 
 static void buddy_bitmap_set(char *bitmap, size_t depth, size_t n, int val)
 {

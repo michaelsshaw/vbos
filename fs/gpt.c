@@ -3,6 +3,8 @@
 #include <kernel/gpt.h>
 #include <kernel/slab.h>
 
+#include <fs/fat32.h>
+
 #define GPT_HEADER_SIGNATURE 0x5452415020494645ull /* "EFI PART" */
 
 void block_gpt_init(struct block_device *dev)
@@ -32,26 +34,36 @@ void block_gpt_init(struct block_device *dev)
 		goto free_entries;
 	}
 
-	if (block_read(dev, entries, header->lba_first, 1)) {
+	if (block_read(dev, entries, header->lba_table, 1)) {
 		kprintf(LOG_ERROR "Failed to read GPT entries for device %s\n", dev->name);
 		goto free_entries;
 	}
 
-	dev->gpt_header = header;
-	dev->gpt_entries = entries;
-	dev->gpt_entries_count = header->entry_count;
+	dev->partitions = kmalloc(sizeof(struct block_part) * header->entry_count, ALLOC_KERN);
+
+	size_t used_count = 0;
+	for(size_t i = 0; i < header->entry_count; i++) {
+		if (entries[i].type_guid[1] == 0) 
+			continue;
+
+		used_count++;
+
+		struct block_part *part = &dev->partitions[i];
+		part->bdev = dev;
+		part->lba_start = entries[i].lba_first;
+		part->num_blocks = entries[i].lba_last - entries[i].lba_first + 1;
+
+		fat_init_part(part);
+	}
+	dev->partition_count = used_count;
+
 
 #ifdef KDEBUG
 	kprintf(LOG_DEBUG "GPT header for device %s loaded\n", dev->name);
 #endif
-	return; /* Success */
 
 free_entries:
 	kfree(entries);
 free_header:
 	kfree(header);
-
-	dev->gpt_entries = NULL;
-	dev->gpt_header = NULL;
-	dev->gpt_entries_count = 0;
 }

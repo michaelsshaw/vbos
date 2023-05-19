@@ -145,7 +145,6 @@ static int cmdslot(hbaport_t *port)
 bool ahci_access_sectors(struct sata_device *dev, paddr_t lba, uint16_t count, paddr_t buf, bool write)
 {
 	hbaport_t *port = &dev->abar->ports[dev->port];
-	uint16_t ocount = count;
 
 	/* clear pending interrupt */
 	port->is = (uint32_t)-1;
@@ -218,10 +217,6 @@ bool ahci_access_sectors(struct sata_device *dev, paddr_t lba, uint16_t count, p
 		return false;
 	}
 
-	/* disk read success */
-#ifdef KDEBUG
-	kprintf(LOG_DEBUG "Read %d sectors from disk\n", ocount);
-#endif
 	return true;
 }
 

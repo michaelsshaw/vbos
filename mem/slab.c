@@ -7,13 +7,13 @@
 #define SLAB_ALIGN 7
 
 static size_t slab_sizes[] = { 16, 32, 64, 128, 256, 512, 1024, 2048, 4096 };
-static struct slab *slab_cache[ARRAY_SIZE(slab_sizes)];
+static slab_t *slab_cache[ARRAY_SIZE(slab_sizes)];
 static size_t dma_sizes[] = { 0x1000, 0x10000, 0x100000 };
-static struct slab *slab_cache_dma[ARRAY_SIZE(slab_sizes)];
+static slab_t *slab_cache_dma[ARRAY_SIZE(slab_sizes)];
 
 static struct rbtree kmalloc_tree = { NULL };
 
-static inline void slab_range(struct slab *slab, uintptr_t *o_start, uintptr_t *o_end)
+static inline void slab_range(slab_t *slab, uintptr_t *o_start, uintptr_t *o_end)
 {
 	uintptr_t sslab = (uintptr_t)slab;
 	sslab = (sslab | slab->align) + 1;
@@ -22,12 +22,12 @@ static inline void slab_range(struct slab *slab, uintptr_t *o_start, uintptr_t *
 	*o_end = sslab + (slab->size * slab->num);
 }
 
-struct slab *slab_create(size_t size, size_t cache_size, uint64_t flags)
+slab_t *slab_create(size_t size, size_t cache_size, uint64_t flags)
 {
 	if (size < sizeof(uintptr_t))
 		return NULL;
 
-	struct slab *ret = buddy_alloc(cache_size);
+	slab_t *ret = buddy_alloc(cache_size);
 	if (ret == NULL)
 		return NULL;
 
@@ -36,7 +36,7 @@ struct slab *slab_create(size_t size, size_t cache_size, uint64_t flags)
 	/* slab area start position */
 
 	uintptr_t aret = (uintptr_t)ret;
-	uintptr_t start = (uintptr_t)ret + sizeof(struct slab);
+	uintptr_t start = (uintptr_t)ret + sizeof(slab_t);
 
 	if (flags & SLAB_PAGE_ALIGN) {
 		ret->align = 0xFFF;
@@ -72,7 +72,7 @@ struct slab *slab_create(size_t size, size_t cache_size, uint64_t flags)
 	return ret;
 }
 
-void *slab_alloc(struct slab *slab)
+void *slab_alloc(slab_t *slab)
 {
 	if (slab == NULL)
 		return NULL;
@@ -94,7 +94,7 @@ void *slab_alloc(struct slab *slab)
 	return ret;
 }
 
-void slab_free(struct slab *slab, void *ptr)
+void slab_free(slab_t *slab, void *ptr)
 {
 	if (slab == NULL)
 		return;
@@ -118,8 +118,8 @@ void slab_free(struct slab *slab, void *ptr)
 
 	/* delete the slab if it's empty and not a root slab */
 	if (slab->free == slab->num && slab->prev != NULL) {
-		struct slab *next = slab->next;
-		struct slab *prev = slab->prev;
+		slab_t *next = slab->next;
+		slab_t *prev = slab->prev;
 
 		prev->next = next;
 		if (next != NULL)
@@ -143,9 +143,9 @@ void kmalloc_init()
 		slab_cache_dma[i] = slab_create(dma_sizes[i], 8 * MB, SLAB_DMA_64K);
 }
 
-static void *kmalloc_table(size_t size, size_t *sizes, size_t nsizes, struct slab **cache, bool fb_disable)
+static void *kmalloc_table(size_t size, size_t *sizes, size_t nsizes, slab_t **cache, bool fb_disable)
 {
-	struct slab *slab = NULL;
+	slab_t *slab = NULL;
 	void *ret = NULL;
 	if (size > sizes[nsizes - 1] && !fb_disable) {
 		ret = buddy_alloc(npow2(size));
@@ -210,7 +210,7 @@ void kfree(void *ptr)
 		return;
 	}
 
-	struct slab *slab = (struct slab *)n->value;
+	slab_t *slab = (slab_t *)n->value;
 	if (slab != NULL)
 		slab_free(slab, ptr);
 	else

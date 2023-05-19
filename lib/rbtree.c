@@ -4,7 +4,7 @@
 #include <kernel/slab.h>
 #include <kernel/rbtree.h>
 
-static struct slab *rbt_slab;
+static slab_t *rbt_slab;
 
 void rbt_slab_init()
 {

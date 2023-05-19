@@ -134,7 +134,7 @@ int snprintf(char *str, const char *restrict fmt, size_t size, ...)
 
 int kprintf(const char *restrict fmt, ...)
 {
-	char buf[1024] = { 0 };
+	char buf[2048] = { 0 };
 	va_list args;
 	va_start(args, fmt);
 	int ret = vsnprintf(buf, fmt, 1024, args);
