@@ -49,6 +49,7 @@ slab_t *slab_create(size_t size, size_t cache_size, uint64_t flags)
 		ret->align = SLAB_ALIGN;
 	}
 
+	start -= 1;
 	start |= ret->align;
 	start += 1;
 
