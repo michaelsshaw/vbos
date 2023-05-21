@@ -53,7 +53,8 @@ void block_gpt_init(struct block_device *dev)
 		part->lba_start = entries[i].lba_first;
 		part->num_blocks = entries[i].lba_last - entries[i].lba_first + 1;
 
-		fat_init_part(part);
+		struct fat32_fs *fs = fat_init_part(part);
+		fat_print_root(fs);
 	}
 	dev->partition_count = used_count;
 

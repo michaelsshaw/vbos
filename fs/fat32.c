@@ -55,3 +55,14 @@ free_ret:
 	kfree(ret);
 	return NULL;
 }
+
+void fat_print_root(struct fat32_fs *fs)
+{
+	for(int i = 0; i < fs->bpb.root_entries; i++) {
+		struct fat32_dirent *entry = &fs->root;
+		if (entry->name[0] == 0)
+			continue;
+
+		kprintf(LOG_WARN "%s\n", entry->name);
+	}
+}

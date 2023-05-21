@@ -76,4 +76,7 @@ struct fat32_fs {
 	struct fat32_dirent root;
 };
 
+struct fat32_fs *fat_init_part(struct block_part *part);
+void fat_print_root(struct fat32_fs *fs);
+
 #endif /* _FAT32_H_ */
