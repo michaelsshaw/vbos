@@ -423,6 +423,10 @@ void mem_early_init(char *mem, size_t len)
 
 	/* map the kernel */
 	kmap(0, hhdm_start, 4 * GB, attrs.val | PAGE_PCD);
+
+	/* do not invalidate TLB entries for kernel pages */
+	attrs.val |= PAGE_GLOBAL;
+
 	kmap(kpaddr, kvaddr, kernel_size, attrs.val);
 
 	for (unsigned int i = 0; i < num_regions; i++) {

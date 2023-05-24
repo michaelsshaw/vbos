@@ -12,6 +12,7 @@
 #define PAGE_PRESENT (1 << 0)
 #define PAGE_RW (1 << 1)
 #define PAGE_PCD (1 << 4)
+#define PAGE_GLOBAL (1 << 8)
 #define PAGE_USERMODE (1 << 2)
 
 #ifndef __ASM__
