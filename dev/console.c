@@ -48,7 +48,7 @@ void console_resize()
 void console_input(char c)
 {
 	if (!console.resizemode) {
-		kprintf("%c", c);
+		console_write(c);
 	} else {
 		if (c == 'R') {
 			/* detect end of escape sequence */
