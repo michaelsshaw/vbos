@@ -21,6 +21,7 @@ struct block_device *block_register(char *name, struct block_device_ops *ops, vo
 	bdev->data = data;
 	bdev->block_count = block_count;
 	bdev->block_size = block_size;
+	bdev->lba_start = 0;
 	memcpy(&bdev->ops, ops, sizeof(struct block_device_ops));
 
 	block_gpt_init(bdev);
@@ -37,20 +38,10 @@ struct block_device *block_register(char *name, struct block_device_ops *ops, vo
 
 inline int block_read(struct block_device *bdev, void *buf, size_t offset, size_t size)
 {
-	return bdev->ops.read(bdev, buf, offset, size);
-}
-
-inline int block_readp(struct block_part *part, void *buf, size_t offset, size_t size)
-{
-	return part->bdev->ops.read(part->bdev, buf, part->lba_start + offset, size);
+	return bdev->ops.read(bdev, buf, offset + bdev->lba_start, size);
 }
 
 inline int block_write(struct block_device *bdev, void *buf, size_t offset, size_t size)
 {
-	return bdev->ops.write(bdev, buf, offset, size);
-}
-
-inline int block_writep(struct block_part *part, void *buf, size_t offset, size_t size)
-{
-	return part->bdev->ops.write(part->bdev, buf, part->lba_start + offset, size);
+	return bdev->ops.write(bdev, buf, offset + bdev->lba_start, size);
 }

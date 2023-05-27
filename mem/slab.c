@@ -157,7 +157,6 @@ void kmalloc_init()
 	for (size_t i = 0; i < ARRAY_SIZE(dma_sizes); i++)
 		slab_cache_dma[i] = slab_create(dma_sizes[i], 8 * MB, SLAB_DMA_64K);
 }
-
 static void *kmalloc_table(size_t size, size_t *sizes, size_t nsizes, slab_t **cache, bool fb_disable)
 {
 	slab_t *slab = NULL;
