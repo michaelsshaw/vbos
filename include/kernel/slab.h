@@ -4,6 +4,7 @@
 
 #include <kernel/common.h>
 #include <kernel/mem.h>
+#include <kernel/lock.h>
 
 #define SLAB_PAGE_ALIGN 0x01
 #define SLAB_DMA_64K 0x02
@@ -21,6 +22,8 @@ typedef struct _slab {
 	uintptr_t *nextfree;
 	struct _slab *next;
 	struct _slab *prev;
+
+	spinlock_t lock;
 } slab_t;
 
 struct kmap_entry {

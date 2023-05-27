@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
+#include "kernel/lock.h"
 #include <kernel/common.h>
 #include <kernel/mem.h>
 #include <kernel/rbtree.h>
@@ -61,6 +62,7 @@ slab_t *slab_create(size_t size, size_t cache_size, uint64_t flags)
 	ret->flags = flags;
 	ret->nextfree = (uintptr_t *)start;
 	ret->free = ret->num;
+	ret->lock = 0;
 
 	uintptr_t *ptr = (uintptr_t *)start;
 	for (size_t i = 0; i < ret->num; i++) {
@@ -80,17 +82,25 @@ void *slab_alloc(slab_t *slab)
 
 	if (slab->nextfree == NULL) {
 		if (slab->next == NULL) {
+			spinlock_acquire(&slab->lock);
+
 			slab->next = slab_create(slab->size, slab->tsize, slab->flags);
 			if (slab->next == NULL)
 				return NULL;
 			slab->next->prev = slab;
+
+			spinlock_release(&slab->lock);
 		}
 		return slab_alloc(slab->next);
 	}
 
+	spinlock_acquire(&slab->lock);
+
 	slab->free--;
 	uintptr_t *ret = slab->nextfree;
 	slab->nextfree = (uintptr_t *)*slab->nextfree;
+
+	spinlock_release(&slab->lock);
 
 	return ret;
 }
@@ -113,6 +123,8 @@ void slab_free(slab_t *slab, void *ptr)
 			return;
 	}
 
+	spinlock_acquire(&slab->lock);
+
 	*(uintptr_t *)ptr = (uintptr_t)slab->nextfree;
 	slab->nextfree = ptr;
 	slab->free++;
@@ -134,6 +146,8 @@ void slab_free(slab_t *slab, void *ptr)
 
 		buddy_free(slab);
 	}
+
+	spinlock_release(&slab->lock);
 }
 
 void kmalloc_init()

@@ -3,6 +3,7 @@
 #define _RBTREE_H_
 
 #include <kernel/common.h>
+#include <kernel/lock.h>
 
 #define RB_RED 0
 #define RB_BLACK 1
@@ -23,6 +24,7 @@ struct rbnode {
  */
 struct rbtree {
 	struct rbnode *root;
+	spinlock_t lock;
 };
 
 struct rbnode *rbt_insert(struct rbtree *tree, uint64_t key);
