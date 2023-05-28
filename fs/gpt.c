@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 #include <kernel/gpt.h>
 #include <kernel/slab.h>
 #include <kernel/block.h>
