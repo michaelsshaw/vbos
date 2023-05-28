@@ -69,8 +69,6 @@ void kmain(void)
 	char kmem[one_gb] ALIGN(0x1000);
 	mem_early_init(kmem, one_gb);
 
-	slabtypes_init();
-
 	struct limine_kernel_file_response *resp = module_req.response;
 
 	struct limine_file *kfile = (struct limine_file *)((paddr_t)resp->kernel_file | hhdm_start);

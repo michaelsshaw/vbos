@@ -4,6 +4,8 @@
 #include <kernel/common.h>
 #include <kernel/slab.h>
 #include <kernel/mem.h>
+#include <kernel/rbtree.h>
+#include <kernel/lock.h>
 
 struct limine_memmap_request map_req = { .id = LIMINE_MEMMAP_REQUEST, .revision = 0 };
 struct limine_kernel_address_request kern_req = { .id = LIMINE_KERNEL_ADDRESS_REQUEST, .revision = 0 };
@@ -28,6 +30,9 @@ paddr_t kcr3 = 0;
 
 static void *(*alloc_page)(void);
 static slab_t *kmap_slab;
+static spinlock_t kmap_lock = 0;
+
+static struct rbtree *kmap_tree = NULL;
 
 static void buddy_bitmap_set(char *bitmap, size_t depth, size_t n, int val)
 {
@@ -255,7 +260,7 @@ static uint64_t *pagemap_traverse(uint64_t *this_level, size_t next_num)
 	if (!(this_level[next_num] & 1)) {
 		r = alloc_page();
 		memset(r, 0, 4096);
-		this_level[next_num] = ((uintptr_t)r | 3) - hhdm_start;
+		this_level[next_num] = ((uintptr_t)r | 3) & ~hhdm_start;
 	} else {
 		r = (void *)((this_level[next_num] & -4096ull) | hhdm_start);
 	}
@@ -264,6 +269,7 @@ static uint64_t *pagemap_traverse(uint64_t *this_level, size_t next_num)
 
 void kmap(paddr_t paddr, uint64_t vaddr, size_t len, uint64_t attr)
 {
+	spinlock_acquire(&kmap_lock);
 	uint64_t *pdpt;
 	uint64_t *pdt;
 	uint64_t *pt;
@@ -285,6 +291,12 @@ void kmap(paddr_t paddr, uint64_t vaddr, size_t len, uint64_t attr)
 
 	len = (len + 4095) & -4096ull;
 
+	if (kmap_tree != NULL) {
+		struct rbnode *node = rbt_insert(kmap_tree, vaddr);
+		node->value = paddr;
+		node->value2 = len;
+	}
+
 	for (; len; len -= 4096, vaddr += 4096, paddr += 4096) {
 		pn = (vaddr >> 12) & 0x1FF;
 		ptn = (vaddr >> 21) & 0x1FF;
@@ -296,6 +308,69 @@ void kmap(paddr_t paddr, uint64_t vaddr, size_t len, uint64_t attr)
 		pt = pagemap_traverse(pdt, ptn);
 		pt[pn] = paddr | attr;
 	}
+	spinlock_release(&kmap_lock);
+}
+
+static bool kunmap_check_table(uint64_t *table, uint64_t *parent, size_t n)
+{
+	for (size_t i = 0; i < 512; i++) {
+		if (table[i] & 1) {
+			return false;
+		}
+	}
+	buddy_free(table);
+
+	if (parent != NULL)
+		parent[n] = 0;
+
+	return true;
+}
+
+void kunmap(uintptr_t vaddr)
+{
+	spinlock_acquire(&kmap_lock);
+	if (kmap_tree == NULL)
+		return;
+
+	uint64_t *pdpt;
+	uint64_t *pdt;
+	uint64_t *pt;
+
+	size_t pdpn;
+	size_t pdn;
+	size_t ptn;
+	size_t pn;
+
+	struct rbnode *node = rbt_search(kmap_tree, vaddr);
+
+	if (node == NULL)
+		return;
+
+	size_t len = node->value2;
+
+	len = (len + 4095) & -4096ull;
+
+	for (; len; len -= 4096, vaddr -= 4096) {
+		pn = (vaddr >> 12) & 0x1FF;
+		ptn = (vaddr >> 21) & 0x1FF;
+		pdn = (vaddr >> 30) & 0x1FF;
+		pdpn = (vaddr >> 39) & 0x1FF;
+
+		pdpt = pagemap_traverse((uint64_t *)pml4, pdpn);
+		pdt = pagemap_traverse(pdpt, pdn);
+		pt = pagemap_traverse(pdt, ptn);
+		pt[pn] = 0;
+
+		if (!kunmap_check_table(pt, pdt, ptn))
+			continue;
+		if (!kunmap_check_table(pdt, pdpt, pdn))
+			continue;
+
+		kunmap_check_table(pdpt, (uint64_t *)pml4, pdpn);
+	}
+
+	rbt_delete(kmap_tree, node);
+	spinlock_release(&kmap_lock);
 }
 
 static size_t limine_parse_memregions()
@@ -311,7 +386,6 @@ static size_t limine_parse_memregions()
 		const char *type_str = "base=%X, len=%X %s\n";
 		kprintf(LOG_DEBUG "Memmap entry: ");
 		kprintf(type_str, entry->base, entry->length, limine_types[entry->type]);
-
 #endif
 
 		switch (entry->type) {
@@ -416,6 +490,14 @@ void mem_early_init(char *mem, size_t len)
 	memcpy(mem_regions, regions, sizeof(struct mem_region) * num_regions);
 
 	kmap_slab = slab_create(0x1000, 4 * MB, SLAB_PAGE_ALIGN);
+
+	/* this inits kmalloc */
+	slabtypes_init();
+
+	/* kmalloc is available after this point */
+	kmap_tree = kmalloc(sizeof(struct rbtree), ALLOC_KERN);
+	kmap_tree->root = NULL;
+	kmap_tree->lock = 0;
 
 	/* initialize and populate the new permanent kernel page tables */
 	alloc_page = kmap_alloc_page;
