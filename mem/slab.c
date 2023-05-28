@@ -80,21 +80,22 @@ void *slab_alloc(slab_t *slab)
 	if (slab == NULL)
 		return NULL;
 
+	spinlock_acquire(&slab->lock);
 	if (slab->nextfree == NULL) {
 		if (slab->next == NULL) {
-			spinlock_acquire(&slab->lock);
-
 			slab->next = slab_create(slab->size, slab->tsize, slab->flags);
-			if (slab->next == NULL)
+			if (slab->next == NULL) {
+				spinlock_release(&slab->lock);
 				return NULL;
+			}
 			slab->next->prev = slab;
-
-			spinlock_release(&slab->lock);
 		}
-		return slab_alloc(slab->next);
-	}
 
-	spinlock_acquire(&slab->lock);
+		void *ret = slab_alloc(slab->next);
+		spinlock_release(&slab->lock);
+
+		return ret;
+	}
 
 	slab->free--;
 	uintptr_t *ret = slab->nextfree;
@@ -115,15 +116,17 @@ void slab_free(slab_t *slab, void *ptr)
 	uintptr_t low = 0;
 	uintptr_t high = 0;
 
+	spinlock_acquire(&slab->lock);
+
 	slab_range(slab, &low, &high);
 	while ((uintptr_t)ptr < low || (uintptr_t)ptr > high) {
 		slab_range(slab, &low, &high);
 		slab = slab->next;
-		if (slab == NULL)
+		if (slab == NULL) {
+			spinlock_release(&slab->lock);
 			return;
+		}
 	}
-
-	spinlock_acquire(&slab->lock);
 
 	*(uintptr_t *)ptr = (uintptr_t)slab->nextfree;
 	slab->nextfree = ptr;
