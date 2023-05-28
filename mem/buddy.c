@@ -318,7 +318,7 @@ static bool kunmap_check_table(uint64_t *table, uint64_t *parent, size_t n)
 			return false;
 		}
 	}
-	buddy_free(table);
+	slab_free(kmap_slab, table);
 
 	if (parent != NULL)
 		parent[n] = 0;
@@ -343,14 +343,15 @@ void kunmap(uintptr_t vaddr)
 
 	struct rbnode *node = rbt_search(kmap_tree, vaddr);
 
-	if (node == NULL)
+	if (node == NULL) {
+		kprintf("kunmap: Tried to unmap unmapped address %X\n", vaddr);
+		spinlock_release(&kmap_lock);
 		return;
+	}
 
 	size_t len = node->value2;
 
-	len = (len + 4095) & -4096ull;
-
-	for (; len; len -= 4096, vaddr -= 4096) {
+	for (; len; len -= 4096, vaddr += 4096) {
 		pn = (vaddr >> 12) & 0x1FF;
 		ptn = (vaddr >> 21) & 0x1FF;
 		pdn = (vaddr >> 30) & 0x1FF;
