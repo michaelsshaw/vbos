@@ -112,7 +112,10 @@ static void ahci_probe_ports(struct pci_device *dev, hbamem_t *abar)
 				sdev->sector_count = sector_count;
 
 				sdev->sector_size = 512;
-				block_register(name, &ahci_block_ops, sdev, sector_count, sdev->sector_size);
+
+				struct block_device *bdev;
+				bdev = block_register(name, &ahci_block_ops, sdev, sector_count, sdev->sector_size);
+				block_gpt_init(bdev);
 
 				ahci_rebase(&abar->ports[i], i);
 				sata_device_count++;

@@ -24,8 +24,6 @@ struct block_device *block_register(char *name, struct block_device_ops *ops, vo
 	bdev->lba_start = 0;
 	memcpy(&bdev->ops, ops, sizeof(struct block_device_ops));
 
-	block_gpt_init(bdev);
-
 	block_devices[block_devices_count] = bdev;
 	block_devices_count++;
 

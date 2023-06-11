@@ -3,12 +3,15 @@
 #include <kernel/slab.h>
 #include <kernel/block.h>
 
+#include <fs/ext2.h>
+
 #define GPT_HEADER_SIGNATURE 0x5452415020494645ull /* "EFI PART" */
 
 void block_gpt_init(struct block_device *dev)
 {
 	size_t block_size = dev->block_size;
 
+	/* Verify that this is a GPT partition table */
 	struct gpt_header *header = kmalloc(block_size, ALLOC_DMA);
 	if (!header)
 		return;
@@ -37,30 +40,38 @@ void block_gpt_init(struct block_device *dev)
 		goto free_entries;
 	}
 
+	/* Parse the GPT entries and create block devices for each partition
+	 * that is found.
+	 *
+	 * After block device is registered, the system attempts to register a
+	 * filesystem on the device if it is detected
+	 */
 	size_t used_count = 0;
 	for (size_t i = 0; i < header->entry_count; i++) {
-		if (entries[i].type_guid[1] == 0)
+		struct gpt_entry *entry = &entries[i];
+
+		if (entry->type_guid[1] == 0)
 			continue;
 
 		used_count++;
 
-		struct block_device *bdev = kmalloc(sizeof(struct block_device), ALLOC_KERN);
-		memcpy(bdev, dev, sizeof(struct block_device));
+		/* Name and register the partition */
+		char *buf = kzalloc(64, ALLOC_KERN);
+		snprintf(buf, "%sp%d", 63, dev->name, used_count - 1);
 
-		if (!bdev)
-			continue;
-
-		bdev->name = kmalloc(64, ALLOC_KERN);
-		if (!bdev->name) {
-			kfree(bdev);
+		struct block_device *bdev = block_register(buf, &dev->ops, dev->data, dev->block_count, dev->block_size);
+		if (!bdev) {
+			kfree(buf);
 			continue;
 		}
 
-		snprintf(bdev->name, "%sp%d", 63, dev->name, used_count - 1);
-		bdev->name[63] = '\0';
-
 		bdev->lba_start = entries[i].lba_first;
 		bdev->block_count = entries[i].lba_last - entries[i].lba_first + 1;
+
+		struct ext2fs *fs = ext2_init_fs(bdev);
+		if (fs) {
+			kprintf(LOG_INFO "Found ext2 filesystem on device %s\n", buf);
+		}
 	}
 	dev->partition_count = used_count;
 
