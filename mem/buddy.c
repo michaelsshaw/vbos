@@ -308,6 +308,11 @@ void kmap(paddr_t paddr, uint64_t vaddr, size_t len, uint64_t attr)
 		pt = pagemap_traverse(pdt, ptn);
 		pt[pn] = paddr | attr;
 	}
+
+	/* flush TLB */
+	uint64_t cr3 = cr3_read();
+	cr3_write(cr3);
+
 	spinlock_release(&kmap_lock);
 }
 
