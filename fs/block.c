@@ -22,6 +22,7 @@ struct block_device *block_register(char *name, struct block_device_ops *ops, vo
 	bdev->block_count = block_count;
 	bdev->block_size = block_size;
 	bdev->lba_start = 0;
+	bdev->fs = NULL;
 	memcpy(&bdev->ops, ops, sizeof(struct block_device_ops));
 
 	block_devices[block_devices_count] = bdev;

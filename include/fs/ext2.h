@@ -7,6 +7,8 @@
 #include <kernel/gpt.h>
 
 #define EXT2_SUPER_MAGIC 0xEF53
+#define EXT2_ROOT_INO 2
+#define EXT2_SUPERBLOCK_BLOCKNO 1
 
 struct ext2_superblock {
 	uint32_t inodes_count;
@@ -101,12 +103,35 @@ struct ext2_inode {
 	uint32_t padding2;
 } PACKED;
 
+struct ext2_group_desc {
+	uint32_t block_bitmap;
+	uint32_t inode_bitmap;
+	uint32_t inode_table;
+	uint16_t free_blocks_count;
+	uint16_t free_inodes_count;
+	uint16_t used_dirs_count;
+	uint16_t padding[7];
+} PACKED;
+
+struct ext2_dir_entry {
+	uint32_t inode;
+	uint16_t rec_len;
+	uint8_t name_len;
+	uint8_t file_type;
+	char name[];
+} PACKED;
 
 struct ext2fs {
-	struct ext2_superblock *sb;
+	struct ext2_superblock sb;
 	struct block_device *bdev;
+
+	uint32_t block_size;
 };
-	
+
 struct ext2fs *ext2_init_fs(struct block_device *bdev);
+
+/* Filesystem block sizes are not equal to block device block sizes */
+int ext2_read_block(struct ext2fs *fs, void *buf, size_t block);
+int ext2_write_block(struct ext2fs *fs, void *buf, size_t block);
 
 #endif /* _EXT2_H_ */

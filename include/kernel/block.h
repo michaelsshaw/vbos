@@ -23,6 +23,8 @@ struct block_device {
 	size_t lba_start;
 
 	size_t partition_count;
+
+	void *fs;
 };
 
 struct block_device *block_register(char *name, struct block_device_ops *ops, void *data, size_t block_count, size_t block_size);
