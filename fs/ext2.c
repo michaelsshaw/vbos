@@ -77,22 +77,6 @@ int ext2_read_inode(struct ext2fs *fs, struct ext2_inode *out, size_t inode_no)
 	return 0;
 }
 
-static void ext2_print_root_ino(struct ext2fs *fs)
-{
-	struct ext2_inode root_inode;
-	ext2_read_inode(fs, &root_inode, EXT2_ROOT_INO);
-
-	kprintf(LOG_DEBUG "root inode: %d\n", EXT2_ROOT_INO);
-	kprintf(LOG_DEBUG "root inode size: %d\n", root_inode.size);
-	kprintf(LOG_DEBUG "root inode blocks: %d\n", root_inode.blocks);
-	kprintf(LOG_DEBUG "root inode block[0]: %d\n", root_inode.block[0]);
-	kprintf(LOG_DEBUG "root inode block[1]: %d\n", root_inode.block[1]);
-	kprintf(LOG_DEBUG "root inode block[2]: %d\n", root_inode.block[2]);
-	kprintf(LOG_DEBUG "root inode block[3]: %d\n", root_inode.block[3]);
-	kprintf(LOG_DEBUG "root inode block[4]: %d\n", root_inode.block[4]);
-	kprintf(LOG_DEBUG "root inode block[5]: %d\n", root_inode.block[5]);
-}
-
 struct ext2fs *ext2_init_fs(struct block_device *bdev)
 {
 	struct ext2fs *ret = kmalloc(sizeof(*ret), ALLOC_KERN);
@@ -108,8 +92,6 @@ struct ext2fs *ext2_init_fs(struct block_device *bdev)
 	ret->block_size = 1024 << ret->sb.log_block_size;
 
 	bdev->fs = ret;
-
-	ext2_print_root_ino(ret);
 
 	return ret;
 }
