@@ -55,6 +55,9 @@ void block_gpt_init(struct block_device *dev)
 
 		used_count++;
 
+		if(entries[i].lba_first > dev->block_count)
+			continue;
+
 		/* Name and register the partition */
 		char *buf = kzalloc(64, ALLOC_KERN);
 		snprintf(buf, "%sp%d", 63, dev->name, used_count - 1);
