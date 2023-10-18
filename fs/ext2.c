@@ -9,6 +9,10 @@ static int ext2_read_super(struct block_device *bdev, struct ext2_superblock *sb
 	if (!buf)
 		return -1;
 
+	#ifdef KDEBUG
+	kprintf(LOG_DEBUG "Reading superblock from device %s, start_lba: %X\n", bdev->name, bdev->lba_start);
+	#endif
+	
 	int ret = block_read(bdev, buf, 2, 2);
 	if (ret < 0) {
 		kfree(buf);
