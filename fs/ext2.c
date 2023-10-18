@@ -34,51 +34,22 @@ static int ext2_read_super(struct block_device *bdev, struct ext2_superblock *sb
 /* PCD must be 1 for buf */
 int ext2_read_block(struct ext2fs *fs, void *buf, size_t block)
 {
-	return block_read(fs->bdev, buf, block * (fs->block_size >> 9), fs->block_size >> 9);
+	uint32_t bdev_block_size = fs->bdev->block_size;
+	uint32_t num_blocks_read = fs->block_size / bdev_block_size;
+
+	uint32_t bdev_block = block * num_blocks_read;
+
+	return block_read(fs->bdev, buf, bdev_block, num_blocks_read);
 }
 
 int ext2_write_block(struct ext2fs *fs, void *buf, size_t block)
 {
-	return block_write(fs->bdev, buf, block * (fs->block_size >> 9), fs->block_size >> 9);
-}
+	uint32_t bdev_block_size = fs->bdev->block_size;
+	uint32_t num_blocks_read = fs->block_size / bdev_block_size;
 
-int ext2_read_inode(struct ext2fs *fs, struct ext2_inode *out, size_t inode_no)
-{
-	size_t group = (inode_no - 1) / fs->sb.inodes_per_group;
-	size_t index = (inode_no - 1) % fs->sb.inodes_per_group;
+	uint32_t bdev_block = block * num_blocks_read;
 
-	struct ext2_group_desc *gd = kmalloc(fs->block_size, ALLOC_DMA);
-	if (!gd)
-		return -1;
-
-	int ret = ext2_read_block(fs, gd, fs->sb.first_data_block + 1 + group);
-	if (ret < 0) {
-		kfree(gd);
-		return ret;
-	}
-
-	size_t block = gd->inode_table + index / (fs->block_size / sizeof(struct ext2_inode));
-	size_t offset = index % (fs->block_size / sizeof(struct ext2_inode));
-
-	struct ext2_inode *inodes = kmalloc(fs->block_size, ALLOC_DMA);
-	if (!inodes) {
-		kfree(gd);
-		return -1;
-	}
-
-	ret = ext2_read_block(fs, inodes, block);
-	if (ret < 0) {
-		kfree(gd);
-		kfree(inodes);
-		return ret;
-	}
-
-	memcpy(out, &inodes[offset], sizeof(*out));
-
-	kfree(gd);
-	kfree(inodes);
-
-	return 0;
+	return block_write(fs->bdev, buf, bdev_block, num_blocks_read);
 }
 
 struct ext2fs *ext2_init_fs(struct block_device *bdev)

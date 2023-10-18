@@ -9,7 +9,7 @@
 
 static size_t slab_sizes[] = { 16, 32, 64, 128, 256, 512, 1024, 2048, 4096 };
 static slab_t *slab_cache[ARRAY_SIZE(slab_sizes)];
-static size_t dma_sizes[] = { 0x1000, 0x10000, 0x100000 };
+static size_t dma_sizes[] = { 0x1000, 0x10000, 0x100000, 0x1000000 };
 static slab_t *slab_cache_dma[ARRAY_SIZE(slab_sizes)];
 
 static struct rbtree kmalloc_tree = { NULL, 0 };
