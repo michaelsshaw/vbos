@@ -133,5 +133,7 @@ struct ext2fs *ext2_init_fs(struct block_device *bdev);
 /* Filesystem block sizes are not equal to block device block sizes */
 int ext2_read_block(struct ext2fs *fs, void *buf, size_t block);
 int ext2_write_block(struct ext2fs *fs, void *buf, size_t block);
+int ext2_read_inode(struct ext2fs *fs, struct ext2_inode *out, uint32_t inode);
+int ext2_read_inode(struct ext2fs *fs, struct ext2_inode *in, uint32_t inode);
 
 #endif /* _EXT2_H_ */

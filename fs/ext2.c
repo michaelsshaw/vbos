@@ -52,6 +52,81 @@ int ext2_write_block(struct ext2fs *fs, void *buf, size_t block)
 	return block_write(fs->bdev, buf, bdev_block, num_blocks_read);
 }
 
+int ext2_read_inode(struct ext2fs *fs, struct ext2_inode *out, uint32_t inode)
+{
+	uint32_t group = (inode - 1) / fs->sb.inodes_per_group;
+	uint32_t index = (inode - 1) % fs->sb.inodes_per_group;
+
+	uint32_t block = (index * fs->sb.inode_size) / fs->block_size;
+	uint32_t offset = (index * fs->sb.inode_size) % fs->block_size;
+
+	struct ext2_group_desc *gd = kmalloc(fs->block_size, ALLOC_DMA);
+	if (!gd)
+		return -1;
+
+	int ret = ext2_read_block(fs, gd, fs->sb.first_data_block + 1 + group);
+	if (ret < 0) {
+		kfree(gd);
+		return ret;
+	}
+
+	uint32_t inode_table = gd->inode_table;
+	kfree(gd);
+
+	struct ext2_inode *in = kmalloc(fs->block_size, ALLOC_DMA);
+	if (!in)
+		return -1;
+
+	ret = ext2_read_block(fs, in, inode_table + block);
+	if (ret < 0) {
+		kfree(in);
+		return ret;
+	}
+
+	memcpy(out, (void *)((uint64_t)in + offset), sizeof(*out));
+	kfree(in);
+
+	return ret;
+}
+
+int ext2_write_inode(struct ext2fs *fs, struct ext2_inode *in, uint32_t inode)
+{
+	uint32_t group = (inode - 1) / fs->sb.inodes_per_group;
+	uint32_t index = (inode - 1) % fs->sb.inodes_per_group;
+
+	uint32_t block = (index * fs->sb.inode_size) / fs->block_size;
+	uint32_t offset = (index * fs->sb.inode_size) % fs->block_size;
+
+	struct ext2_group_desc *gd = kmalloc(fs->block_size, ALLOC_DMA);
+	if (!gd)
+		return -1;
+
+	int ret = ext2_read_block(fs, gd, fs->sb.first_data_block + 1 + group);
+	if (ret < 0) {
+		kfree(gd);
+		return ret;
+	}
+
+	uint32_t inode_table = gd->inode_table;
+	kfree(gd);
+
+	struct ext2_inode *out = kmalloc(fs->block_size, ALLOC_DMA);
+	if (!out)
+		return -1;
+
+	ret = ext2_read_block(fs, out, inode_table + block);
+	if (ret < 0) {
+		kfree(out);
+		return ret;
+	}
+
+	memcpy((void *)((uint64_t)out + offset), in, sizeof(*in));
+	ret = ext2_write_block(fs, out, inode_table + block);
+	kfree(out);
+
+	return ret;
+}
+
 struct ext2fs *ext2_init_fs(struct block_device *bdev)
 {
 	struct ext2fs *ret = kmalloc(sizeof(*ret), ALLOC_KERN);
