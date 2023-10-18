@@ -55,7 +55,10 @@ void block_gpt_init(struct block_device *dev)
 
 		used_count++;
 
-		if(entry->lba_first > dev->block_count)
+		if (entry->lba_first == 0)
+			continue;
+
+		if (entry->lba_first > dev->block_count)
 			continue;
 
 		/* Name and register the partition */
