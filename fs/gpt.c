@@ -55,7 +55,7 @@ void block_gpt_init(struct block_device *dev)
 
 		used_count++;
 
-		if(entries[i].lba_first > dev->block_count)
+		if(entry->lba_first > dev->block_count)
 			continue;
 
 		/* Name and register the partition */
@@ -68,8 +68,8 @@ void block_gpt_init(struct block_device *dev)
 			continue;
 		}
 
-		bdev->lba_start = entries[i].lba_first;
-		bdev->block_count = entries[i].lba_last - entries[i].lba_first + 1;
+		bdev->lba_start = entry->lba_first;
+		bdev->block_count = entry->lba_last - entry->lba_first + 1;
 
 		struct ext2fs *fs = ext2_init_fs(bdev);
 		if (fs) {
