@@ -9,10 +9,10 @@ static int ext2_read_super(struct block_device *bdev, struct ext2_superblock *sb
 	if (!buf)
 		return -1;
 
-	#ifdef KDEBUG
+#ifdef KDEBUG
 	kprintf(LOG_DEBUG "Reading superblock from device %s, start_lba: %X\n", bdev->name, bdev->lba_start);
-	#endif
-	
+#endif
+
 	int ret = block_read(bdev, buf, 2, 2);
 	if (ret < 0) {
 		kfree(buf);
@@ -92,6 +92,7 @@ struct ext2fs *ext2_init_fs(struct block_device *bdev)
 		kfree(ret);
 		return NULL;
 	}
+
 	ret->bdev = bdev;
 	ret->block_size = 1024 << ret->sb.log_block_size;
 
