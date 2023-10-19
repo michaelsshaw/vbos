@@ -122,21 +122,20 @@ char *strchr(const char *s, int c)
 
 char *strtok(char *str, const char *delim, char **llast)
 {
-	char *last = *llast;
 	if (str)
-		last = str;
+		(*llast) = str;
 
-	if (!last)
+	if (!(*llast))
 		return NULL;
 
-	char *ret = last;
-	while (*last) {
-		if (strchr(delim, *last)) {
-			*last = 0;
-			last++;
+	char *ret = (*llast);
+	while (*(*llast)) {
+		if (strchr(delim, *(*llast))) {
+			*(*llast) = 0;
+			(*llast)++;
 			return ret;
 		}
-		last++;
+		(*llast)++;
 	}
 
 	return ret;

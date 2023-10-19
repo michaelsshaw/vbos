@@ -53,6 +53,7 @@ int read(int fd, void *buf, size_t count)
 
 int open(const char *pathname, int flags)
 {
+	char *strtok_last = NULL;
 	return 0;
 }
 
