@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
+#include "kernel/pio.h"
 #include <kernel/slab.h>
 #include <kernel/lock.h>
 
@@ -14,6 +15,17 @@ void *memcpy(void *dest, const void *src, size_t num)
 		*d++ = *s++;
 	}
 	return dest;
+}
+
+int strcmp(const char *a, const char *b)
+{
+	while (*a && *b) {
+		if (*a != *b)
+			return *a - *b;
+		a++;
+		b++;
+	}
+	return *a - *b;
 }
 
 char *strcpy(char *dest, const char *src)
@@ -92,7 +104,6 @@ char *strchr(const char *s, int c)
 
 char *strtok(char *str, const char *delim)
 {
-	spinlock_acquire(&strtok_lock);
 	static char *last = NULL;
 	if (str)
 		last = str;
@@ -110,7 +121,6 @@ char *strtok(char *str, const char *delim)
 		last++;
 	}
 
-	spinlock_release(&strtok_lock);
 	return ret;
 }
 
