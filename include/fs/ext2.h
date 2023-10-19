@@ -123,6 +123,10 @@ struct ext2_dir_entry {
 
 struct ext2_dir {
 	struct ext2_dir_entry *entry;
+
+	char *name;
+	size_t name_len;
+
 	struct ext2_dir *next;
 };
 
