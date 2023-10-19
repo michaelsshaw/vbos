@@ -4,6 +4,8 @@
 
 #include <kernel/common.h>
 
+#define VFSE_IS_BDEV 0xFFFA
+
 #define VFS_TYPE_EXT2 0x0001
 
 struct inode {
@@ -38,9 +40,20 @@ struct file {
 
 	uint32_t inode_num; /* inode number */
 	uint64_t size; /* size of the file */
-	uint64_t pos; /* current position in the file */
 
-	void *fs_file;
+	char *path; /* path to the file */
+
+	void *fs_file; /* filesystem specific object */
+};
+
+struct file_descriptor {
+	struct file file;
+
+	uint64_t pos; 
+	int fd;
+	uint32_t flags;
+
+	struct fs *fs;
 };
 
 struct fs_ops {

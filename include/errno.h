@@ -6,5 +6,6 @@
 #define ENOMEM 1
 #define ENOENT 2
 #define EINVAL 3
+#define EBADF 4
 
 #endif /* _ERRNO_H_ */
