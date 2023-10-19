@@ -86,6 +86,27 @@ char *strchr(const char *s, int c)
 	return NULL;
 }
 
+char *strtok(char *str, const char *delim)
+{
+	static char *last = NULL;
+	if (str)
+		last = str;
+
+	if (!last)
+		return NULL;
+
+	char *ret = last;
+	while (*last) {
+		if (strchr(delim, *last)) {
+			*last = 0;
+			last++;
+			return ret;
+		}
+		last++;
+	}
+	return ret;
+}
+
 char **strsplit(const char *s, char delim, int *n)
 {
 	int num = 0;
