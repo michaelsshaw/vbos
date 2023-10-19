@@ -113,6 +113,89 @@ int ext2_write_inode(struct ext2fs *fs, struct ext2_inode *in, uint32_t inode)
 	return 0;
 }
 
+int ext2_open_file(struct ext2fs *fs, struct ext2_file *file, const char *path)
+{
+	/* find the inode of the file */
+	struct ext2_inode *inode = kmalloc(sizeof(struct ext2_inode), ALLOC_KERN);
+	if (!inode)
+		return -ENOMEM;
+
+	int ret = ext2_read_inode(fs, inode, 2);
+	if (ret < 0) {
+		kfree(inode);
+		return ret;
+	}
+
+	char *path_copy = kmalloc(strlen(path) + 1, ALLOC_KERN);
+	if (!path_copy) {
+		kfree(inode);
+		return -ENOMEM;
+	}
+
+	strcpy(path_copy, path);
+
+	spinlock_acquire(&strtok_lock);
+
+	char *token = strtok(path_copy, "/");
+	while (token) {
+		struct ext2_dir_entry *entry = kmalloc(fs->block_size, ALLOC_DMA);
+		if (!entry) {
+			kfree(inode);
+			kfree(path_copy);
+			return -ENOMEM;
+		}
+
+		ext2_read_block(fs, entry, inode->block[0]);
+
+		while (entry->inode) {
+			char *name = kmalloc(entry->name_len + 1, ALLOC_KERN);
+			if (!name) {
+				kfree(inode);
+				kfree(path_copy);
+				kfree(entry);
+				return -ENOMEM;
+			}
+
+			memcpy(name, entry->name, entry->name_len);
+			name[entry->name_len] = '\0';
+
+			if (!strcmp(name, token)) {
+				kfree(name);
+				break;
+			}
+
+			kfree(name);
+
+			entry = (void *)entry + entry->rec_len;
+		}
+
+		if (!entry->inode) {
+			kfree(inode);
+			kfree(path_copy);
+			kfree(entry);
+			return -ENOENT;
+		}
+
+		ext2_read_inode(fs, inode, entry->inode);
+
+		token = strtok(NULL, "/");
+	}
+
+	spinlock_release(&strtok_lock);
+
+	kfree(path_copy);
+
+	file->inode = *inode;
+	file->offset = 0;
+	file->size = inode->size;
+
+	/* check for long filesize */
+	if (fs->sb.feature_ro_compat & EXT2_FLAG_LONG_FILESIZE)
+		file->size |= ((uint64_t)inode->dir_acl << 32);
+
+	return 0;
+}
+
 #ifdef KDEBUG
 static void ext2_print_dir(struct ext2fs *fs, struct ext2_inode *inode, int indent)
 {
@@ -218,7 +301,7 @@ struct ext2fs *ext2_init_fs(struct block_device *bdev)
 
 	ext2_read_block(bdev->fs, buf, bgdt_block);
 
-	ret->bgdt = (struct block_group_desc *)kmalloc(bgdt_size, ALLOC_KERN);
+	ret->bgdt = (struct ext2_group_desc *)kmalloc(bgdt_size, ALLOC_KERN);
 	memcpy(ret->bgdt, buf, bgdt_size);
 
 	kfree(buf);

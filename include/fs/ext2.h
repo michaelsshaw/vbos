@@ -19,6 +19,8 @@
 #define EXT2_DE_SOCK 6
 #define EXT2_DE_SYMLINK 7
 
+#define EXT2_FLAG_LONG_FILESIZE 0x0002
+
 struct ext2_superblock {
 	uint32_t inodes_count;
 	uint32_t blocks_count;
@@ -129,6 +131,14 @@ struct ext2_dir_entry {
 	uint8_t file_type;
 	char name[];
 } PACKED;
+
+struct ext2_file {
+	struct ext2_inode inode;
+	uint32_t block;
+	uint32_t offset;
+	uint64_t size;
+	uint32_t pos;
+};
 
 struct ext2fs {
 	struct ext2_superblock sb;
