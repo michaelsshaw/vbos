@@ -123,7 +123,7 @@ struct ext2_dir_entry {
 
 struct ext2_dir {
 	struct ext2_dir_entry *entry;
-
+	uint32_t inode;
 	char *name;
 	size_t name_len;
 
