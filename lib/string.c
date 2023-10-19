@@ -4,8 +4,6 @@
 
 #include <string.h>
 
-spinlock_t strtok_lock = 0;
-
 void *memcpy(void *dest, const void *src, size_t num)
 {
 	char *d = (char *)dest;
@@ -122,9 +120,9 @@ char *strchr(const char *s, int c)
 	return NULL;
 }
 
-char *strtok(char *str, const char *delim)
+char *strtok(char *str, const char *delim, char **llast)
 {
-	static char *last = NULL;
+	char *last = *llast;
 	if (str)
 		last = str;
 

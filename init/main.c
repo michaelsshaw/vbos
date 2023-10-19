@@ -64,37 +64,33 @@ char *kcmdline_get_symbol(const char *sym)
 	size_t sym_len = strlen(sym);
 	size_t cmd_len = strlen(kcmdline);
 
-	spinlock_acquire(&strtok_lock);
 
 	char *cmdline_copy = kmalloc(cmd_len + 1, ALLOC_KERN);
 	if (!cmdline_copy) {
-		spinlock_release(&strtok_lock);
 		return NULL;
 	}
 
 	strcpy(cmdline_copy, kcmdline);
 
-	char *token = strtok(cmdline_copy, " ");
+	char *strtok_last = NULL;
+	char *token = strtok(cmdline_copy, " ", &strtok_last);
 	while (token) {
 		if (!strncmp(token, sym, sym_len)) {
 			size_t ret_len = strlen(token + sym_len + 1);
 			char *ret = kzalloc(ret_len + 1, ALLOC_KERN);
 			if (!ret) {
 				kfree(cmdline_copy);
-				spinlock_release(&strtok_lock);
 				return NULL;
 			}
 
 			strcpy(ret, token + sym_len + 1);
 
 			kfree(cmdline_copy);
-			spinlock_release(&strtok_lock);
 			return ret;
 		}
-		token = strtok(NULL, " ");
+		token = strtok(NULL, " ", &strtok_last);
 	}
 
-	spinlock_release(&strtok_lock);
 
 	return NULL;
 }

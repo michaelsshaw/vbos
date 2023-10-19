@@ -16,7 +16,7 @@ int strncmp(const char *a, const char *b, size_t n);
 void *memset(void *str, int c, size_t n);
 char *strcpy(char *dest, const char *src);
 char *strncpy(char *dest, const char *src, size_t n);
-char *strtok(char *str, const char *delim);
+char *strtok(char *str, const char *delim, char **llast);
 char **strsplit(const char *str, char delim, int *num);
 size_t strlen(const char *c);
 int atoi(const char *a);

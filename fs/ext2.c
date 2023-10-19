@@ -136,9 +136,8 @@ int ext2_open_file(void *extfs, struct file *file, const char *path)
 
 	strcpy(path_copy, path);
 
-	spinlock_acquire(&strtok_lock);
-
-	char *token = strtok(path_copy, "/");
+	char *strtok_last = NULL;
+	char *token = strtok(path_copy, "/", &strtok_last);
 	uint32_t inode_no = 2;
 	while (token) {
 		struct ext2_dir_entry *entry = kmalloc(fs->block_size, ALLOC_DMA);
@@ -182,10 +181,9 @@ int ext2_open_file(void *extfs, struct file *file, const char *path)
 
 		ext2_read_inode(fs, inode, entry->inode);
 
-		token = strtok(NULL, "/");
+		token = strtok(NULL, "/", &strtok_last);
 	}
 
-	spinlock_release(&strtok_lock);
 
 	kfree(path_copy);
 
