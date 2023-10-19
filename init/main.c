@@ -14,6 +14,10 @@
 #include <dev/pci.h>
 #include <dev/ahci.h>
 
+#include <fs/vfs.h>
+
+#include <string.h>
+
 #define LIMINE_INTERNAL_MODULE_REQUIRED (1 << 0)
 #include <limine/limine.h>
 
@@ -51,6 +55,48 @@ static inline void _pic_init()
 
 	while (!console_ready())
 		;
+}
+
+char *kcmdline_get_symbol(const char *sym)
+{
+	/* symbol=value */
+	/* only parse until the space after the value */
+	size_t sym_len = strlen(sym);
+	size_t cmd_len = strlen(kcmdline);
+
+	spinlock_acquire(&strtok_lock);
+
+	char *cmdline_copy = kmalloc(cmd_len + 1, ALLOC_KERN);
+	if (!cmdline_copy) {
+		spinlock_release(&strtok_lock);
+		return NULL;
+	}
+
+	strcpy(cmdline_copy, kcmdline);
+
+	char *token = strtok(cmdline_copy, " ");
+	while (token) {
+		if (!strncmp(token, sym, sym_len)) {
+			size_t ret_len = strlen(token + sym_len + 1);
+			char *ret = kzalloc(ret_len + 1, ALLOC_KERN);
+			if (!ret) {
+				kfree(cmdline_copy);
+				spinlock_release(&strtok_lock);
+				return NULL;
+			}
+
+			strcpy(ret, token + sym_len + 1);
+
+			kfree(cmdline_copy);
+			spinlock_release(&strtok_lock);
+			return ret;
+		}
+		token = strtok(NULL, " ");
+	}
+
+	spinlock_release(&strtok_lock);
+
+	return NULL;
 }
 
 void kmain(void)
@@ -100,6 +146,12 @@ void kmain(void)
 void kmain_post_stack_init()
 {
 	ahci_init();
+
+	char *root_path = kcmdline_get_symbol("root");
+	if (!root_path)
+		kprintf(LOG_ERROR "No root= parameter specified\n");
+	else
+		vfs_init(root_path);
 
 	_pic_init();
 

@@ -141,7 +141,7 @@ struct ext2fs {
 	uint32_t block_size;
 };
 
-struct ext2fs *ext2_init_fs(struct block_device *bdev);
+struct fs *ext2_init_fs(struct block_device *bdev);
 
 /* Filesystem block sizes are not equal to block device block sizes */
 int ext2_read_block(struct ext2fs *fs, void *buf, size_t block);

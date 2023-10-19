@@ -28,6 +28,7 @@ struct block_device {
 };
 
 struct block_device *block_register(char *name, struct block_device_ops *ops, void *data, size_t block_count, size_t block_size);
+struct block_device *block_get_device(const char *name);
 int block_read(struct block_device *bdev, void *buf, size_t offset, size_t size);
 int block_write(struct block_device *bdev, void *buf, size_t offset, size_t size);
 

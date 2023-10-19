@@ -40,14 +40,15 @@ struct file {
 	uint64_t size; /* size of the file */
 	uint64_t pos; /* current position in the file */
 
-	void *fs_data;
+	void *fs_file;
 };
 
 struct fs_ops {
-	int (*read)(void *fs, struct file *file, void *buf, size_t offset, size_t size);
-	int (*write)(void *fs, struct file *file, void *buf, size_t offset, size_t size);
+	int (*read)(void *fs, struct file *file, void *buf, size_t size);
+	int (*write)(void *fs, struct file *file, void *buf, size_t size);
 	int (*open)(void *fs, struct file *file, const char *path);
 	int (*close)(void *fs, struct file *file);
+	int (*seek)(void *fs, struct file *file, size_t offset);
 };
 
 struct fs {
@@ -55,5 +56,7 @@ struct fs {
 	uint32_t type;
 	struct fs_ops ops;
 };
+
+void vfs_init(const char *rootfs);
 
 #endif /* _VFS_H_ */

@@ -1,5 +1,4 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
-#include "kernel/pio.h"
 #include <kernel/slab.h>
 #include <kernel/lock.h>
 
@@ -26,6 +25,17 @@ int strcmp(const char *a, const char *b)
 		b++;
 	}
 	return *a - *b;
+}
+
+int strncmp(const char *a, const char *b, size_t n)
+{
+	for (size_t i = 0; i < n; i++) {
+		if (a[i] != b[i])
+			return a[i] - b[i];
+		if (!a[i])
+			break;
+	}
+	return 0;
 }
 
 char *strcpy(char *dest, const char *src)

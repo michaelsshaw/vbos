@@ -73,11 +73,6 @@ void block_gpt_init(struct block_device *dev)
 
 		bdev->lba_start = entry->lba_first;
 		bdev->block_count = entry->lba_last - entry->lba_first + 1;
-
-		struct ext2fs *fs = ext2_init_fs(bdev);
-		if (fs) {
-			kprintf(LOG_INFO "Found ext2 filesystem on device %s\n", buf);
-		}
 	}
 	dev->partition_count = used_count;
 

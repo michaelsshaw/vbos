@@ -35,6 +35,16 @@ struct block_device *block_register(char *name, struct block_device_ops *ops, vo
 	return bdev;
 }
 
+struct block_device *block_get_device(const char *name)
+{
+	for (size_t i = 0; i < block_devices_count; i++) {
+		if (!strcmp(block_devices[i]->name, name))
+			return block_devices[i];
+	}
+
+	return NULL;
+}
+
 inline int block_read(struct block_device *bdev, void *buf, size_t offset, size_t size)
 {
 	return bdev->ops.read(bdev, buf, offset + bdev->lba_start, size);
