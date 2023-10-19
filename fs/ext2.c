@@ -106,7 +106,7 @@ static void ext2_print_dir(struct ext2fs *fs, struct ext2_inode *inode, int inde
 			kprintf("    ");
 		kprintf("[%s] %s\n", types[MIN(7, entry->file_type)], name);
 
-		if (entry->file_type == 2) {
+		if (entry->file_type == EXT2_DE_DIR) {
 			if (!strcmp(name, ".") || !strcmp(name, ".."))
 				goto next;
 
@@ -117,7 +117,7 @@ static void ext2_print_dir(struct ext2fs *fs, struct ext2_inode *inode, int inde
 			ext2_read_inode(fs, in, entry->inode);
 			ext2_print_dir(fs, in, indent + 1);
 			kfree(in);
-		} else if (entry->file_type == 1) {
+		} else if (entry->file_type == EXT2_DE_FILE) {
 			/* print the contents of the file */
 			struct ext2_inode *in = kmalloc(sizeof(struct ext2_inode), ALLOC_KERN);
 			if (!in)

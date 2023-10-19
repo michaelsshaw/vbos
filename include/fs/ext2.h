@@ -10,6 +10,15 @@
 #define EXT2_ROOT_INO 2
 #define EXT2_SUPERBLOCK_BLOCKNO 1
 
+#define EXT2_DE_UNKNOWN 0
+#define EXT2_DE_FILE 1
+#define EXT2_DE_DIR 2
+#define EXT2_DE_CHRDEV 3
+#define EXT2_DE_BLKDEV 4
+#define EXT2_DE_FIFO 5
+#define EXT2_DE_SOCK 6
+#define EXT2_DE_SYMLINK 7
+
 struct ext2_superblock {
 	uint32_t inodes_count;
 	uint32_t blocks_count;
