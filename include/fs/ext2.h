@@ -132,14 +132,6 @@ struct ext2_dir_entry {
 	char name[];
 } PACKED;
 
-struct ext2_file {
-	struct ext2_inode inode;
-	uint32_t block;
-	uint32_t offset;
-	uint64_t size;
-	uint32_t pos;
-};
-
 struct ext2fs {
 	struct ext2_superblock sb;
 	struct block_device *bdev;

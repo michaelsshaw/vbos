@@ -3,6 +3,7 @@
 #include <dev/console.h>
 
 #include <fs/ext2.h>
+#include <fs/vfs.h>
 
 static int ext2_read_super(struct block_device *bdev, struct ext2_superblock *sb_struct)
 {
@@ -113,7 +114,7 @@ int ext2_write_inode(struct ext2fs *fs, struct ext2_inode *in, uint32_t inode)
 	return 0;
 }
 
-int ext2_open_file(struct ext2fs *fs, struct ext2_file *file, const char *path)
+int ext2_open_file(struct ext2fs *fs, struct file *file, const char *path)
 {
 	/* find the inode of the file */
 	struct ext2_inode *inode = kmalloc(sizeof(struct ext2_inode), ALLOC_KERN);
@@ -137,6 +138,7 @@ int ext2_open_file(struct ext2fs *fs, struct ext2_file *file, const char *path)
 	spinlock_acquire(&strtok_lock);
 
 	char *token = strtok(path_copy, "/");
+	uint32_t inode_no = 2;
 	while (token) {
 		struct ext2_dir_entry *entry = kmalloc(fs->block_size, ALLOC_DMA);
 		if (!entry) {
@@ -166,6 +168,7 @@ int ext2_open_file(struct ext2fs *fs, struct ext2_file *file, const char *path)
 
 			kfree(name);
 
+			inode_no = entry->inode;
 			entry = (void *)entry + entry->rec_len;
 		}
 
@@ -185,14 +188,29 @@ int ext2_open_file(struct ext2fs *fs, struct ext2_file *file, const char *path)
 
 	kfree(path_copy);
 
-	file->inode = *inode;
-	file->offset = 0;
+	memcpy(&file->inode, inode, sizeof(struct inode));
 	file->size = inode->size;
+	file->inode_num = inode_no;
 
 	/* check for long filesize */
 	if (fs->sb.feature_ro_compat & EXT2_FLAG_LONG_FILESIZE)
 		file->size |= ((uint64_t)inode->dir_acl << 32);
 
+	return 0;
+}
+
+int ext2_close_file(struct ext2fs *fs, struct file *file)
+{
+	return 0;
+}
+
+int ext2_write_file(struct ext2fs *fs, struct file *file, const void *buf, size_t count)
+{
+	return 0;
+}
+
+int ext2_read_file(struct ext2fs *fs, struct file *file, const void *buf, size_t count)
+{
 	return 0;
 }
 
