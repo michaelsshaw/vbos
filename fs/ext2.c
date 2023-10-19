@@ -1,8 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
-#include "kernel/lock.h"
-#include "stdio.h"
-#include "string.h"
 #include <kernel/slab.h>
+#include <dev/console.h>
 
 #include <fs/ext2.h>
 
@@ -60,75 +58,103 @@ int ext2_read_inode(struct ext2fs *fs, struct ext2_inode *out, uint32_t inode)
 	uint32_t group = (inode - 1) / fs->sb.inodes_per_group;
 	uint32_t index = (inode - 1) % fs->sb.inodes_per_group;
 
-	uint32_t block = (index * fs->sb.inode_size) / fs->block_size;
-	uint32_t offset = (index * fs->sb.inode_size) % fs->block_size;
+	struct ext2_group_desc *bg = &fs->bgdt[group];
 
-	struct ext2_group_desc *gd = kmalloc(fs->block_size, ALLOC_DMA);
-	if (!gd)
+	uint32_t block = bg->inode_table + (index * sizeof(struct ext2_inode)) / fs->block_size;
+	uint32_t offset = (index * sizeof(struct ext2_inode)) % fs->block_size;
+
+	char *buf = kmalloc(fs->block_size, ALLOC_DMA);
+	if (!buf)
 		return -ENOMEM;
 
-	int ret = ext2_read_block(fs, gd, fs->sb.first_data_block + 1 + group);
+	int ret = ext2_read_block(fs, buf, block);
 	if (ret < 0) {
-		kfree(gd);
+		kfree(buf);
 		return ret;
 	}
 
-	uint32_t inode_table = gd->inode_table;
-	kfree(gd);
+	memcpy(out, buf + offset, sizeof(struct ext2_inode));
 
-	struct ext2_inode *in = kmalloc(fs->block_size, ALLOC_DMA);
-	if (!in)
-		return -ENOMEM;
+	kfree(buf);
 
-	ret = ext2_read_block(fs, in, inode_table + block);
-	if (ret < 0) {
-		kfree(in);
-		return ret;
-	}
-
-	memcpy(out, (void *)((uint64_t)in + offset), sizeof(*out));
-	kfree(in);
-
-	return ret;
+	return 0;
 }
 
-int ext2_write_inode(struct ext2fs *fs, struct ext2_inode *in, uint32_t inode)
+#ifdef KDEBUG
+static void ext2_print_dir(struct ext2fs *fs, struct ext2_inode *inode, int indent)
 {
-	uint32_t group = (inode - 1) / fs->sb.inodes_per_group;
-	uint32_t index = (inode - 1) % fs->sb.inodes_per_group;
+	static const char *types[] = { "UNKNOWN", "FILE", "DIR", "CHARDEV", "BLOCKDEV", "FIFO", "SOCKET", "SYMLINK" };
+	/* print the names of files and directories in the root directory */
 
-	uint32_t block = (index * fs->sb.inode_size) / fs->block_size;
-	uint32_t offset = (index * fs->sb.inode_size) % fs->block_size;
+	struct ext2_dir_entry *entry = kmalloc(fs->block_size, ALLOC_DMA);
+	void *oentry = entry;
+	if (!entry)
+		return;
 
-	struct ext2_group_desc *gd = kmalloc(fs->block_size, ALLOC_DMA);
-	if (!gd)
-		return -ENOMEM;
+	ext2_read_block(fs, entry, inode->block[0]);
 
-	int ret = ext2_read_block(fs, gd, fs->sb.first_data_block + 1 + group);
-	if (ret < 0) {
-		kfree(gd);
-		return ret;
+	while (entry->inode) {
+		char *name = kmalloc(entry->name_len + 1, ALLOC_KERN);
+		if (!name)
+			break;
+
+		memcpy(name, entry->name, entry->name_len);
+		name[entry->name_len] = '\0';
+
+		kprintf(LOG_DEBUG);
+		for (int i = 0; i < indent; i++)
+			kprintf("    ");
+		kprintf("[%s] %s\n", types[MIN(7, entry->file_type)], name);
+
+		if (entry->file_type == 2) {
+			if (!strcmp(name, ".") || !strcmp(name, ".."))
+				goto next;
+
+			struct ext2_inode *in = kmalloc(sizeof(struct ext2_inode), ALLOC_KERN);
+			if (!in)
+				break;
+
+			ext2_read_inode(fs, in, entry->inode);
+			ext2_print_dir(fs, in, indent + 1);
+			kfree(in);
+		} else if (entry->file_type == 1) {
+			/* print the contents of the file */
+			struct ext2_inode *in = kmalloc(sizeof(struct ext2_inode), ALLOC_KERN);
+			if (!in)
+				break;
+
+			ext2_read_inode(fs, in, entry->inode);
+
+			char *buf = kmalloc(in->size, ALLOC_KERN);
+
+			if (!buf) {
+				kfree(in);
+				break;
+			}
+
+			ext2_read_block(fs, buf, in->block[0]);
+
+			kprintf(LOG_DEBUG);
+			for (int i = 0; i < indent + 1; i++)
+				kprintf("    ");
+
+			for (uint32_t i = 0; i < in->size; i++) {
+				if (buf[i] == '\n')
+					kprintf("\n");
+				else
+					console_write(buf[i]);
+			}
+		}
+next:
+
+		kfree(name);
+
+		entry = (void *)entry + entry->rec_len;
 	}
 
-	uint32_t inode_table = gd->inode_table;
-	kfree(gd);
-
-	struct ext2_inode *out = kmalloc(fs->block_size, ALLOC_DMA);
-	if (!out)
-		return -ENOMEM;
-
-	ret = ext2_read_block(fs, out, inode_table + block);
-	if (ret < 0) {
-		kfree(out);
-		return ret;
-	}
-
-	memcpy((void *)((uint64_t)out + offset), in, sizeof(*in));
-	ret = ext2_write_block(fs, out, inode_table + block);
-	kfree(out);
-
-	return ret;
+	kfree(oentry);
 }
+#endif /* KDEBUG */
 
 struct ext2fs *ext2_init_fs(struct block_device *bdev)
 {
@@ -146,6 +172,29 @@ struct ext2fs *ext2_init_fs(struct block_device *bdev)
 	ret->block_size = 1024 << ret->sb.log_block_size;
 
 	bdev->fs = ret;
+
+	/* read block group descriptor table */
+	uint32_t num_groups = ret->sb.blocks_count / ret->sb.blocks_per_group;
+	if (ret->sb.blocks_count % ret->sb.blocks_per_group)
+		num_groups++;
+
+	uint32_t bgdt_block = 2 + (ret->sb.first_data_block / ret->sb.blocks_per_group);
+	uint32_t bgdt_size = num_groups * sizeof(struct ext2_group_desc);
+
+	char *buf = kmalloc(bgdt_size, ALLOC_DMA);
+
+	ext2_read_block(bdev->fs, buf, bgdt_block);
+
+	ret->bgdt = (struct block_group_desc *)kmalloc(bgdt_size, ALLOC_KERN);
+	memcpy(ret->bgdt, buf, bgdt_size);
+
+	kfree(buf);
+
+#ifdef KDEBUG
+	struct ext2_inode root;
+	ext2_read_inode(ret, &root, 2);
+	ext2_print_dir(ret, &root, 0);
+#endif /* KDEBUG */
 
 	return ret;
 }
