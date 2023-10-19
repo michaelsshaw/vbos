@@ -8,4 +8,12 @@
 #define EINVAL 3
 #define EBADF 4
 
+static const char *errno_str[] = {
+	[0] = "Success",
+	[ENOMEM] = "Out of memory",
+	[ENOENT] = "No such file or directory",
+	[EINVAL] = "Invalid argument",
+	[EBADF] = "Bad file descriptor",
+};
+
 #endif /* _ERRNO_H_ */
