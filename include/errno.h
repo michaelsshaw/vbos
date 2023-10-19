@@ -3,6 +3,8 @@
 #ifndef _ERRNO_H_
 #define _ERRNO_H_
 
+#define ENOMEM 1
 #define ENOENT 2
+#define EINVAL 3
 
 #endif /* _ERRNO_H_ */

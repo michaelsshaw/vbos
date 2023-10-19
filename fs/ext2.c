@@ -1,4 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
+#include "kernel/lock.h"
+#include "stdio.h"
+#include "string.h"
 #include <kernel/slab.h>
 
 #include <fs/ext2.h>
@@ -7,7 +10,7 @@ static int ext2_read_super(struct block_device *bdev, struct ext2_superblock *sb
 {
 	char *buf = kmalloc(1024, ALLOC_DMA);
 	if (!buf)
-		return -1;
+		return -ENOMEM;
 
 #ifdef KDEBUG
 	kprintf(LOG_DEBUG "Reading superblock from device %s, start_lba: %X\n", bdev->name, bdev->lba_start);
@@ -22,7 +25,7 @@ static int ext2_read_super(struct block_device *bdev, struct ext2_superblock *sb
 	struct ext2_superblock *sb = (struct ext2_superblock *)buf;
 	if (sb->magic != EXT2_SUPER_MAGIC) {
 		kfree(buf);
-		return -1;
+		return -EINVAL;
 	}
 
 	memcpy(sb_struct, buf, sizeof(*sb_struct));
@@ -62,7 +65,7 @@ int ext2_read_inode(struct ext2fs *fs, struct ext2_inode *out, uint32_t inode)
 
 	struct ext2_group_desc *gd = kmalloc(fs->block_size, ALLOC_DMA);
 	if (!gd)
-		return -1;
+		return -ENOMEM;
 
 	int ret = ext2_read_block(fs, gd, fs->sb.first_data_block + 1 + group);
 	if (ret < 0) {
@@ -75,7 +78,7 @@ int ext2_read_inode(struct ext2fs *fs, struct ext2_inode *out, uint32_t inode)
 
 	struct ext2_inode *in = kmalloc(fs->block_size, ALLOC_DMA);
 	if (!in)
-		return -1;
+		return -ENOMEM;
 
 	ret = ext2_read_block(fs, in, inode_table + block);
 	if (ret < 0) {
@@ -99,7 +102,7 @@ int ext2_write_inode(struct ext2fs *fs, struct ext2_inode *in, uint32_t inode)
 
 	struct ext2_group_desc *gd = kmalloc(fs->block_size, ALLOC_DMA);
 	if (!gd)
-		return -1;
+		return -ENOMEM;
 
 	int ret = ext2_read_block(fs, gd, fs->sb.first_data_block + 1 + group);
 	if (ret < 0) {
@@ -112,7 +115,7 @@ int ext2_write_inode(struct ext2fs *fs, struct ext2_inode *in, uint32_t inode)
 
 	struct ext2_inode *out = kmalloc(fs->block_size, ALLOC_DMA);
 	if (!out)
-		return -1;
+		return -ENOMEM;
 
 	ret = ext2_read_block(fs, out, inode_table + block);
 	if (ret < 0) {
@@ -123,29 +126,6 @@ int ext2_write_inode(struct ext2fs *fs, struct ext2_inode *in, uint32_t inode)
 	memcpy((void *)((uint64_t)out + offset), in, sizeof(*in));
 	ret = ext2_write_block(fs, out, inode_table + block);
 	kfree(out);
-
-	return ret;
-}
-
-int ext2_read_dir(struct ext2fs *fs, struct ext2_inode *in, struct ext2_dir *out, uint32_t index)
-{
-	uint32_t block = index / (fs->block_size / sizeof(struct ext2_dir));
-	uint32_t offset = index % (fs->block_size / sizeof(struct ext2_dir));
-
-	uint32_t block_num = in->block[block];
-
-	struct ext2_dir *buf = kmalloc(fs->block_size, ALLOC_DMA);
-	if (!buf)
-		return -1;
-
-	int ret = ext2_read_block(fs, buf, block_num);
-	if (ret < 0) {
-		kfree(buf);
-		return ret;
-	}
-
-	memcpy(out, (void *)((uint64_t)buf + offset), sizeof(*out));
-	kfree(buf);
 
 	return ret;
 }
