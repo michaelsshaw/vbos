@@ -121,6 +121,11 @@ struct ext2_dir_entry {
 	char name[];
 } PACKED;
 
+struct ext2_dir {
+	struct ext2_dir_entry *entry;
+	struct ext2_dir *next;
+};
+
 struct ext2fs {
 	struct ext2_superblock sb;
 	struct block_device *bdev;

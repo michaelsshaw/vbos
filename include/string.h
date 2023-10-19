@@ -7,6 +7,8 @@
 #include <stdint.h>
 #include <stddef.h>
 
+#include <kernel/lock.h>
+
 void *memcpy(void *dest, const void *src, size_t num);
 int memcmp(const void *aa, const void *bb, size_t num);
 void *memset(void *str, int c, size_t n);
@@ -15,6 +17,8 @@ char *strtok(char *str, const char *delim);
 char **strsplit(const char *str, char delim, int *num);
 size_t strlen(const char *c);
 int atoi(const char *a);
+
+extern spinlock_t strtok_lock;
 
 #endif /* __ASM__ */
 #endif /* _STRING_H_ */

@@ -127,6 +127,29 @@ int ext2_write_inode(struct ext2fs *fs, struct ext2_inode *in, uint32_t inode)
 	return ret;
 }
 
+int ext2_read_dir(struct ext2fs *fs, struct ext2_inode *in, struct ext2_dir *out, uint32_t index)
+{
+	uint32_t block = index / (fs->block_size / sizeof(struct ext2_dir));
+	uint32_t offset = index % (fs->block_size / sizeof(struct ext2_dir));
+
+	uint32_t block_num = in->block[block];
+
+	struct ext2_dir *buf = kmalloc(fs->block_size, ALLOC_DMA);
+	if (!buf)
+		return -1;
+
+	int ret = ext2_read_block(fs, buf, block_num);
+	if (ret < 0) {
+		kfree(buf);
+		return ret;
+	}
+
+	memcpy(out, (void *)((uint64_t)buf + offset), sizeof(*out));
+	kfree(buf);
+
+	return ret;
+}
+
 struct ext2fs *ext2_init_fs(struct block_device *bdev)
 {
 	struct ext2fs *ret = kmalloc(sizeof(*ret), ALLOC_KERN);

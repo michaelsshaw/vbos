@@ -1,6 +1,10 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
-#include <string.h>
 #include <kernel/slab.h>
+#include <kernel/lock.h>
+
+#include <string.h>
+
+spinlock_t strtok_lock = 0;
 
 void *memcpy(void *dest, const void *src, size_t num)
 {
@@ -88,6 +92,7 @@ char *strchr(const char *s, int c)
 
 char *strtok(char *str, const char *delim)
 {
+	spinlock_acquire(&strtok_lock);
 	static char *last = NULL;
 	if (str)
 		last = str;
@@ -104,6 +109,8 @@ char *strtok(char *str, const char *delim)
 		}
 		last++;
 	}
+
+	spinlock_release(&strtok_lock);
 	return ret;
 }
 
