@@ -80,6 +80,39 @@ int ext2_read_inode(struct ext2fs *fs, struct ext2_inode *out, uint32_t inode)
 	return 0;
 }
 
+int ext2_write_inode(struct ext2fs *fs, struct ext2_inode *in, uint32_t inode)
+{
+	uint32_t group = (inode - 1) / fs->sb.inodes_per_group;
+	uint32_t index = (inode - 1) % fs->sb.inodes_per_group;
+
+	struct ext2_group_desc *bg = &fs->bgdt[group];
+
+	uint32_t block = bg->inode_table + (index * sizeof(struct ext2_inode)) / fs->block_size;
+	uint32_t offset = (index * sizeof(struct ext2_inode)) % fs->block_size;
+
+	char *buf = kmalloc(fs->block_size, ALLOC_DMA);
+	if (!buf)
+		return -ENOMEM;
+
+	int ret = ext2_read_block(fs, buf, block);
+	if (ret < 0) {
+		kfree(buf);
+		return ret;
+	}
+
+	memcpy(buf + offset, in, sizeof(struct ext2_inode));
+
+	ret = ext2_write_block(fs, buf, block);
+	if (ret < 0) {
+		kfree(buf);
+		return ret;
+	}
+
+	kfree(buf);
+
+	return 0;
+}
+
 #ifdef KDEBUG
 static void ext2_print_dir(struct ext2fs *fs, struct ext2_inode *inode, int indent)
 {
