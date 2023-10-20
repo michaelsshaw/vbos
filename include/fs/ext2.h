@@ -138,6 +138,8 @@ struct ext2fs {
 
 	struct ext2_group_desc *bgdt;
 
+	uint32_t indir_block_size;
+
 	uint32_t block_size;
 };
 

@@ -35,6 +35,14 @@ struct inode {
 	uint32_t faddr;
 } PACKED; /* PACKED to allow for memcpy */
 
+struct dirent {
+	uint64_t inode;
+	uint64_t offset;
+	uint16_t reclen;
+	uint8_t type;
+	char name[256];
+};
+
 struct file {
 	struct inode inode;
 
@@ -49,9 +57,10 @@ struct file {
 struct file_descriptor {
 	struct file file;
 
-	uint64_t pos; 
+	uint64_t pos;
 	int fd;
 	uint32_t flags;
+	uint32_t mode;
 
 	struct fs *fs;
 };

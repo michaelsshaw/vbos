@@ -44,6 +44,92 @@ int ext2_read_block(struct ext2fs *fs, void *buf, size_t block)
 	return block_read(fs->bdev, buf, bdev_block, num_blocks_read);
 }
 
+/* nasty function, but it works */
+static int ext2_inode_read_block(struct ext2fs *fs, struct ext2_inode *inode, void *buf, size_t ino_block)
+{
+	if (ino_block < 12)
+		return ext2_read_block(fs, buf, inode->block[ino_block]);
+
+	if (ino_block < 12 + fs->indir_block_size) {
+		uint32_t *indir_buf = kmalloc(fs->block_size, ALLOC_DMA);
+		if (!indir_buf)
+			return -ENOMEM;
+
+		ext2_read_block(fs, indir_buf, inode->block[12]);
+
+		int ret = ext2_read_block(fs, buf, indir_buf[ino_block - 12]);
+		kfree(indir_buf);
+
+		return ret;
+	}
+
+	if (ino_block < 12 + fs->indir_block_size + fs->indir_block_size * fs->indir_block_size) {
+		uint32_t *indir_buf = kmalloc(fs->block_size, ALLOC_DMA);
+		if (!indir_buf)
+			return -ENOMEM;
+
+		ext2_read_block(fs, indir_buf, inode->block[13]);
+
+		uint32_t *indir_buf2 = kmalloc(fs->block_size, ALLOC_DMA);
+		if (!indir_buf2) {
+			kfree(indir_buf);
+			return -ENOMEM;
+		}
+
+		ext2_read_block(fs, indir_buf2, indir_buf[(ino_block - 12 - fs->indir_block_size) / fs->indir_block_size]);
+
+		int ret = ext2_read_block(fs, buf, indir_buf2[(ino_block - 12 - fs->indir_block_size) % fs->indir_block_size]);
+		kfree(indir_buf);
+		kfree(indir_buf2);
+
+		return ret;
+	}
+
+	if (ino_block < 12 + fs->indir_block_size + fs->indir_block_size * fs->indir_block_size +
+				fs->indir_block_size * fs->indir_block_size * fs->indir_block_size) {
+		uint32_t *indir_buf = kmalloc(fs->block_size, ALLOC_DMA);
+		if (!indir_buf)
+			return -ENOMEM;
+
+		ext2_read_block(fs, indir_buf, inode->block[14]);
+
+		uint32_t *indir_buf2 = kmalloc(fs->block_size, ALLOC_DMA);
+		if (!indir_buf2) {
+			kfree(indir_buf);
+			return -ENOMEM;
+		}
+
+		ext2_read_block(fs, indir_buf2,
+				indir_buf[(ino_block - 12 - fs->indir_block_size - fs->indir_block_size * fs->indir_block_size) /
+					  (fs->indir_block_size * fs->indir_block_size)]);
+
+		uint32_t *indir_buf3 = kmalloc(fs->block_size, ALLOC_DMA);
+		if (!indir_buf3) {
+			kfree(indir_buf);
+			kfree(indir_buf2);
+			return -ENOMEM;
+		}
+
+		ext2_read_block(fs, indir_buf3,
+				indir_buf2[((ino_block - 12 - fs->indir_block_size - fs->indir_block_size * fs->indir_block_size) %
+					    (fs->indir_block_size * fs->indir_block_size)) /
+					   fs->indir_block_size]);
+
+		int ret = ext2_read_block(
+			fs, buf,
+			indir_buf3[((ino_block - 12 - fs->indir_block_size - fs->indir_block_size * fs->indir_block_size) %
+				    (fs->indir_block_size * fs->indir_block_size)) %
+				   fs->indir_block_size]);
+		kfree(indir_buf);
+		kfree(indir_buf2);
+		kfree(indir_buf3);
+
+		return ret;
+	}
+
+	return -EINVAL;
+}
+
 int ext2_write_block(struct ext2fs *fs, void *buf, size_t block)
 {
 	uint32_t bdev_block_size = fs->bdev->block_size;
@@ -122,7 +208,8 @@ int ext2_open_file(void *extfs, struct file *file, const char *path)
 	if (!inode)
 		return -ENOMEM;
 
-	int ret = ext2_read_inode(fs, inode, 2);
+	uint32_t inode_no = 2;
+	int ret = ext2_read_inode(fs, inode, inode_no);
 	if (ret < 0) {
 		kfree(inode);
 		return ret;
@@ -138,7 +225,6 @@ int ext2_open_file(void *extfs, struct file *file, const char *path)
 
 	char *strtok_last = NULL;
 	char *token = strtok(path_copy, "/", &strtok_last);
-	uint32_t inode_no = 2;
 	while (token) {
 		struct ext2_dir_entry *entry = kmalloc(fs->block_size, ALLOC_DMA);
 		if (!entry) {
@@ -147,29 +233,35 @@ int ext2_open_file(void *extfs, struct file *file, const char *path)
 			return -ENOMEM;
 		}
 
-		ext2_read_block(fs, entry, inode->block[0]);
+		for (int i = 0; i < inode->blocks; i++) {
+			/* since this inode is a directory, we just read the blocks
+			 * sequentially until we find the file we're looking for
+			 */
 
-		while (entry->inode) {
-			char *name = kmalloc(entry->name_len + 1, ALLOC_KERN);
-			if (!name) {
-				kfree(inode);
-				kfree(path_copy);
-				kfree(entry);
-				return -ENOMEM;
-			}
+			ext2_inode_read_block(fs, inode, entry, i);
 
-			memcpy(name, entry->name, entry->name_len);
-			name[entry->name_len] = '\0';
+			while (entry->inode) {
+				char *name = kmalloc(entry->name_len + 1, ALLOC_KERN);
+				if (!name) {
+					kfree(inode);
+					kfree(path_copy);
+					kfree(entry);
+					return -ENOMEM;
+				}
 
-			if (!strcmp(name, token)) {
+				memcpy(name, entry->name, entry->name_len);
+				name[entry->name_len] = '\0';
+
+				if (!strcmp(name, token)) {
+					kfree(name);
+					break;
+				}
+
 				kfree(name);
-				break;
+
+				inode_no = entry->inode;
+				entry = (void *)entry + entry->rec_len;
 			}
-
-			kfree(name);
-
-			inode_no = entry->inode;
-			entry = (void *)entry + entry->rec_len;
 		}
 
 		if (!entry->inode) {
@@ -183,7 +275,6 @@ int ext2_open_file(void *extfs, struct file *file, const char *path)
 
 		token = strtok(NULL, "/", &strtok_last);
 	}
-
 
 	kfree(path_copy);
 
@@ -232,6 +323,7 @@ struct fs *ext2_init_fs(struct block_device *bdev)
 
 	extfs->bdev = bdev;
 	extfs->block_size = 1024 << extfs->sb.log_block_size;
+	extfs->indir_block_size = extfs->block_size / sizeof(uint32_t);
 
 	bdev->fs = extfs;
 

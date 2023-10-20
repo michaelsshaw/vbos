@@ -72,11 +72,14 @@ int open(const char *pathname, int flags)
 	if (result < 0) {
 		kprintf(LOG_ERROR "Failed to open %s\n", pathname);
 		return result;
+	} else if (result == VFSE_IS_BDEV) {
+		/* TODO: continue search into mounted filesystems */
 	}
 
 	/* add the file descriptor to the tree */
 	fd->fd = fd_counter;
 	fd->fs = rootfs;
+	fd->file = file;
 	fd_counter += 1;
 
 	struct rbnode *fdnode = rbt_insert(kfd, fd->fd);
@@ -89,7 +92,7 @@ int close(int fd)
 {
 	struct rbnode *fdnode = rbt_search(kfd, fd);
 
-	if (!fdnode) 
+	if (!fdnode)
 		return -EBADF;
 
 	struct file_descriptor *fdesc = (struct file_descriptor *)fdnode->value;
