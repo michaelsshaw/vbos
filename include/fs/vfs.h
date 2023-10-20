@@ -107,4 +107,8 @@ int open(const char *pathname, int flags);
 int close(int fd);
 int seek(int fd, size_t offset, int whence);
 
+DIR *opendir(const char *name);
+struct dirent *readdir(DIR *dir);
+int closedir(DIR *dir);
+
 #endif /* _VFS_H_ */

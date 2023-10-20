@@ -63,6 +63,7 @@ int close(int fd)
 
 	struct file_descriptor *fdesc = (struct file_descriptor *)fdnode->value;
 	fdesc->fs->ops.close(fdesc->fs, &fdesc->file);
+	kfree(fdesc->file.path);
 
 	slab_free(fd_slab, fdesc);
 	rbt_delete(kfd, fdnode);
@@ -125,6 +126,18 @@ struct dirent *readdir(DIR *dir)
 		return NULL;
 
 	return &dir->dirents[dir->pos++];
+}
+
+int closedir(DIR *dir)
+{
+	if (!dir)
+		return -EBADF;
+
+	int ret = close(dir->fd);
+	kfree(dir->dirents);
+	kfree(dir);
+
+	return ret;
 }
 
 void vfs_init(const char *rootdev_name)
