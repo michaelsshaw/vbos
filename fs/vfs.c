@@ -157,13 +157,5 @@ void vfs_init(const char *rootdev_name)
 
 	/* init file descriptor slab */
 	fd_slab = slab_create(sizeof(struct file_descriptor), 16 * KB, 0);
-
-	DIR *dir = opendir("test/lol");
-	struct dirent *dirent;
-
-	kprintf("Root directory contents:\n");
-	while ((dirent = readdir(dir))) {
-		kprintf(LOG_DEBUG "Found file %s\n", dirent->name);
-	}
 }
 
