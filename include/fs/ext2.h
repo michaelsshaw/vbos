@@ -19,6 +19,14 @@
 #define EXT2_DE_SOCK 6
 #define EXT2_DE_SYMLINK 7
 
+#define EXT2_INO_FIFO 0x1000
+#define EXT2_INO_CHARDEV 0x2000
+#define EXT2_INO_DIR 0x4000
+#define EXT2_INO_BLKDEV 0x6000
+#define EXT2_INO_REG 0x8000
+#define EXT2_INO_SYMLINK 0xA000
+#define EXT2_INO_SOCK 0xC000
+
 #define EXT2_FLAG_LONG_FILESIZE 0x0002
 
 struct ext2_superblock {

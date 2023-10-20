@@ -14,6 +14,116 @@ static int fd_counter = 0;
 
 typedef struct fs *(*vfs_init_t)(struct block_device *);
 
+int write(int fd, const void *buf, size_t count)
+{
+	return 0;
+}
+
+int read(int fd, void *buf, size_t count)
+{
+	return 0;
+}
+
+int open(const char *pathname, int flags)
+{
+	/* allocate a file descriptor */
+	struct file_descriptor *fd = slab_alloc(fd_slab);
+	if (!fd) {
+		kprintf(LOG_ERROR "Failed to allocate file descriptor\n");
+		return -ENOMEM;
+	}
+
+	/* find the file */
+	int result = rootfs->ops.open(rootfs, &fd->file, pathname);
+
+	if (result < 0) {
+		kprintf(LOG_ERROR "Failed to open %s\n", pathname);
+		return result;
+	} else if (result == VFSE_IS_BDEV) {
+		/* TODO: continue search into mounted filesystems */
+	}
+
+	/* add the file descriptor to the tree */
+	fd->fd = fd_counter;
+	fd->fs = rootfs;
+	fd_counter += 1;
+
+	struct rbnode *fdnode = rbt_insert(kfd, fd->fd);
+	fdnode->value = (uint64_t)fd;
+
+	return fd->fd;
+}
+
+int close(int fd)
+{
+	struct rbnode *fdnode = rbt_search(kfd, fd);
+
+	if (!fdnode)
+		return -EBADF;
+
+	struct file_descriptor *fdesc = (struct file_descriptor *)fdnode->value;
+	fdesc->fs->ops.close(fdesc->fs, &fdesc->file);
+
+	slab_free(fd_slab, fdesc);
+	rbt_delete(kfd, fdnode);
+
+	return 0;
+}
+
+int seek(int fd, size_t offset, int whence)
+{
+	return 0;
+}
+
+DIR *opendir(const char *name)
+{
+	int fd = open(name, 0);
+	if (fd < 0)
+		return NULL;
+
+	struct file_descriptor *fdesc = (struct file_descriptor *)rbt_search(kfd, fd)->value;
+
+	if (!fdesc)
+		return NULL;
+
+	struct fs *fs = fdesc->fs;
+	struct file *file = &fdesc->file;
+
+	if (file->type != VFS_FILE_DIR) {
+		close(fd);
+		return NULL;
+	}
+
+	DIR *dir = kzalloc(sizeof(DIR), ALLOC_KERN);
+	dir->fd = fd;
+	dir->fs = fs;
+	dir->file = file;
+	dir->pos = 0;
+	dir->dirents = NULL;
+
+	return dir;
+}
+
+struct dirent *readdir(DIR *dir)
+{
+	struct fs *fs = dir->fs;
+	struct file *file = dir->file;
+
+	if (file->type != VFS_FILE_DIR)
+		return NULL;
+
+	if (dir->dirents == NULL)
+		dir->num_dirents = fs->ops.readdir(fs, file->inode_num, &dir->dirents);
+
+	if (dir->dirents == NULL)
+		return NULL;
+
+	if (dir->pos >= dir->num_dirents)
+		return NULL;
+
+	return &dir->dirents[dir->pos++];
+}
+
 void vfs_init(const char *rootdev_name)
 {
 	kfd = kzalloc(sizeof(struct rbtree), ALLOC_DMA);
@@ -46,65 +156,3 @@ void vfs_init(const char *rootdev_name)
 	fd_slab = slab_create(sizeof(struct file_descriptor), 16 * KB, 0);
 }
 
-int write(int fd, const void *buf, size_t count)
-{
-	return 0;
-}
-
-int read(int fd, void *buf, size_t count)
-{
-	return 0;
-}
-
-int open(const char *pathname, int flags)
-{
-	/* allocate a file descriptor */
-	struct file_descriptor *fd = slab_alloc(fd_slab);
-	if (!fd) {
-		kprintf(LOG_ERROR "Failed to allocate file descriptor\n");
-		return -ENOMEM;
-	}
-
-	/* find the file */
-	struct file file;
-	int result = rootfs->ops.open(rootfs, &file, pathname);
-
-	if (result < 0) {
-		kprintf(LOG_ERROR "Failed to open %s\n", pathname);
-		return result;
-	} else if (result == VFSE_IS_BDEV) {
-		/* TODO: continue search into mounted filesystems */
-	}
-
-	/* add the file descriptor to the tree */
-	fd->fd = fd_counter;
-	fd->fs = rootfs;
-	fd->file = file;
-	fd_counter += 1;
-
-	struct rbnode *fdnode = rbt_insert(kfd, fd->fd);
-	fdnode->value = (uint64_t)fd;
-
-	return fd->fd;
-}
-
-int close(int fd)
-{
-	struct rbnode *fdnode = rbt_search(kfd, fd);
-
-	if (!fdnode)
-		return -EBADF;
-
-	struct file_descriptor *fdesc = (struct file_descriptor *)fdnode->value;
-	fdesc->fs->ops.close(fdesc->fs, &fdesc->file);
-
-	slab_free(fd_slab, fdesc);
-	rbt_delete(kfd, fdnode);
-
-	return 0;
-}
-
-int seek(int fd, size_t offset, int whence)
-{
-	return 0;
-}

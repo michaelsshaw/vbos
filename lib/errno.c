@@ -8,6 +8,7 @@ static const char *errno_str[] = {
 	[ENOENT] = "No such file or directory",
 	[EINVAL] = "Invalid argument",
 	[EBADF] = "Bad file descriptor",
+	[ENOTDIR] = "Not a directory",
 };
 
 inline const char *strerror(int errnum)

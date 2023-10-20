@@ -5,6 +5,15 @@
 #include <fs/ext2.h>
 #include <fs/vfs.h>
 
+#define ITYPE_DECL(_ino, _de) [(_ino >> 12)] = (_de)
+static uint8_t inode_to_ftype[] = {
+	ITYPE_DECL(EXT2_INO_FIFO, VFS_FILE_FIFO), ITYPE_DECL(EXT2_INO_CHARDEV, VFS_FILE_CHARDEV),
+	ITYPE_DECL(EXT2_INO_DIR, VFS_FILE_DIR),	  ITYPE_DECL(EXT2_INO_BLKDEV, VFS_FILE_BLKDEV),
+	ITYPE_DECL(EXT2_INO_REG, VFS_FILE_FILE),  ITYPE_DECL(EXT2_INO_SYMLINK, VFS_FILE_SYMLINK),
+	ITYPE_DECL(EXT2_INO_SOCK, VFS_FILE_SOCK),
+};
+#undef ITYPE_DECL
+
 static int ext2_read_super(struct block_device *bdev, struct ext2_superblock *sb_struct)
 {
 	char *buf = kmalloc(1024, ALLOC_DMA);
@@ -200,10 +209,10 @@ int ext2_write_inode(struct ext2fs *fs, struct ext2_inode *in, uint32_t inode)
 	return 0;
 }
 
-int ext2_open_file(void *extfs, struct file *file, const char *path)
+int ext2_open_file(struct fs *vfs, struct file *file, const char *path)
 {
 	/* find the inode of the file */
-	struct ext2fs *fs = (struct ext2fs *)extfs;
+	struct ext2fs *fs = (struct ext2fs *)vfs->fs;
 	struct ext2_inode *inode = kmalloc(sizeof(struct ext2_inode), ALLOC_KERN);
 	if (!inode)
 		return -ENOMEM;
@@ -240,31 +249,19 @@ int ext2_open_file(void *extfs, struct file *file, const char *path)
 
 			ext2_inode_read_block(fs, inode, entry, i);
 
-			while (entry->inode) {
-				char *name = kmalloc(entry->name_len + 1, ALLOC_KERN);
-				if (!name) {
-					kfree(inode);
-					kfree(path_copy);
-					kfree(entry);
-					return -ENOMEM;
-				}
-
-				memcpy(name, entry->name, entry->name_len);
-				name[entry->name_len] = '\0';
-
-				if (!strcmp(name, token)) {
-					kfree(name);
-					break;
-				}
-
-				kfree(name);
-
+			uint32_t rec_offset = 0;
+			while (entry->inode && rec_offset < fs->block_size) {
 				inode_no = entry->inode;
+				if (!strncmp(entry->name, token, MIN(entry->name_len, strlen(token))))
+					goto found;
+
 				entry = (void *)entry + entry->rec_len;
+				rec_offset += entry->rec_len;
 			}
 		}
 
-		if (!entry->inode) {
+found:
+		if (!entry || !entry->inode) {
 			kfree(inode);
 			kfree(path_copy);
 			kfree(entry);
@@ -280,6 +277,7 @@ int ext2_open_file(void *extfs, struct file *file, const char *path)
 
 	memcpy(&file->inode, inode, sizeof(struct inode));
 	file->size = inode->size;
+	file->type = inode_to_ftype[inode->mode >> 12];
 	file->inode_num = inode_no;
 
 	/* check for long filesize */
@@ -289,25 +287,166 @@ int ext2_open_file(void *extfs, struct file *file, const char *path)
 	return 0;
 }
 
-int ext2_close_file(void *extfs, struct file *file)
+int ext2_readdir(struct fs *fs, uint32_t ino_num, struct dirent **out)
+{
+	struct ext2_inode *inode = kmalloc(sizeof(struct ext2_inode), ALLOC_KERN);
+	if (!inode)
+		return -ENOMEM;
+
+	int ret = ext2_read_inode(fs->fs, inode, ino_num);
+	if (ret < 0) {
+		kfree(inode);
+		return ret;
+	}
+
+	if ((inode->mode & 0xF000) != EXT2_INO_DIR) {
+		kfree(inode);
+		return -ENOTDIR;
+	}
+
+	struct ext2fs *extfs = (struct ext2fs *)fs->fs;
+	struct ext2_dir_entry *entry = kmalloc(extfs->block_size, ALLOC_DMA);
+	void *oentry = entry;
+	if (!entry) {
+		kfree(inode);
+		return -ENOMEM;
+	}
+
+	/* populate the dirent array with all the entries in the inode */
+	int num_entries = 0;
+	size_t dir_arr_size = inode->blocks * extfs->block_size;
+	dir_arr_size /= sizeof(struct dirent);
+
+	struct dirent *dir_arr = kmalloc(dir_arr_size * sizeof(struct dirent), ALLOC_KERN);
+	if (!dir_arr) {
+		kfree(inode);
+		kfree(entry);
+		return -ENOMEM;
+	}
+
+	for (int i = 0; i < inode->blocks; i++) {
+		ext2_inode_read_block(extfs, inode, entry, i);
+
+		uint32_t rec_offset = 0;
+		while (entry->inode && rec_offset < extfs->block_size) {
+			struct dirent *dirent = &dir_arr[num_entries];
+
+			dirent->inode = entry->inode;
+			dirent->type = inode_to_ftype[entry->file_type];
+			dirent->reclen = entry->rec_len;
+
+			memcpy(dirent->name, entry->name, MIN(255, entry->name_len));
+			dirent->name[MIN(255, entry->name_len)] = '\0';
+
+			num_entries++;
+
+			entry = (void *)entry + entry->rec_len;
+			rec_offset += entry->rec_len;
+		}
+	}
+
+	kfree(inode);
+	kfree(oentry);
+
+	*out = dir_arr;
+	return num_entries;
+}
+
+int ext2_close_file(struct fs *vfs, struct file *file)
 {
 	return 0;
 }
 
-int ext2_write_file(void *extfs, struct file *file, void *buf, size_t count)
+int ext2_write_file(struct fs *vfs, struct file *file, void *buf, size_t count)
 {
 	return 0;
 }
 
-int ext2_read_file(void *extfs, struct file *file, void *buf, size_t count)
+int ext2_read_file(struct fs *vfs, struct file *file, void *buf, size_t count)
 {
 	return 0;
 }
 
-int ext2_seek_file(void *extfs, struct file *file, size_t offset)
+int ext2_seek_file(struct fs *vfs, struct file *file, size_t offset)
 {
 	return 0;
 }
+
+#ifdef KDEBUG
+static void ext2_print_dir(struct ext2fs *fs, struct ext2_inode *inode, int indent)
+{
+	static const char *types[] = { "UNKNOWN", "FILE", "DIR", "CHARDEV", "BLOCKDEV", "FIFO", "SOCKET", "SYMLINK" };
+	/* print the names of files and directories in the root directory */
+
+	struct ext2_dir_entry *entry = kmalloc(fs->block_size, ALLOC_DMA);
+	void *oentry = entry;
+	if (!entry)
+		return;
+
+	ext2_read_block(fs, entry, inode->block[0]);
+
+	while (entry->inode) {
+		char *name = kmalloc(entry->name_len + 1, ALLOC_KERN);
+		if (!name)
+			break;
+
+		memcpy(name, entry->name, entry->name_len);
+		name[entry->name_len] = '\0';
+
+		kprintf(LOG_DEBUG);
+		for (int i = 0; i < indent; i++)
+			kprintf("    ");
+		kprintf("[%s] %s\n", types[MIN(7, entry->file_type)], name);
+
+		if (entry->file_type == EXT2_DE_DIR) {
+			if (!strcmp(name, ".") || !strcmp(name, ".."))
+				goto next;
+
+			struct ext2_inode *in = kmalloc(sizeof(struct ext2_inode), ALLOC_KERN);
+			if (!in)
+				break;
+
+			ext2_read_inode(fs, in, entry->inode);
+			ext2_print_dir(fs, in, indent + 1);
+			kfree(in);
+		} else if (entry->file_type == EXT2_DE_FILE) {
+			/* print the contents of the file */
+			struct ext2_inode *in = kmalloc(sizeof(struct ext2_inode), ALLOC_KERN);
+			if (!in)
+				break;
+
+			ext2_read_inode(fs, in, entry->inode);
+
+			char *buf = kmalloc(in->size, ALLOC_KERN);
+
+			if (!buf) {
+				kfree(in);
+				break;
+			}
+
+			ext2_read_block(fs, buf, in->block[0]);
+
+			kprintf(LOG_DEBUG);
+			for (int i = 0; i < indent + 1; i++)
+				kprintf("    ");
+
+			for (uint32_t i = 0; i < in->size; i++) {
+				if (buf[i] == '\n')
+					kprintf("\n");
+				else
+					console_write(buf[i]);
+			}
+		}
+next:
+
+		kfree(name);
+
+		entry = (void *)entry + entry->rec_len;
+	}
+
+	kfree(oentry);
+}
+#endif /* KDEBUG */
 
 struct fs *ext2_init_fs(struct block_device *bdev)
 {
@@ -354,6 +493,7 @@ struct fs *ext2_init_fs(struct block_device *bdev)
 		.read = ext2_read_file,
 		.write = ext2_write_file,
 		.seek = ext2_seek_file,
+		.readdir = ext2_readdir,
 	};
 
 	ret->ops = ops;

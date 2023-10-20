@@ -6,6 +6,7 @@
 #define ENOENT 2
 #define EINVAL 3
 #define EBADF 4
+#define ENOTDIR 5
 
 const char *strerror(int errnum);
 

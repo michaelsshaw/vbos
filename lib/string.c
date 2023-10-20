@@ -138,6 +138,9 @@ char *strtok(char *str, const char *delim, char **llast)
 		(*llast)++;
 	}
 
+	if(!(*ret))
+		return NULL;
+	
 	return ret;
 }
 

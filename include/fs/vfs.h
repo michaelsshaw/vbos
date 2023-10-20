@@ -8,6 +8,15 @@
 
 #define VFS_TYPE_EXT2 0x0001
 
+#define VFS_FILE_FILE 0x0001
+#define VFS_FILE_DIR 0x0002
+#define VFS_FILE_CHARDEV 0x0003
+#define VFS_FILE_BLKDEV 0x0004
+#define VFS_FILE_FIFO 0x0005
+#define VFS_FILE_SOCK 0x0006
+#define VFS_FILE_SYMLINK 0x0007
+
+
 struct inode {
 	uint16_t mode;
 	uint16_t uid;
@@ -37,16 +46,25 @@ struct inode {
 
 struct dirent {
 	uint64_t inode;
-	uint64_t offset;
 	uint16_t reclen;
 	uint8_t type;
 	char name[256];
 };
 
+typedef struct _DIR {
+	struct fs *fs;
+	struct dirent *dirents;
+	size_t num_dirents;
+	struct file *file;
+	int fd;
+	uint64_t pos;
+} DIR;
+
 struct file {
 	struct inode inode;
 
 	uint32_t inode_num; /* inode number */
+	uint32_t type; /* type of the file */
 	uint64_t size; /* size of the file */
 
 	char *path; /* path to the file */
@@ -66,11 +84,12 @@ struct file_descriptor {
 };
 
 struct fs_ops {
-	int (*read)(void *fs, struct file *file, void *buf, size_t size);
-	int (*write)(void *fs, struct file *file, void *buf, size_t size);
-	int (*open)(void *fs, struct file *file, const char *path);
-	int (*close)(void *fs, struct file *file);
-	int (*seek)(void *fs, struct file *file, size_t offset);
+	int (*read)(struct fs *fs, struct file *file, void *buf, size_t size);
+	int (*write)(struct fs *fs, struct file *file, void *buf, size_t size);
+	int (*open)(struct fs *fs, struct file *file, const char *path);
+	int (*close)(struct fs *fs, struct file *file);
+	int (*seek)(struct fs *fs, struct file *file, size_t offset);
+	int (*readdir)(struct fs *fs, uint32_t ino, struct dirent **dir);
 };
 
 struct fs {
@@ -82,5 +101,10 @@ struct fs {
 };
 
 void vfs_init(const char *rootfs);
+int write(int fd, const void *buf, size_t count);
+int read(int fd, void *buf, size_t count);
+int open(const char *pathname, int flags);
+int close(int fd);
+int seek(int fd, size_t offset, int whence);
 
 #endif /* _VFS_H_ */
