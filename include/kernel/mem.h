@@ -19,6 +19,15 @@
 
 #define ALIGN(_a) __attribute__((aligned(_a)))
 
+#define genrw(reg)             \
+	uint64_t reg##_read(); \
+	void reg##_write(uint64_t reg);
+
+genrw(rsp);
+genrw(rbp);
+genrw(cr3);
+
+#undef genrw
 
 struct page { /* I would rather refer to this as a struct */
 	union {
@@ -86,12 +95,6 @@ extern struct page *pml4;
 extern paddr_t kcr3;
 extern struct page kdefault_attrs;
 
-uint64_t cr3_read();
-void cr3_write(uint64_t cr3);
-uint64_t rbp_read();
-void rbp_write(uint64_t rbp);
-uint64_t rsp_read();
-void rsp_write(uint64_t rsp);
 void *buddy_alloc(size_t size);
 void buddy_free(void *paddr_hhdm);
 void kmap(paddr_t paddr, uint64_t vaddr, size_t len, uint64_t attr);
