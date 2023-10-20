@@ -140,7 +140,7 @@ char *strtok(char *str, const char *delim, char **llast)
 
 	if(!(*ret))
 		return NULL;
-	
+
 	return ret;
 }
 

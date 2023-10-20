@@ -37,7 +37,7 @@ int open(const char *pathname, int flags)
 	int result = rootfs->ops.open(rootfs, &fd->file, pathname);
 
 	if (result < 0) {
-		kprintf(LOG_ERROR "Failed to open %s\n", pathname);
+		kprintf(LOG_ERROR "Failed to open %s: %s\n", pathname, strerror(-result));
 		return result;
 	} else if (result == VFSE_IS_BDEV) {
 		/* TODO: continue search into mounted filesystems */
@@ -106,6 +106,9 @@ DIR *opendir(const char *name)
 
 struct dirent *readdir(DIR *dir)
 {
+	if(!dir)
+		return NULL;
+
 	struct fs *fs = dir->fs;
 	struct file *file = dir->file;
 
@@ -154,5 +157,13 @@ void vfs_init(const char *rootdev_name)
 
 	/* init file descriptor slab */
 	fd_slab = slab_create(sizeof(struct file_descriptor), 16 * KB, 0);
+
+	DIR *dir = opendir("test/lol");
+	struct dirent *dirent;
+
+	kprintf("Root directory contents:\n");
+	while ((dirent = readdir(dir))) {
+		kprintf(LOG_DEBUG "Found file %s\n", dirent->name);
+	}
 }
 

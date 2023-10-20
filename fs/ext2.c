@@ -234,8 +234,9 @@ int ext2_open_file(struct fs *vfs, struct file *file, const char *path)
 
 	char *strtok_last = NULL;
 	char *token = strtok(path_copy, "/", &strtok_last);
+	struct ext2_dir_entry *entry = kmalloc(fs->block_size, ALLOC_DMA);
+	void *oentry = entry;
 	while (token) {
-		struct ext2_dir_entry *entry = kmalloc(fs->block_size, ALLOC_DMA);
 		if (!entry) {
 			kfree(inode);
 			kfree(path_copy);
@@ -260,14 +261,14 @@ int ext2_open_file(struct fs *vfs, struct file *file, const char *path)
 			}
 		}
 
-found:
 		if (!entry || !entry->inode) {
 			kfree(inode);
 			kfree(path_copy);
-			kfree(entry);
+			kfree(oentry);
 			return -ENOENT;
 		}
 
+found:
 		ext2_read_inode(fs, inode, entry->inode);
 
 		token = strtok(NULL, "/", &strtok_last);
@@ -279,6 +280,7 @@ found:
 	file->size = inode->size;
 	file->type = inode_to_ftype[inode->mode >> 12];
 	file->inode_num = inode_no;
+	kfree(oentry);
 
 	/* check for long filesize */
 	if (fs->sb.feature_ro_compat & EXT2_FLAG_LONG_FILESIZE)
