@@ -28,7 +28,7 @@ int read(int fd, void *buf, size_t count)
 
 	struct file_descriptor *fdesc = (struct file_descriptor *)fdnode->value;
 
-	if(fdesc->file.type == VFS_FILE_DIR)
+	if (fdesc->file.type == VFS_FILE_DIR)
 		return -EISDIR;
 
 	if (fdesc->file.type != VFS_FILE_FILE)
@@ -95,7 +95,28 @@ int close(int fd)
 
 int seek(int fd, size_t offset, int whence)
 {
-	return 0;
+	struct rbnode *fdnode = rbt_search(kfd, fd);
+
+	if (!fdnode)
+		return -EBADF;
+
+	struct file_descriptor *fdesc = (struct file_descriptor *)fdnode->value;
+
+	switch (whence) {
+	case SEEK_SET:
+		fdesc->pos = offset;
+		break;
+	case SEEK_CUR:
+		fdesc->pos += offset;
+		break;
+	case SEEK_END:
+		fdesc->pos = fdesc->file.size + offset;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return fdesc->pos;
 }
 
 DIR *opendir(const char *name)

@@ -16,6 +16,9 @@
 #define VFS_FILE_SOCK 0x0006
 #define VFS_FILE_SYMLINK 0x0007
 
+#define SEEK_SET 0
+#define SEEK_CUR 1
+#define SEEK_END 2
 
 struct inode {
 	uint16_t mode;
@@ -88,7 +91,6 @@ struct fs_ops {
 	int (*write)(struct fs *fs, struct file *file, void *buf, size_t offset, size_t size);
 	int (*open)(struct fs *fs, struct file *file, const char *path);
 	int (*close)(struct fs *fs, struct file *file);
-	int (*seek)(struct fs *fs, struct file *file, size_t offset);
 	int (*readdir)(struct fs *fs, uint32_t ino, struct dirent **dir);
 };
 

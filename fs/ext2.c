@@ -406,11 +406,6 @@ int ext2_read_file(struct fs *vfs, struct file *file, void *buf, size_t offset, 
 	return ret;
 }
 
-int ext2_seek_file(struct fs *vfs, struct file *file, size_t offset)
-{
-	return 0;
-}
-
 struct fs *ext2_init_fs(struct block_device *bdev)
 {
 	struct ext2fs *extfs = kmalloc(sizeof(*extfs), ALLOC_KERN);
@@ -455,7 +450,6 @@ struct fs *ext2_init_fs(struct block_device *bdev)
 		.close = ext2_close_file,
 		.read = ext2_read_file,
 		.write = ext2_write_file,
-		.seek = ext2_seek_file,
 		.readdir = ext2_readdir,
 	};
 
