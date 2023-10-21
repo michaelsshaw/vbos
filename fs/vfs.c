@@ -64,6 +64,20 @@ int read(int fd, void *buf, size_t count)
 	return ret;
 }
 
+int statfd(int fd, struct statbuf *statbuf)
+{
+	struct rbnode *fdnode = rbt_search(kfd, fd);
+
+	if (!fdnode)
+		return -EBADF;
+
+	struct file_descriptor *fdesc = (struct file_descriptor *)fdnode->value;
+
+	statbuf->size = fdesc->file.size;
+
+	return 0;
+}
+
 int open(const char *pathname, int flags)
 {
 	/* allocate a file descriptor */

@@ -108,12 +108,17 @@ struct fs {
 	char *mount_point;
 };
 
+struct statbuf {
+	size_t size;
+};
+
 void vfs_init(const char *rootfs);
 int write(int fd, void *buf, size_t count);
 int read(int fd, void *buf, size_t count);
 int open(const char *pathname, int flags);
 int close(int fd);
 int seek(int fd, size_t offset, int whence);
+int statfd(int fd, struct statbuf *statbuf);
 
 DIR *opendir(const char *name);
 struct dirent *readdir(DIR *dir);

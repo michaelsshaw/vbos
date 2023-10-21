@@ -12,6 +12,7 @@ int kcmd_help(int argc, char **argv);
 int kcmd_ls(int argc, char **argv);
 int kcmd_clear(int argc, char **argv);
 int kcmd_cat(int argc, char **argv);
+int kcmd_stat(int argc, char **argv);
 
 #define KCMD_DECL(name)            \
 	{                          \
@@ -23,7 +24,7 @@ struct kcmd {
 	int (*func)(int argc, char **argv);
 };
 
-struct kcmd cmd_list[] = { KCMD_DECL(cat), KCMD_DECL(clear), KCMD_DECL(help), KCMD_DECL(ls) };
+struct kcmd cmd_list[] = { KCMD_DECL(cat), KCMD_DECL(clear), KCMD_DECL(help), KCMD_DECL(ls), KCMD_DECL(stat) };
 
 int kcmd_cat(int argc, char **argv)
 {
@@ -95,6 +96,28 @@ int kcmd_ls(int argc, char **argv)
 
 		kprintf("%s\n", ent->name);
 	}
+
+	return 0;
+}
+
+int kcmd_stat(int argc, char **argv)
+{
+	if (!argv[1] || strempty(argv[1])) {
+		kprintf("Usage: stat <file>\n");
+		return 1;
+	}
+
+	int fd = open(argv[1], 0);
+
+	struct statbuf st;
+	int ret = statfd(fd, &st);
+	if (ret < 0) {
+		kprintf("Failed to stat %s: %s\n", argv[1], strerror(-ret));
+		return 1;
+	}
+
+	kprintf("File: %s\n", argv[1]);
+	kprintf("Size: %d\n", st.size);
 
 	return 0;
 }
