@@ -18,10 +18,16 @@ static struct {
 	size_t l_resize_cols;
 } console;
 
+static bool is_printable(char c)
+{
+	return (c >= 0x20 && c <= 0x7E);
+}
+
 void console_init()
 {
 	memset(console.line, 0, 512);
 	console.resizemode = 0;
+	console.l_line = 0;
 	kprintf(LOG_SUCCESS "Console ready\n");
 }
 
@@ -48,8 +54,19 @@ void console_resize()
 void console_input(char c)
 {
 	if (!console.resizemode) {
-		console_write(c);
+		if (is_printable(c)) {
+			console_write(c);
+
+			if (console.l_line < (sizeof(console.line) - 1)) {
+				console.line[console.l_line] = c;
+				console.l_line++;
+			}
+		} else if (c == '\n' || c == '\r') {
+			memset(console.line, 0, sizeof(console.line));
+			console.l_line = 0;
+		}
 	} else {
+		/* TODO: replace with a proper state machine */
 		if (c == 'R') {
 			/* detect end of escape sequence */
 			console.resizemode = 0;
@@ -86,11 +103,6 @@ void console_write(char c)
 			console_write('\n');
 		if (c == '\n')
 			console.cursorpos = 1;
-
-		if (console.l_line < (sizeof(console.line) - 1)) {
-			console.line[console.l_line] = c;
-			console.l_line++;
-		}
 	}
 	serial_write(c);
 }
