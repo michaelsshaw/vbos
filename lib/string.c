@@ -144,6 +144,23 @@ char *strtok(char *str, const char *delim, char **llast)
 	return ret;
 }
 
+bool strempty(const char *s)
+{
+	if(!s)
+		return true;
+
+	if(!*s)
+		return true;
+
+	size_t i = strlen(s);
+	while(i--) {
+		if(s[i] != ' ')
+			return false;
+	}
+
+	return true;
+}
+
 char **strsplit(const char *s, char delim, int *n)
 {
 	int num = 0;
@@ -162,6 +179,11 @@ char **strsplit(const char *s, char delim, int *n)
 			ret[idx][i - last] = 0;
 			idx++;
 			last = i + 1;
+
+			if(ret[idx - 1][0] == 0) {
+				kfree(ret[idx - 1]);
+				idx--;
+			}
 		}
 	}
 	ret[idx] = kmalloc(strlen(s) - last + 1, ALLOC_KERN);

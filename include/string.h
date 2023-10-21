@@ -6,6 +6,7 @@
 
 #include <stdint.h>
 #include <stddef.h>
+#include <stdbool.h>
 
 #include <kernel/lock.h>
 
@@ -17,6 +18,7 @@ void *memset(void *str, int c, size_t n);
 char *strcpy(char *dest, const char *src);
 char *strncpy(char *dest, const char *src, size_t n);
 char *strtok(char *str, const char *delim, char **llast);
+bool strempty(const char *s);
 char **strsplit(const char *str, char delim, int *num);
 size_t strlen(const char *c);
 int atoi(const char *a);

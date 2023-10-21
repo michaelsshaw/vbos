@@ -1,5 +1,6 @@
 #include <kernel/common.h>
 #include <kernel/pio.h>
+#include <kernel/cmd.h>
 
 #include <dev/console.h>
 #include <dev/serial.h>
@@ -62,6 +63,8 @@ void console_input(char c)
 				console.l_line++;
 			}
 		} else if (c == '\n' || c == '\r') {
+			console_write('\n');
+			kexec(console.line);
 			memset(console.line, 0, sizeof(console.line));
 			console.l_line = 0;
 		}
@@ -98,11 +101,11 @@ void console_input(char c)
 void console_write(char c)
 {
 	if (!console.resizemode) {
-		console.cursorpos++;
-		if (console.cursorpos == console.cols)
-			console_write('\n');
 		if (c == '\n')
-			console.cursorpos = 1;
+			console.cursorpos = 0;
+		if (console.cursorpos == console.cols && c != '\n')
+			console_write('\n');
+		console.cursorpos++;
 	}
 	serial_write(c);
 }

@@ -50,8 +50,8 @@ static inline void _pic_init()
 	cli();
 	pic_mask(4, 0);
 	pic_init();
-	sti();
 	console_resize();
+	sti();
 
 	while (!console_ready())
 		;
@@ -129,7 +129,6 @@ void kmain(void)
 	kprintf(LOG_DEBUG "Root partition: disk=%X-%X part=%X-%X\n", kroot_disk.a, kroot_disk.b, kroot_part.a, kroot_part.b);
 #endif /* KDEBUG */
 
-	console_init();
 	acpi_init();
 
 	pci_init();
@@ -151,6 +150,7 @@ void kmain_post_stack_init()
 
 	_pic_init();
 
+	console_init();
 	kprintf("\n\n# ");
 	yield();
 }
