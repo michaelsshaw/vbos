@@ -20,6 +20,8 @@
 #define SEEK_CUR 1
 #define SEEK_END 2
 
+typedef uint32_t ino_t;
+
 struct inode {
 	uint16_t mode;
 	uint16_t uid;
@@ -66,7 +68,7 @@ typedef struct _DIR {
 struct file {
 	struct inode inode;
 
-	uint32_t inode_num; /* inode number */
+	ino_t inode_num; /* inode number */
 	uint32_t type; /* type of the file */
 	uint64_t size; /* size of the file */
 

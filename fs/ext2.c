@@ -149,7 +149,7 @@ int ext2_write_block(struct ext2fs *fs, void *buf, size_t block)
 	return block_write(fs->bdev, buf, bdev_block, num_blocks_read);
 }
 
-int ext2_read_inode(struct ext2fs *fs, struct ext2_inode *out, uint32_t inode)
+int ext2_read_inode(struct ext2fs *fs, struct ext2_inode *out, ino_t inode)
 {
 	uint32_t group = (inode - 1) / fs->sb.inodes_per_group;
 	uint32_t index = (inode - 1) % fs->sb.inodes_per_group;
@@ -176,7 +176,7 @@ int ext2_read_inode(struct ext2fs *fs, struct ext2_inode *out, uint32_t inode)
 	return 0;
 }
 
-int ext2_write_inode(struct ext2fs *fs, struct ext2_inode *in, uint32_t inode)
+int ext2_write_inode(struct ext2fs *fs, struct ext2_inode *in, ino_t inode)
 {
 	uint32_t group = (inode - 1) / fs->sb.inodes_per_group;
 	uint32_t index = (inode - 1) % fs->sb.inodes_per_group;
@@ -217,7 +217,7 @@ int ext2_open_file(struct fs *vfs, struct file *file, const char *path)
 	if (!inode)
 		return -ENOMEM;
 
-	uint32_t inode_no = 2;
+	ino_t inode_no = 2;
 	int ret = ext2_read_inode(fs, inode, inode_no);
 	if (ret < 0) {
 		kfree(inode);
