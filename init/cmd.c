@@ -54,6 +54,8 @@ int kcmd_cat(int argc, char **argv)
 		}
 	}
 
+	close(fd);
+
 	return 0;
 }
 
