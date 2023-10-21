@@ -144,6 +144,8 @@ struct ext2fs {
 	struct ext2_superblock sb;
 	struct block_device *bdev;
 
+	uint32_t bgdt_blockno;
+	uint32_t bgdt_num_blocks;
 	struct ext2_group_desc *bgdt;
 
 	uint32_t indir_block_size;
@@ -152,11 +154,5 @@ struct ext2fs {
 };
 
 struct fs *ext2_init_fs(struct block_device *bdev);
-
-/* Filesystem block sizes are not equal to block device block sizes */
-int ext2_read_block(struct ext2fs *fs, void *buf, size_t block);
-int ext2_write_block(struct ext2fs *fs, void *buf, size_t block);
-int ext2_read_inode(struct ext2fs *fs, struct ext2_inode *out, uint32_t inode);
-int ext2_read_inode(struct ext2fs *fs, struct ext2_inode *in, uint32_t inode);
 
 #endif /* _EXT2_H_ */

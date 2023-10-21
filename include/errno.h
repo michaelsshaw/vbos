@@ -8,6 +8,7 @@
 #define EBADF 4
 #define ENOTDIR 5
 #define EISDIR 6
+#define ENOSPC 7 
 
 const char *strerror(int errnum);
 

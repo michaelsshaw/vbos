@@ -47,6 +47,10 @@ struct inode {
 	uint32_t file_acl;
 	uint32_t dir_acl;
 	uint32_t faddr;
+
+	uint64_t af_size;
+	uint16_t frag_number;
+	uint16_t frag_size;
 } PACKED; /* PACKED to allow for memcpy */
 
 struct dirent {
@@ -105,7 +109,7 @@ struct fs {
 };
 
 void vfs_init(const char *rootfs);
-int write(int fd, const void *buf, size_t count);
+int write(int fd, void *buf, size_t count);
 int read(int fd, void *buf, size_t count);
 int open(const char *pathname, int flags);
 int close(int fd);

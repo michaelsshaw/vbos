@@ -14,9 +14,29 @@ static int fd_counter = 0;
 
 typedef struct fs *(*vfs_init_t)(struct block_device *);
 
-int write(int fd, const void *buf, size_t count)
+int write(int fd, void *buf, size_t count)
 {
-	return 0;
+	struct rbnode *fdnode = rbt_search(kfd, fd);
+
+	if (!fdnode)
+		return -EBADF;
+
+	struct file_descriptor *fdesc = (struct file_descriptor *)fdnode->value;
+
+	if (fdesc->file.type == VFS_FILE_DIR)
+		return -EISDIR;
+
+	if (fdesc->file.type != VFS_FILE_FILE)
+		return -EBADF;
+
+	int ret = fdesc->fs->ops.write(fdesc->fs, &fdesc->file, buf, fdesc->pos, count);
+
+	if (ret < 0)
+		return ret;
+
+	fdesc->pos = MIN(fdesc->pos + ret, fdesc->file.size);
+
+	return ret;
 }
 
 int read(int fd, void *buf, size_t count)

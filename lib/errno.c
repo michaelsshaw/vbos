@@ -10,6 +10,7 @@ static const char *errno_str[] = {
 	[EBADF] = "Bad file descriptor",
 	[ENOTDIR] = "Not a directory",
 	[EISDIR] = "Is a directory",
+	[ENOSPC] = "No space left on device",
 };
 
 inline const char *strerror(int errnum)
