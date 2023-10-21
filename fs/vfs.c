@@ -53,6 +53,8 @@ int open(const char *pathname, int flags)
 		return -ENOMEM;
 	}
 
+	memset(fd, 0, sizeof(struct file_descriptor));
+
 	/* find the file */
 	int result = rootfs->ops.open(rootfs, &fd->file, pathname);
 
