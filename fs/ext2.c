@@ -359,14 +359,51 @@ int ext2_close_file(struct fs *vfs, struct file *file)
 	return 0;
 }
 
-int ext2_write_file(struct fs *vfs, struct file *file, void *buf, size_t count)
+int ext2_write_file(struct fs *vfs, struct file *file, void *buf, size_t offset, size_t count)
 {
 	return 0;
 }
 
-int ext2_read_file(struct fs *vfs, struct file *file, void *buf, size_t count)
+int ext2_read_file(struct fs *vfs, struct file *file, void *buf, size_t offset, size_t count)
 {
-	return 0;
+	struct ext2fs *fs = vfs->fs;
+
+	if ((file->inode.mode & 0xF000) != EXT2_INO_REG)
+		return -EISDIR;
+
+	size_t block = offset / fs->block_size;
+	offset %= fs->block_size;
+
+	if (offset > file->size)
+		return -EINVAL;
+
+	if (offset + count > file->size)
+		count = (file->size - offset);
+
+	size_t ret = count;
+
+	void *block_buf = kmalloc(fs->block_size, ALLOC_KERN);
+
+	if (!block_buf)
+		return -ENOMEM;
+
+	size_t bufoffset = 0;
+
+	while (count > 0) {
+		int retval = ext2_inode_read_block(fs, (struct ext2_inode *)&file->inode, block_buf, block);
+		if (retval < 0) {
+			kfree(block_buf);
+			return retval;
+		}
+
+		memcpy(buf + bufoffset, block_buf + offset, MIN(count, fs->block_size - offset));
+		bufoffset += fs->block_size;
+		offset = 0;
+
+		count -= MIN(fs->block_size, count);
+	}
+
+	return ret;
 }
 
 int ext2_seek_file(struct fs *vfs, struct file *file, size_t offset)

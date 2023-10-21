@@ -10,6 +10,8 @@
 
 int kcmd_help(int argc, char **argv);
 int kcmd_ls(int argc, char **argv);
+int kcmd_clear(int argc, char **argv);
+int kcmd_cat(int argc, char **argv);
 
 #define KCMD_DECL(name)            \
 	{                          \
@@ -21,7 +23,45 @@ struct kcmd {
 	int (*func)(int argc, char **argv);
 };
 
-struct kcmd cmd_list[] = { KCMD_DECL(help), KCMD_DECL(ls) };
+struct kcmd cmd_list[] = { KCMD_DECL(cat), KCMD_DECL(clear), KCMD_DECL(help), KCMD_DECL(ls) };
+
+int kcmd_cat(int argc, char **argv)
+{
+	if (!argv[1] || strempty(argv[1])) {
+		kprintf("Usage: cat <file>\n");
+		return 1;
+	}
+
+	int fd = open(argv[1], 0);
+	if (fd < 0) {
+		kprintf("Failed to open %s: %s\n", argv[1], strerror(-fd));
+		return 1;
+	}
+
+	char buf[1024];
+
+	while (true) {
+		int n = read(fd, buf, sizeof(buf));
+		if (n < 0) {
+			kprintf("Failed to read %s: %s\n", argv[1], strerror(-n));
+			return 1;
+		} else if (n == 0) {
+			break;
+		}
+
+		for (int i = 0; i < n; i++) {
+			console_write(buf[i]);
+		}
+	}
+
+	return 0;
+}
+
+int kcmd_clear(int argc, char **argv)
+{
+	console_clear();
+	return 0;
+}
 
 int kcmd_help(int argc, char **argv)
 {

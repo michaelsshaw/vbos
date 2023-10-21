@@ -21,7 +21,27 @@ int write(int fd, const void *buf, size_t count)
 
 int read(int fd, void *buf, size_t count)
 {
-	return 0;
+	struct rbnode *fdnode = rbt_search(kfd, fd);
+
+	if (!fdnode)
+		return -EBADF;
+
+	struct file_descriptor *fdesc = (struct file_descriptor *)fdnode->value;
+
+	if(fdesc->file.type == VFS_FILE_DIR)
+		return -EISDIR;
+
+	if (fdesc->file.type != VFS_FILE_FILE)
+		return -EBADF;
+
+	int ret = fdesc->fs->ops.read(fdesc->fs, &fdesc->file, buf, fdesc->pos, count);
+
+	if (ret < 0)
+		return ret;
+
+	fdesc->pos = MIN(fdesc->pos + ret, fdesc->file.size);
+
+	return ret;
 }
 
 int open(const char *pathname, int flags)
@@ -107,7 +127,7 @@ DIR *opendir(const char *name)
 
 struct dirent *readdir(DIR *dir)
 {
-	if(!dir)
+	if (!dir)
 		return NULL;
 
 	struct fs *fs = dir->fs;
@@ -171,4 +191,3 @@ void vfs_init(const char *rootdev_name)
 	/* init file descriptor slab */
 	fd_slab = slab_create(sizeof(struct file_descriptor), 16 * KB, 0);
 }
-

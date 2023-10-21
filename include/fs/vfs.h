@@ -84,8 +84,8 @@ struct file_descriptor {
 };
 
 struct fs_ops {
-	int (*read)(struct fs *fs, struct file *file, void *buf, size_t size);
-	int (*write)(struct fs *fs, struct file *file, void *buf, size_t size);
+	int (*read)(struct fs *fs, struct file *file, void *buf, size_t offset, size_t size);
+	int (*write)(struct fs *fs, struct file *file, void *buf, size_t offset, size_t size);
 	int (*open)(struct fs *fs, struct file *file, const char *path);
 	int (*close)(struct fs *fs, struct file *file);
 	int (*seek)(struct fs *fs, struct file *file, size_t offset);

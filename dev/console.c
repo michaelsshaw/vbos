@@ -37,6 +37,16 @@ bool console_ready()
 	return (console.resizemode == 0);
 }
 
+void console_clear()
+{
+	if (console.resizemode)
+		return;
+
+	kprintf("\e[2J\e[H");
+	console.cursorpos = 0;
+	return;
+}
+
 void console_resize()
 {
 	console.resizemode = 1;
@@ -67,6 +77,14 @@ void console_input(char c)
 			kexec(console.line);
 			memset(console.line, 0, sizeof(console.line));
 			console.l_line = 0;
+		} else if (c == 0x7F || c == '\b') {
+			if (console.l_line > 0) {
+				console_write('\b');
+				console_write(' ');
+				console_write('\b');
+				console.l_line--;
+				console.line[console.l_line] = 0;
+			}
 		}
 	} else {
 		/* TODO: replace with a proper state machine */

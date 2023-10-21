@@ -9,6 +9,7 @@ static const char *errno_str[] = {
 	[EINVAL] = "Invalid argument",
 	[EBADF] = "Bad file descriptor",
 	[ENOTDIR] = "Not a directory",
+	[EISDIR] = "Is a directory",
 };
 
 inline const char *strerror(int errnum)
