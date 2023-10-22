@@ -291,10 +291,6 @@ static long ext2_inode_alloc_block(struct ext2fs *fs, struct ext2_inode *inode, 
 {
 	/* allocate inode block and handle indirect if necessary */
 	long block;
-
-	if (block < 0)
-		return block;
-
 	size_t num_blocks = (inode->blocks * fs->bdev->block_size) / fs->block_size;
 
 	if (num_blocks < N_DIRECT) {
