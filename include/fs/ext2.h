@@ -103,11 +103,7 @@ struct ext2_inode {
 	uint32_t blocks;
 	uint32_t flags;
 	uint32_t osd1;
-	uint32_t block[12];
-
-	uint32_t block_indirect;
-	uint32_t block_dindirect;
-	uint32_t block_tindirect;
+	uint32_t block[15];
 
 	uint32_t generation;
 	uint32_t file_acl;
