@@ -375,42 +375,6 @@ static long ext2_inode_alloc_block(struct ext2fs *fs, struct ext2_inode *inode, 
 	return block;
 }
 
-static int ext2_free_block(struct ext2fs *fs, uint32_t block_no)
-{
-	/* find the group that this block belongs to */
-	uint32_t group = (block_no - 1) / fs->sb.blocks_per_group;
-	uint32_t index = (block_no - 1) % fs->sb.blocks_per_group;
-
-	struct ext2_group_desc *bg = &fs->bgdt[group];
-
-	/* mark the block as free */
-	char *buf = kmalloc(fs->block_size * fs->bgdt_num_blocks, ALLOC_DMA);
-	if (!buf)
-		return -ENOMEM;
-
-	ext2_read_block(fs, buf, bg->block_bitmap);
-
-	uint32_t byte = index / 8;
-	uint32_t bit = index % 8;
-
-	uint8_t *byte_ptr = (uint8_t *)buf + byte;
-	*byte_ptr &= ~(1 << bit);
-
-	bg->free_blocks_count++;
-	fs->sb.free_blocks_count++;
-
-	/* update superblock and bgdt */
-	ext2_write_block(fs, &fs->sb, 1);
-	for (size_t i = 0; i < fs->bgdt_num_blocks; i++)
-		ext2_write_block(fs, fs->bgdt + fs->block_size * i, fs->bgdt_blockno + i);
-
-	ext2_write_block(fs, buf, bg->block_bitmap);
-
-	kfree(buf);
-
-	return 0;
-}
-
 static int ext2_open_file(struct fs *vfs, struct file *file, const char *path)
 {
 	/* find the inode of the file */
