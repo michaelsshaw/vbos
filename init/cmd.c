@@ -40,6 +40,7 @@ int kcmd_cat(int argc, char **argv)
 	}
 
 	char buf[1024];
+	char lastchar = 0;
 
 	while (true) {
 		int n = read(fd, buf, sizeof(buf));
@@ -47,12 +48,16 @@ int kcmd_cat(int argc, char **argv)
 			kprintf("Failed to read %s: %s\n", argv[1], strerror(-n));
 			return 1;
 		} else if (n == 0) {
+			if(lastchar != '\n')
+				kprintf("\n");
 			break;
 		}
 
 		for (int i = 0; i < n; i++) {
 			console_write(buf[i]);
 		}
+
+		lastchar = buf[n - 1];
 	}
 
 	close(fd);
