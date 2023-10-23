@@ -13,6 +13,7 @@
 #define N_PER_INDIRECT (fs->block_size / sizeof(uint32_t))
 
 #define ITYPE_DECL(_ino, _de) [(_ino >> 12)] = (_de)
+#define DTYPE_DECL(_de, _ino) [(_de)] = (_ino)
 
 static uint8_t inode_to_ftype[] = {
 	ITYPE_DECL(EXT2_INO_FIFO, VFS_FILE_FIFO), ITYPE_DECL(EXT2_INO_CHARDEV, VFS_FILE_CHARDEV),
@@ -20,6 +21,14 @@ static uint8_t inode_to_ftype[] = {
 	ITYPE_DECL(EXT2_INO_REG, VFS_FILE_FILE),  ITYPE_DECL(EXT2_INO_SYMLINK, VFS_FILE_SYMLINK),
 	ITYPE_DECL(EXT2_INO_SOCK, VFS_FILE_SOCK),
 };
+
+static uint16_t ftype_to_ino[] = {
+	DTYPE_DECL(VFS_FILE_FIFO, EXT2_INO_FIFO), DTYPE_DECL(VFS_FILE_CHARDEV, EXT2_INO_CHARDEV),
+	DTYPE_DECL(VFS_FILE_DIR, EXT2_INO_DIR),	  DTYPE_DECL(VFS_FILE_BLKDEV, EXT2_INO_BLKDEV),
+	DTYPE_DECL(VFS_FILE_FILE, EXT2_INO_REG),  DTYPE_DECL(VFS_FILE_SYMLINK, EXT2_INO_SYMLINK),
+	DTYPE_DECL(VFS_FILE_SOCK, EXT2_INO_SOCK),
+};
+
 #undef ITYPE_DECL
 
 static int ext2_read_super(struct block_device *bdev, struct ext2_superblock *sb_struct)
@@ -368,6 +377,8 @@ static long ext2_inode_alloc_block(struct ext2fs *fs, struct ext2_inode *inode, 
 		}
 
 		block = ext2_alloc_block_indir(fs, indir_block, index3);
+	} else {
+		return -ENOSPC;
 	}
 	/* write inode to disk */
 	ext2_write_inode(fs, inode, inode_no);
@@ -375,13 +386,149 @@ static long ext2_inode_alloc_block(struct ext2fs *fs, struct ext2_inode *inode, 
 	return block;
 }
 
-static int ext2_open_file(struct fs *vfs, struct file *file, const char *path)
+static int ext2_free_block(struct ext2fs *fs, uint32_t block_no)
 {
-	/* find the inode of the file */
-	struct ext2fs *fs = (struct ext2fs *)vfs->fs;
-	struct ext2_inode *inode = kmalloc(sizeof(struct ext2_inode), ALLOC_KERN);
-	if (!inode)
+	/* find the group that this block belongs to */
+	uint32_t group = (block_no - 1) / fs->sb.blocks_per_group;
+	uint32_t index = (block_no - 1) % fs->sb.blocks_per_group;
+
+	struct ext2_group_desc *bg = &fs->bgdt[group];
+
+	/* mark the block as free */
+	char *buf = kmalloc(fs->block_size * fs->bgdt_num_blocks, ALLOC_DMA);
+	if (!buf)
 		return -ENOMEM;
+
+	ext2_read_block(fs, buf, bg->block_bitmap);
+
+	uint32_t byte = index / 8;
+	uint32_t bit = index % 8;
+
+	uint8_t *byte_ptr = (uint8_t *)buf + byte;
+	*byte_ptr &= ~(1 << bit);
+
+	bg->free_blocks_count++;
+	fs->sb.free_blocks_count++;
+
+	/* update superblock and bgdt */
+	ext2_write_block(fs, &fs->sb, 1);
+	for (size_t i = 0; i < fs->bgdt_num_blocks; i++)
+		ext2_write_block(fs, fs->bgdt + fs->block_size * i, fs->bgdt_blockno + i);
+
+	ext2_write_block(fs, buf, bg->block_bitmap);
+
+	kfree(buf);
+
+	return 0;
+}
+
+static long ext2_alloc_inode(struct fs *vfs, uint32_t mode)
+{
+	/* allocate an inode */
+	struct ext2fs *fs = (struct ext2fs *)vfs->fs;
+
+	uint32_t num_groups = fs->sb.blocks_count / fs->sb.blocks_per_group;
+	if (fs->sb.blocks_count % fs->sb.blocks_per_group)
+		num_groups++;
+
+	for (int i = 0; i < num_groups; i++) {
+		/* iterate free groups for a free inode */
+		struct ext2_group_desc *bg = &fs->bgdt[i];
+
+		if (bg->free_inodes_count == 0)
+			continue;
+
+		struct ext2_inode *inode_table = kmalloc(fs->block_size, ALLOC_DMA);
+		if (!inode_table)
+			return -ENOMEM;
+
+		ext2_read_block(fs, inode_table, bg->inode_table);
+
+		for (size_t j = 0; j < fs->sb.inodes_per_group; j++) {
+			struct ext2_inode *ino = &inode_table[j];
+
+			if (ino->mode == 0) {
+				/* found a free inode */
+				memset(ino, 0, sizeof(*ino));
+				ino->mode = mode;
+
+				/* write inode to disk */
+				ext2_write_block(fs, inode_table, bg->inode_table);
+
+				/* update superblock and bgdt */
+				fs->sb.free_inodes_count--;
+				fs->sb.inodes_count++;
+
+				bg->free_inodes_count--;
+
+				ext2_write_block(fs, &fs->sb, 1);
+				ext2_write_block(fs, bg, fs->bgdt_blockno + i);
+
+				kfree(inode_table);
+
+				return (i * fs->sb.inodes_per_group) + j + 1;
+			}
+		}
+	}
+
+	return -ENOSPC;
+}
+
+static int ext2_free_inode(struct fs *vfs, ino_t ino_num)
+{
+	struct ext2fs *fs = (struct ext2fs *)vfs->fs;
+
+	uint32_t group = (ino_num - 1) / fs->sb.inodes_per_group;
+	uint32_t index = (ino_num - 1) % fs->sb.inodes_per_group;
+
+	struct ext2_group_desc *bg = &fs->bgdt[group];
+
+	struct ext2_inode *inode_table = kmalloc(fs->block_size, ALLOC_DMA);
+	if (!inode_table)
+		return -ENOMEM;
+
+	ext2_read_block(fs, inode_table, bg->inode_table);
+
+	struct ext2_inode *ino = &inode_table[index];
+
+	/* free all the blocks */
+	size_t num_blocks = (ino->blocks * fs->bdev->block_size) / fs->block_size;
+	for (size_t i = 0; i < num_blocks; i++) {
+		long ret = ext2_free_block(fs, ext2_inode_get_block(fs, ino, i));
+		if (ret < 0) {
+			kfree(inode_table);
+			return ret;
+		}
+	}
+
+	if (num_blocks >= N_DIRECT + N_INDIR)
+		ext2_free_block(fs, ino->block[N_DIRECT]);
+	if (num_blocks >= N_DIRECT + N_INDIR + N_DINDIR)
+		ext2_free_block(fs, ino->block[N_DIRECT + 1]);
+	if (num_blocks >= N_DIRECT + N_INDIR + N_DINDIR + N_TINDIR)
+		ext2_free_block(fs, ino->block[N_DIRECT + 2]);
+
+	memset(ino, 0, sizeof(*ino));
+
+	ext2_write_block(fs, inode_table, bg->inode_table);
+
+	/* update superblock and bgdt */
+	fs->sb.free_inodes_count++;
+	fs->sb.inodes_count--;
+
+	bg->free_inodes_count++;
+
+	ext2_write_block(fs, &fs->sb, 1);
+	ext2_write_block(fs, bg, fs->bgdt_blockno + group);
+
+	kfree(inode_table);
+
+	return 0;
+}
+
+static long ext2_inode_find_by_name(struct ext2fs *fs, char *path)
+{
+	struct ext2_inode *inode = kmalloc(sizeof(struct ext2_inode), ALLOC_DMA);
 
 	ino_t inode_no = 2;
 	int ret = ext2_read_inode(fs, inode, inode_no);
@@ -423,8 +570,9 @@ static int ext2_open_file(struct fs *vfs, struct file *file, const char *path)
 				inode_no = entry->inode;
 				size_t token_len = strlen(token);
 				if (!strncmp(entry->name, token, MIN(entry->name_len, token_len))) {
-					if (token_len == entry->name_len || token_len == 0)
+					if (token_len == entry->name_len || token_len == 0) {
 						goto found;
+					}
 				}
 
 				entry = (void *)entry + entry->rec_len;
@@ -446,16 +594,50 @@ found:
 	}
 
 	kfree(path_copy);
+	kfree(oentry);
+
+	return inode_no;
+}
+
+static int ext2_open_file(struct fs *vfs, struct file *file, char *path)
+{
+	/* find the inode of the file */
+	struct ext2fs *fs = (struct ext2fs *)vfs->fs;
+	struct ext2_inode *inode = kmalloc(sizeof(struct ext2_inode), ALLOC_KERN);
+	if (!inode)
+		return -ENOMEM;
+
+	long ino_ret = ext2_inode_find_by_name(fs, path);
+	if (ino_ret < 0) {
+		kfree(inode);
+		return ino_ret;
+	}
+	ino_t inode_no = ino_ret;
+
+	int ret = ext2_read_inode(fs, inode, inode_no);
+	if (ret < 0) {
+		kfree(inode);
+		return ret;
+	}
 
 	memcpy(&file->inode, inode, sizeof(struct inode));
 	file->size = inode->size;
 	file->type = inode_to_ftype[inode->mode >> 12];
 	file->inode_num = inode_no;
-	kfree(oentry);
+
+	file->path = kzalloc(strlen(path) + 1, ALLOC_KERN);
+	if (!file->path) {
+		kfree(inode);
+		return -ENOMEM;
+	}
+	strcpy((char *)file->path, path);
+	file->name = basename((char *)path);
 
 	/* check for long filesize */
 	if (fs->sb.feature_ro_compat & EXT2_FLAG_LONG_FILESIZE)
 		file->size |= ((uint64_t)inode->dir_acl << 32);
+
+	kfree(inode);
 
 	return 0;
 }
@@ -596,6 +778,102 @@ static int ext2_write_file(struct fs *vfs, struct file *file, void *buf, size_t 
 	ext2_write_inode(fs, (struct ext2_inode *)&file->inode, file->inode_num);
 
 	return num;
+}
+
+static long ext2_creat(struct fs *vfs, char *path, ftype_t type)
+{
+	/* make sure the file doesn't already exist */
+	struct file file;
+	int check = ext2_open_file(vfs, &file, path);
+
+	if (check == 0) {
+		ext2_close_file(vfs, &file);
+		return -EEXIST;
+	}
+
+	char *base = basename(path);
+	char *dir = dirname(path);
+
+	struct ext2fs *fs = (struct ext2fs *)vfs->fs;
+	long dir_ino;
+
+	/* find the inode of the directory, root directory inode is 2 */
+	if (dir == NULL)
+		dir_ino = 2;
+	else
+		dir_ino = ext2_inode_find_by_name(fs, dir);
+
+	if (dir_ino < 0)
+		return dir_ino;
+
+	struct ext2_inode *dir_inode = kmalloc(sizeof(struct ext2_inode), ALLOC_DMA);
+	if (!dir_inode)
+		return -ENOMEM;
+
+	int ret = ext2_read_inode(fs, dir_inode, dir_ino);
+	if (ret < 0) {
+		kfree(dir_inode);
+		return ret;
+	}
+
+	/* make sure dir inode is a directory */
+	if ((dir_inode->mode & 0xF000) != EXT2_INO_DIR) {
+		kfree(dir_inode);
+		return -ENOTDIR;
+	}
+
+	/* allocate a new inode */
+	long ino_ret = ext2_alloc_inode(vfs, type);
+	if (ino_ret < 0) {
+		kfree(dir_inode);
+		return ino_ret;
+	}
+
+	/* allocate a new block for the directory entry, if necessary */
+	size_t dir_num_blocks = (dir_inode->blocks * fs->bdev->block_size) / fs->block_size;
+	size_t dirents_per_block = fs->block_size / sizeof(struct ext2_dir_entry);
+	if (dir_num_blocks == 0) {
+		long block_no = ext2_inode_alloc_block(fs, dir_inode, dir_ino);
+		if (block_no < 0) {
+			kfree(dir_inode);
+			return block_no;
+		}
+	}
+
+	for (size_t d_block = 0; d_block < dir_num_blocks; d_block++) {
+		for (size_t d_ent_no = 0; d_ent_no < dirents_per_block; d_ent_no++) {
+			struct ext2_dir_entry *entry = kmalloc(fs->block_size, ALLOC_DMA);
+			if (!entry) {
+				kfree(dir_inode);
+				return -ENOMEM;
+			}
+
+			ext2_inode_read_block(fs, dir_inode, entry, d_block);
+
+			if (entry->inode == 0) {
+				/* found a free directory entry */
+				memset(entry, 0, sizeof(*entry));
+				entry->inode = ino_ret;
+				entry->name_len = strlen(base);
+				entry->rec_len = sizeof(struct ext2_dir_entry) + entry->name_len;
+				entry->file_type = ftype_to_ino[type];
+				memcpy(entry->name, base, entry->name_len);
+
+				ext2_inode_write_block(fs, dir_inode, entry, d_block);
+
+				kfree(dir_inode);
+				kfree(entry);
+
+				return ino_ret;
+			}
+
+			kfree(entry);
+		}
+	}
+
+	kfree(dir_inode);
+
+	return -ENOSPC;
 }
 
 static int ext2_read_file(struct fs *vfs, struct file *file, void *buf, size_t offset, size_t count)

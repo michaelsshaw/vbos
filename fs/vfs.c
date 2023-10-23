@@ -248,3 +248,30 @@ void vfs_init(const char *rootdev_name)
 	/* init file descriptor slab */
 	fd_slab = slab_create(sizeof(struct file_descriptor), 16 * KB, 0);
 }
+
+char *basename(char *path)
+{
+	char *ret = path;
+	for (int i = 0; path[i]; i++) {
+		if (path[i] == '/')
+			ret = path + i + 1;
+	}
+
+	return ret;
+}
+
+char *dirname(char *path)
+{
+	char *ret = path;
+	for (int i = 0; path[i]; i++) {
+		if (path[i] == '/')
+			ret = path + i;
+	}
+
+	if (ret == path)
+		return NULL;
+
+	*ret = 0;
+
+	return path;
+}

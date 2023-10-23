@@ -13,6 +13,8 @@ int kcmd_ls(int argc, char **argv);
 int kcmd_clear(int argc, char **argv);
 int kcmd_cat(int argc, char **argv);
 int kcmd_stat(int argc, char **argv);
+int kcmd_basename(int argc, char **argv);
+int kcmd_dirname(int argc, char **argv);
 
 #define KCMD_DECL(name)            \
 	{                          \
@@ -24,7 +26,37 @@ struct kcmd {
 	int (*func)(int argc, char **argv);
 };
 
-struct kcmd cmd_list[] = { KCMD_DECL(cat), KCMD_DECL(clear), KCMD_DECL(help), KCMD_DECL(ls), KCMD_DECL(stat) };
+struct kcmd cmd_list[] = { KCMD_DECL(basename), KCMD_DECL(cat), KCMD_DECL(dirname), KCMD_DECL(clear),
+			   KCMD_DECL(help),	KCMD_DECL(ls),	KCMD_DECL(stat) };
+
+int kcmd_basename(int argc, char **argv)
+{
+	if (!argv[1] || strempty(argv[1])) {
+		kprintf("Usage: basename <path>\n");
+		return 1;
+	}
+
+	char *base = basename(argv[1]);
+	kprintf("%s\n", base);
+
+	return 0;
+}
+
+int kcmd_dirname(int argc, char **argv)
+{
+	if (!argv[1] || strempty(argv[1])) {
+		kprintf("Usage: dirname <path>\n");
+		return 1;
+	}
+
+	char *dir = dirname(argv[1]);
+	if (!dir)
+		kprintf("/\n");
+	else
+		kprintf("%s\n", dir);
+
+	return 0;
+}
 
 int kcmd_cat(int argc, char **argv)
 {
@@ -48,7 +80,7 @@ int kcmd_cat(int argc, char **argv)
 			kprintf("Failed to read %s: %s\n", argv[1], strerror(-n));
 			return 1;
 		} else if (n == 0) {
-			if(lastchar != '\n')
+			if (lastchar != '\n')
 				kprintf("\n");
 			break;
 		}

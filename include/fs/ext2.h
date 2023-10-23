@@ -6,6 +6,8 @@
 #include <kernel/block.h>
 #include <kernel/gpt.h>
 
+#include <fs/vfs.h>
+
 #define EXT2_SUPER_MAGIC 0xEF53
 #define EXT2_ROOT_INO 2
 #define EXT2_SUPERBLOCK_BLOCKNO 1
@@ -132,7 +134,7 @@ struct ext2_dir_entry {
 	uint32_t inode;
 	uint16_t rec_len;
 	uint8_t name_len;
-	uint8_t file_type;
+	ftype_t file_type;
 	char name[];
 } PACKED;
 

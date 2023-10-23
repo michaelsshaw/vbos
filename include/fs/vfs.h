@@ -21,6 +21,7 @@
 #define SEEK_END 2
 
 typedef uint32_t ino_t;
+typedef uint8_t ftype_t;
 
 struct inode {
 	uint16_t mode;
@@ -56,7 +57,7 @@ struct inode {
 struct dirent {
 	uint64_t inode;
 	uint16_t reclen;
-	uint8_t type;
+	ftype_t type;
 	char name[256];
 };
 
@@ -77,6 +78,7 @@ struct file {
 	uint64_t size; /* size of the file */
 
 	char *path; /* path to the file */
+	char *name; /* name of the file */
 
 	void *fs_file; /* filesystem specific object */
 };
@@ -95,7 +97,7 @@ struct file_descriptor {
 struct fs_ops {
 	int (*read)(struct fs *fs, struct file *file, void *buf, size_t offset, size_t size);
 	int (*write)(struct fs *fs, struct file *file, void *buf, size_t offset, size_t size);
-	int (*open)(struct fs *fs, struct file *file, const char *path);
+	int (*open)(struct fs *fs, struct file *file, char *path);
 	int (*close)(struct fs *fs, struct file *file);
 	int (*readdir)(struct fs *fs, uint32_t ino, struct dirent **dir);
 };
@@ -123,5 +125,8 @@ int statfd(int fd, struct statbuf *statbuf);
 DIR *opendir(const char *name);
 struct dirent *readdir(DIR *dir);
 int closedir(DIR *dir);
+
+char *basename(char *path);
+char *dirname(char *path);
 
 #endif /* _VFS_H_ */
