@@ -118,7 +118,6 @@ int close(int fd)
 		return -EBADF;
 
 	struct file_descriptor *fdesc = (struct file_descriptor *)fdnode->value;
-	fdesc->fs->ops.close(fdesc->fs, &fdesc->file);
 	kfree(fdesc->file.path);
 
 	slab_free(fd_slab, fdesc);
@@ -151,6 +150,11 @@ int seek(int fd, size_t offset, int whence)
 	}
 
 	return fdesc->pos;
+}
+
+int mkdir(const char *pathname)
+{
+	return rootfs->ops.mkdir(rootfs, pathname);
 }
 
 DIR *opendir(const char *name)
@@ -217,6 +221,33 @@ int closedir(DIR *dir)
 	return ret;
 }
 
+char *basename(char *path)
+{
+	char *ret = path;
+	for (int i = 0; path[i]; i++) {
+		if (path[i] == '/')
+			ret = path + i + 1;
+	}
+
+	return ret;
+}
+
+char *dirname(char *path)
+{
+	char *ret = path;
+	for (int i = 0; path[i]; i++) {
+		if (path[i] == '/')
+			ret = path + i;
+	}
+
+	if (ret == path)
+		return NULL;
+
+	*ret = 0;
+
+	return path;
+}
+
 void vfs_init(const char *rootdev_name)
 {
 	kfd = kzalloc(sizeof(struct rbtree), ALLOC_DMA);
@@ -249,29 +280,3 @@ void vfs_init(const char *rootdev_name)
 	fd_slab = slab_create(sizeof(struct file_descriptor), 16 * KB, 0);
 }
 
-char *basename(char *path)
-{
-	char *ret = path;
-	for (int i = 0; path[i]; i++) {
-		if (path[i] == '/')
-			ret = path + i + 1;
-	}
-
-	return ret;
-}
-
-char *dirname(char *path)
-{
-	char *ret = path;
-	for (int i = 0; path[i]; i++) {
-		if (path[i] == '/')
-			ret = path + i;
-	}
-
-	if (ret == path)
-		return NULL;
-
-	*ret = 0;
-
-	return path;
-}

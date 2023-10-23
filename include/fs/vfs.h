@@ -98,8 +98,8 @@ struct fs_ops {
 	int (*read)(struct fs *fs, struct file *file, void *buf, size_t offset, size_t size);
 	int (*write)(struct fs *fs, struct file *file, void *buf, size_t offset, size_t size);
 	int (*open)(struct fs *fs, struct file *file, const char *path);
-	int (*close)(struct fs *fs, struct file *file);
 	int (*readdir)(struct fs *fs, uint32_t ino, struct dirent **dir);
+	int (*mkdir)(struct fs *fs, const char *path);
 };
 
 struct fs {
@@ -121,6 +121,7 @@ int open(const char *pathname, int flags);
 int close(int fd);
 int seek(int fd, size_t offset, int whence);
 int statfd(int fd, struct statbuf *statbuf);
+int mkdir(const char *pathname);
 
 DIR *opendir(const char *name);
 struct dirent *readdir(DIR *dir);
