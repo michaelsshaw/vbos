@@ -1,9 +1,7 @@
-# vbos - very bad os
+# vbos - very bad os - now with ext2 filesystem!
 
-Very new kernel. Currently only prints data about the system out to a serial
-port. 
-
-Runs in long mode on x86 with Limine boot protocol.
+This is still an early project. It supports a very select few commands and is
+under heavy development. This is very much a for-fun project
 
 ## License
 
