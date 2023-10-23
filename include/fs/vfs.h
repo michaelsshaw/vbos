@@ -97,7 +97,7 @@ struct file_descriptor {
 struct fs_ops {
 	int (*read)(struct fs *fs, struct file *file, void *buf, size_t offset, size_t size);
 	int (*write)(struct fs *fs, struct file *file, void *buf, size_t offset, size_t size);
-	int (*open)(struct fs *fs, struct file *file, char *path);
+	int (*open)(struct fs *fs, struct file *file, const char *path);
 	int (*close)(struct fs *fs, struct file *file);
 	int (*readdir)(struct fs *fs, uint32_t ino, struct dirent **dir);
 };

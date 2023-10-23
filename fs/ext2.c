@@ -526,7 +526,7 @@ static int ext2_free_inode(struct fs *vfs, ino_t ino_num)
 	return 0;
 }
 
-static long ext2_inode_find_by_name(struct ext2fs *fs, char *path)
+static long ext2_inode_find_by_name(struct ext2fs *fs, const char *path)
 {
 	struct ext2_inode *inode = kmalloc(sizeof(struct ext2_inode), ALLOC_DMA);
 
@@ -599,7 +599,7 @@ found:
 	return inode_no;
 }
 
-static int ext2_open_file(struct fs *vfs, struct file *file, char *path)
+static int ext2_open_file(struct fs *vfs, struct file *file, const char *path)
 {
 	/* find the inode of the file */
 	struct ext2fs *fs = (struct ext2fs *)vfs->fs;
