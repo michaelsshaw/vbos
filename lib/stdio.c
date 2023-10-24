@@ -74,10 +74,11 @@ int vsnprintf(char *str, const char *restrict fmt, size_t size, va_list args)
 			case 'c':
 				i = va_arg(args, int);
 				ret++;
-				str[ret] = i;
+				str[ret] = i & 0xFF;
 				break;
 			case 'x':
 				i = va_arg(args, int);
+
 				n = 0;
 
 				memset(buf, 0, sizeof(buf));
