@@ -120,6 +120,7 @@ int read(int fd, void *buf, size_t count);
 int open(const char *pathname, int flags);
 int close(int fd);
 int seek(int fd, size_t offset, int whence);
+size_t tell(int fd);
 int statfd(int fd, struct statbuf *statbuf);
 int mkdir(const char *pathname);
 

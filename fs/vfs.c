@@ -152,6 +152,18 @@ int seek(int fd, size_t offset, int whence)
 	return fdesc->pos;
 }
 
+size_t tell(int fd)
+{
+	struct rbnode *fdnode = rbt_search(kfd, fd);
+
+	if (!fdnode)
+		return -EBADF;
+
+	struct file_descriptor *fdesc = (struct file_descriptor *)fdnode->value;
+
+	return fdesc->pos;
+}
+
 int mkdir(const char *pathname)
 {
 	return rootfs->ops.mkdir(rootfs, pathname);
