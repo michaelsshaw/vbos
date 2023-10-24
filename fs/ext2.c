@@ -30,6 +30,7 @@ static uint16_t ftype_to_ino[] = {
 };
 
 #undef ITYPE_DECL
+#undef DTYPE_DECL
 
 static int ext2_read_super(struct block_device *bdev, struct ext2_superblock *sb_struct)
 {
