@@ -904,12 +904,13 @@ static long ext2_creat(struct fs *vfs, const char *path, ftype_t type)
 			struct ext2_dir_entry *d_ent = (void *)entry + rec_offset;
 
 			size_t t_len = d_ent->name_len + sizeof(struct ext2_dir_entry);
-			if (d_ent->rec_len - t_len > insert_size) {
+			if (d_ent->rec_len > sizeof(struct ext2_dir_entry) + 255) {
 				if (t_len + rec_offset + insert_size < fs->block_size) {
 					rem_len = d_ent->rec_len - t_len;
 					d_ent->rec_len = t_len;
 					rec_offset += t_len;
-					continue;
+
+					d_ent = (void *)entry + rec_offset;
 				}
 			}
 
@@ -1045,16 +1046,14 @@ static int ext2_unlink(struct fs *vfs, const char *path)
 					ext2_write_inode(fs, &inode, d_ent->inode);
 				}
 
-				/* remove the entry */
-				d_ent->inode = 0;
-				d_ent->name_len = 0;
-
 				/* if this entry is not the first entry, we add its rec_len to the previous entry */
 				if (last_len) {
 					struct ext2_dir_entry *last_ent = (void *)entry + rec_offset - last_len;
 					last_ent->rec_len += d_ent->rec_len;
-					d_ent->rec_len = 0;
 				}
+
+				/* remove the entry */
+				memset(d_ent, 0, d_ent->rec_len);
 
 				/* write the block back to disk */
 				ext2_inode_write_block(fs, dir_inode, entry, i);
