@@ -320,6 +320,7 @@ static long ext2_inode_alloc_block(struct ext2fs *fs, struct ext2_inode *inode, 
 	long block;
 	size_t num_blocks = (inode->blocks * fs->bdev->block_size) / fs->block_size;
 
+
 	if (num_blocks < N_DIRECT) {
 		block = ext2_alloc_block(fs);
 		inode->block[num_blocks] = block;
@@ -398,7 +399,9 @@ static long ext2_inode_alloc_block(struct ext2fs *fs, struct ext2_inode *inode, 
 	} else {
 		return -ENOSPC;
 	}
+
 	/* write inode to disk */
+	inode->blocks += fs->block_size / fs->bdev->block_size;
 	ext2_write_inode(fs, inode, inode_no);
 
 	return block;
@@ -827,9 +830,10 @@ static long ext2_creat(struct fs *vfs, const char *path, ftype_t type)
 	/* make sure the file doesn't already exist */
 	struct file file;
 	int ret = ext2_open_file(vfs, &file, path);
-	kfree(file.path); /* not needed */
-	if (ret == 0)
+	if (ret == 0) {
+		kfree(file.path);
 		return -EEXIST;
+	}
 
 	/* find the parent directory */
 	char *path_copy = kmalloc(strlen(path) + 1, ALLOC_KERN);
@@ -844,9 +848,9 @@ static long ext2_creat(struct fs *vfs, const char *path, ftype_t type)
 	/* ensure the dir is a directory */
 	struct ext2_inode *dir_inode = kmalloc(sizeof(struct ext2_inode), ALLOC_DMA);
 
-	long parent_ino_num = ext2_inode_find_by_name(fs, dir);
+	long parent_ino_num;
 	if (dir == NULL)
-		parent_ino_num = 2;
+		parent_ino_num = EXT2_ROOT_INO;
 	else
 		parent_ino_num = ext2_inode_find_by_name(fs, dir);
 
@@ -855,13 +859,13 @@ static long ext2_creat(struct fs *vfs, const char *path, ftype_t type)
 		return parent_ino_num;
 	}
 
-	ino_t parent_ino = parent_ino_num;
+	ext2_read_inode(fs, dir_inode, parent_ino_num);
 
 	/* allocate an inode */
 	ino_t inode_no = ext2_alloc_inode(vfs, type);
 
 	/* allocate a block for the inode */
-	long block_no = ext2_inode_alloc_block(fs, (struct ext2_inode *)&file.inode, inode_no);
+	long block_no = ext2_alloc_block(fs);
 	if (block_no < 0) {
 		kfree(path_copy);
 		return block_no;
@@ -890,15 +894,27 @@ static long ext2_creat(struct fs *vfs, const char *path, ftype_t type)
 	}
 
 	size_t insert_size = sizeof(struct ext2_dir_entry) + strlen(base);
-	for (size_t parent_block = 0; parent_block < dir_inode->blocks; parent_block++) {
+	size_t num_blocks = (dir_inode->blocks * fs->bdev->block_size) / fs->block_size;
+	for (size_t parent_block = 0; parent_block < num_blocks; parent_block++) {
 		ext2_inode_read_block(fs, dir_inode, entry, parent_block);
 
 		uint32_t rec_offset = 0;
+		uint32_t rem_len = 0;
 		while (rec_offset < fs->block_size) {
 			struct ext2_dir_entry *d_ent = (void *)entry + rec_offset;
 
+			size_t t_len = d_ent->name_len + sizeof(struct ext2_dir_entry);
+			if(d_ent->rec_len > sizeof(struct ext2_dir_entry) + 255) {
+				if(t_len + rec_offset + insert_size < fs->block_size) {
+					rem_len = d_ent->rec_len - t_len;
+					d_ent->rec_len = t_len;
+					rec_offset += t_len;
+					continue;
+				}
+			}
+
 			/* find a free entry of the right size */
-			if (!d_ent->inode && (d_ent->rec_len >= insert_size || !d_ent->rec_len)) {
+			if (!d_ent->inode || !d_ent->rec_len || !d_ent->name_len) {
 				if (rec_offset + insert_size >= fs->block_size)
 					continue;
 
@@ -912,6 +928,11 @@ static long ext2_creat(struct fs *vfs, const char *path, ftype_t type)
 				/* write the block back to disk */
 				ext2_inode_write_block(fs, dir_inode, entry, parent_block);
 
+				/* set the next rec_len to remaining space in the block */
+				
+				if(rem_len)
+					d_ent->rec_len = rem_len;
+
 				kfree(path_copy);
 				kfree(entry);
 				kfree(dir_inode);
@@ -924,15 +945,13 @@ static long ext2_creat(struct fs *vfs, const char *path, ftype_t type)
 	}
 
 	/* if we get here, we need to allocate a new block for the directory */
-	long dir_block = ext2_inode_alloc_block(fs, dir_inode, parent_ino);
+	long dir_block = ext2_inode_alloc_block(fs, dir_inode, parent_ino_num);
 	if (dir_block < 0) {
 		kfree(path_copy);
 		kfree(entry);
 		kfree(dir_inode);
 		return dir_block;
 	}
-
-	ext2_inode_read_block(fs, dir_inode, entry, dir_inode->blocks - 1);
 
 	/* write the entry */
 	entry->inode = inode_no;
@@ -942,10 +961,10 @@ static long ext2_creat(struct fs *vfs, const char *path, ftype_t type)
 	memcpy(entry->name, base, strlen(base));
 
 	/* write the block back to disk */
-	ext2_inode_write_block(fs, dir_inode, entry, dir_inode->blocks - 1);
+	ext2_write_block(fs, entry, dir_block);
 
 	/* write the parent inode back to disk */
-	ext2_write_inode(fs, dir_inode, parent_ino);
+	ext2_write_inode(fs, dir_inode, parent_ino_num);
 
 	kfree(path_copy);
 	kfree(entry);
