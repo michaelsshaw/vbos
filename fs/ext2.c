@@ -955,7 +955,7 @@ static long ext2_creat(struct fs *vfs, const char *path, ftype_t type)
 
 	/* write the entry */
 	entry->inode = inode_no;
-	entry->rec_len = sizeof(struct ext2_dir_entry) + strlen(base);
+	entry->rec_len = fs->block_size;
 	entry->name_len = strlen(base);
 	entry->file_type = type;
 	memcpy(entry->name, base, strlen(base));
