@@ -164,6 +164,11 @@ size_t tell(int fd)
 	return fdesc->pos;
 }
 
+int unlink(const char *pathname)
+{
+	return rootfs->ops.unlink(rootfs, pathname);
+}
+
 int mkdir(const char *pathname)
 {
 	return rootfs->ops.mkdir(rootfs, pathname);
@@ -291,4 +296,3 @@ void vfs_init(const char *rootdev_name)
 	/* init file descriptor slab */
 	fd_slab = slab_create(sizeof(struct file_descriptor), 16 * KB, 0);
 }
-

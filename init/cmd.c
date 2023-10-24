@@ -16,6 +16,7 @@ int kcmd_stat(int argc, char **argv);
 int kcmd_basename(int argc, char **argv);
 int kcmd_dirname(int argc, char **argv);
 int kcmd_mkdir(int argc, char **argv);
+int kcmd_unlink(int argc, char **argv);
 
 #define KCMD_DECL(name)            \
 	{                          \
@@ -28,7 +29,7 @@ struct kcmd {
 };
 
 struct kcmd cmd_list[] = { KCMD_DECL(basename), KCMD_DECL(cat), KCMD_DECL(dirname), KCMD_DECL(clear),
-			   KCMD_DECL(help),	KCMD_DECL(ls),	KCMD_DECL(mkdir),   KCMD_DECL(stat) };
+			   KCMD_DECL(help),	KCMD_DECL(ls),	KCMD_DECL(mkdir),   KCMD_DECL(stat), KCMD_DECL(unlink) };
 
 int kcmd_basename(int argc, char **argv)
 {
@@ -172,6 +173,22 @@ int kcmd_stat(int argc, char **argv)
 
 	kprintf("File: %s\n", argv[1]);
 	kprintf("Size: %d\n", st.size);
+
+	return 0;
+}
+
+int kcmd_unlink(int argc, char **argv)
+{
+	if (!argv[1] || strempty(argv[1])) {
+		kprintf("Usage: unlink <file>\n");
+		return 1;
+	}
+
+	int ret = unlink(argv[1]);
+	if (ret < 0) {
+		kprintf("Failed to unlink %s: %s\n", argv[1], strerror(-ret));
+		return 1;
+	}
 
 	return 0;
 }

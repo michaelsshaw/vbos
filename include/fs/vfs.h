@@ -100,6 +100,7 @@ struct fs_ops {
 	int (*open)(struct fs *fs, struct file *file, const char *path);
 	int (*readdir)(struct fs *fs, uint32_t ino, struct dirent **dir);
 	int (*mkdir)(struct fs *fs, const char *path);
+	int (*unlink)(struct fs *fs, const char *path);
 };
 
 struct fs {
@@ -121,6 +122,7 @@ int open(const char *pathname, int flags);
 int close(int fd);
 int seek(int fd, size_t offset, int whence);
 size_t tell(int fd);
+int unlink(const char *pathname);
 int statfd(int fd, struct statbuf *statbuf);
 int mkdir(const char *pathname);
 
