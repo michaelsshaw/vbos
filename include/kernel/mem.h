@@ -11,6 +11,7 @@
 #define PAGE_XD (1 << 64)
 #define PAGE_PRESENT (1 << 0)
 #define PAGE_RW (1 << 1)
+#define PAGE_PWT (1 << 3)
 #define PAGE_PCD (1 << 4)
 #define PAGE_GLOBAL (1 << 8)
 #define PAGE_USERMODE (1 << 2)
@@ -97,7 +98,10 @@ extern struct page kdefault_attrs;
 
 void *buddy_alloc(size_t size);
 void buddy_free(void *paddr_hhdm);
-void kmap(paddr_t paddr, uint64_t vaddr, size_t len, uint64_t attr);
+uintptr_t kmap_find_unmapped(size_t len);
+void kmap(paddr_t paddr, uintptr_t vaddr, size_t len, uint64_t attr);
+void *kmap_device(void *dev_paddr, size_t len);
+void kunmap(uintptr_t vaddr);
 
 void mem_early_init(char *mem, size_t len);
 

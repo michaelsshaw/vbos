@@ -269,7 +269,9 @@ void ahci_init()
 		kprintf(LOG_WARN "No SATA controllers found\n");
 		return;
 	}
-	abar = (hbamem_t *)((uintptr_t)dev->bar5 | hhdm_start);
+
+	abar = (hbamem_t *)((uintptr_t)dev->bar5);
+	abar = kmap_device((void *)abar, sizeof(hbamem_t));
 
 	if (!(abar->ghc & (1 << 31))) {
 		kprintf(LOG_WARN "AHCI controller not enabled\n");

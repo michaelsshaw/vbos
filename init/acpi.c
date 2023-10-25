@@ -45,11 +45,12 @@ static void rsdt_parse(struct rsdt *rsdt)
 
 void acpi_init()
 {
-	rsdp = (struct rsdp *)rsdp_req.response->address;
+	rsdp_req.response->address = (void *)((uintptr_t)rsdp_req.response->address & ~(hhdm_start));
+	rsdp = kmap_device(rsdp_req.response->address, 0x1000);
 
 	/* 2 steps silences warning */
-	uintptr_t rsdt_addr = (uintptr_t)(rsdp->rsdt_addr | hhdm_start);
-	struct rsdt *rsdt = (struct rsdt *)rsdt_addr;
+	uintptr_t rsdt_addr = (uintptr_t)(rsdp->rsdt_addr & ~(hhdm_start));
+	struct rsdt *rsdt = kmap_device((void *)rsdt_addr, 0x4000);
 	rsdt_parse(rsdt);
 
 #ifdef KDEBUG

@@ -140,6 +140,7 @@ struct rbnode *rbt_insert(struct rbtree *tree, uint64_t key)
 		parent->right = new;
 
 	rbt_insert_fixup(tree, new);
+	tree->num_nodes++;
 	spinlock_release(&tree->lock);
 
 	return new;
@@ -290,6 +291,8 @@ void rbt_delete(struct rbtree *tree, struct rbnode *del)
 		if (orig_color == RB_BLACK)
 			rbt_delete_fixup(tree, x);
 	}
+
+	tree->num_nodes--;
 	spinlock_release(&tree->lock);
 }
 
@@ -319,6 +322,21 @@ struct rbnode *rbt_search(struct rbtree *tree, uint64_t key)
 	}
 
 	return NULL;
+}
+
+struct rbnode *rbt_successor(struct rbnode *node)
+{
+	if (node->right != NULL) {
+		return rbt_minimum(node->right);
+	}
+
+	struct rbnode *parent = node->parent;
+	while (parent != NULL && node == parent->right) {
+		node = parent;
+		parent = parent->parent;
+	}
+
+	return parent;
 }
 
 void rbtree_print_diagram_fancy(struct rbtree *tree, struct rbnode *node, int indent)

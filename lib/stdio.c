@@ -27,6 +27,7 @@ int vsnprintf(char *str, const char *restrict fmt, size_t size, va_list args)
 	char *s;
 	int i;
 	long l;
+	unsigned int u;
 
 	int n;
 
@@ -77,16 +78,16 @@ int vsnprintf(char *str, const char *restrict fmt, size_t size, va_list args)
 				str[ret] = i & 0xFF;
 				break;
 			case 'x':
-				i = va_arg(args, int);
+				u = va_arg(args, int);
 
 				n = 0;
 
 				memset(buf, 0, sizeof(buf));
 
 				do {
-					buf[n] = convert[i & 0xF];
+					buf[n] = convert[u & 0xF];
 					n++;
-				} while ((i >>= 4));
+				} while ((u >>= 4));
 
 				goto printf_reverse;
 				break;

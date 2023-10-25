@@ -13,6 +13,7 @@
 #include <dev/serial.h>
 #include <dev/pci.h>
 #include <dev/ahci.h>
+#include <dev/apic.h>
 
 #include <fs/vfs.h>
 
@@ -149,6 +150,7 @@ void kmain_post_stack_init()
 		vfs_init(root_path);
 
 	_pic_init();
+	apic_init();
 
 	console_init();
 	kprintf("\n\n# ");

@@ -25,11 +25,15 @@ struct rbnode {
 struct rbtree {
 	struct rbnode *root;
 	spinlock_t lock;
+	size_t num_nodes;
 };
 
 struct rbnode *rbt_insert(struct rbtree *tree, uint64_t key);
 void rbt_delete(struct rbtree *tree, struct rbnode *del);
+
 struct rbnode *rbt_search(struct rbtree *tree, uint64_t key);
+struct rbnode *rbt_successor(struct rbnode *node);
+
 void rbt_slab_init();
 
 #endif /* _RBTREE_H_ */

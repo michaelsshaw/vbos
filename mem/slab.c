@@ -12,7 +12,7 @@ static slab_t *slab_cache[ARRAY_SIZE(slab_sizes)];
 static size_t dma_sizes[] = { 0x1000, 0x10000, 0x100000, 0x1000000 };
 static slab_t *slab_cache_dma[ARRAY_SIZE(slab_sizes)];
 
-static struct rbtree kmalloc_tree = { NULL, 0 };
+static struct rbtree kmalloc_tree = { NULL, 0, 0 };
 
 static inline void slab_range(slab_t *slab, uintptr_t *o_start, uintptr_t *o_end)
 {

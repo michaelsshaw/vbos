@@ -267,7 +267,48 @@ static uint64_t *pagemap_traverse(uint64_t *this_level, size_t next_num)
 	return r;
 }
 
-void kmap(paddr_t paddr, uint64_t vaddr, size_t len, uint64_t attr)
+uintptr_t kmap_find_unmapped(size_t len)
+{
+	len = MIN(len, 0x1000);
+	len = npow2(len);
+
+	spinlock_acquire(&kmap_lock);
+	if (kmap_tree == NULL) {
+		spinlock_release(&kmap_lock);
+		return 0;
+	}
+
+	struct rbnode *node = kmap_tree->root;
+	if (node == NULL) {
+		spinlock_release(&kmap_lock);
+		return 0;
+	}
+
+	/* find the lowest address that is mapped */
+	while (node->left != NULL)
+		node = node->left;
+
+	size_t ret = hhdm_start;
+
+	while (node != NULL) {
+		/* node value is the physical address, node key is the virtual address 
+		 *
+		 * we want to find the lowest virtual address that is not mapped
+		 */
+		if (node->key > ret + len) {
+			spinlock_release(&kmap_lock);
+			return ret;
+		}
+
+		ret = node->key + node->value2;
+		node = rbt_successor(node);
+	}
+
+	spinlock_release(&kmap_lock);
+	return ret;
+}
+
+void kmap(paddr_t paddr, uintptr_t vaddr, size_t len, uint64_t attr)
 {
 	spinlock_acquire(&kmap_lock);
 	uint64_t *pdpt;
@@ -293,6 +334,13 @@ void kmap(paddr_t paddr, uint64_t vaddr, size_t len, uint64_t attr)
 
 	if (kmap_tree != NULL) {
 		struct rbnode *node = rbt_insert(kmap_tree, vaddr);
+
+		if (node == NULL) {
+			kprintf(LOG_WARN "kmap: Tried to map already mapped address %X\n", vaddr);
+			spinlock_release(&kmap_lock);
+			return;
+		}
+
 		node->value = paddr;
 		node->value2 = len;
 	}
@@ -314,6 +362,17 @@ void kmap(paddr_t paddr, uint64_t vaddr, size_t len, uint64_t attr)
 	cr3_write(cr3);
 
 	spinlock_release(&kmap_lock);
+}
+
+void *kmap_device(void *dev_paddr, size_t len)
+{
+	paddr_t dev = (paddr_t)dev_paddr;
+	paddr_t dev_page = dev & ~(0xFFF);
+	uintptr_t vaddr = kmap_find_unmapped(len);
+	kmap(dev_page, vaddr, len, PAGE_PCD | PAGE_PWT | PAGE_RW | PAGE_PRESENT);
+
+	vaddr |= (dev & 0xFFF);
+	return (void *)vaddr;
 }
 
 static bool kunmap_check_table(uint64_t *table, uint64_t *parent, size_t n)
@@ -501,16 +560,11 @@ void mem_early_init(char *mem, size_t len)
 	slabtypes_init();
 
 	/* kmalloc is available after this point */
-	kmap_tree = kmalloc(sizeof(struct rbtree), ALLOC_KERN);
-	kmap_tree->root = NULL;
-	kmap_tree->lock = 0;
+	kmap_tree = kzalloc(sizeof(struct rbtree), ALLOC_KERN);
 
 	/* initialize and populate the new permanent kernel page tables */
 	alloc_page = kmap_alloc_page;
 	pml4 = NULL;
-
-	/* map the kernel */
-	kmap(0, hhdm_start, 4 * GB, attrs.val | PAGE_PCD);
 
 	/* do not invalidate TLB entries for kernel pages */
 	attrs.val |= PAGE_GLOBAL;

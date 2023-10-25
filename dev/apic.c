@@ -127,6 +127,15 @@ void apic_init()
 
 	lapic_addr = __madt->lapic_addr;
 
+	uintptr_t lapic_page = kmap_find_unmapped(0x1000);
+	kmap(lapic_addr & ~(0xFFF), lapic_page, 0x1000, PAGE_PCD | PAGE_PWT | PAGE_RW | PAGE_PRESENT);
+
+	uintptr_t ioapic_page = kmap_find_unmapped(0x1000);
+	kmap(ioapic_addr & ~(0xFFF), ioapic_page, 0x1000, PAGE_PCD | PAGE_PWT | PAGE_RW | PAGE_PRESENT);
+
+	lapic_addr = lapic_page | (lapic_addr & 0xFFF);
+	ioapic_addr = ioapic_page | (ioapic_addr & 0xFFF);
+
 	kprintf(LOG_INFO "IOAPIC ADDR: %X\n", ioapic_addr);
 	kprintf(LOG_INFO "LAPIC ADDR : %X\n", lapic_addr);
 
