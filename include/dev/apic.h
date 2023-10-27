@@ -36,6 +36,8 @@
 #define LAPIC_CUR_COUNT 0x390
 #define LAPIC_DIVIDE_CONFIG 0x3E0
 
+#define MSR_IA32_APIC_BASE 0x1B
+
 #ifndef __ASM__
 
 #include <kernel/common.h>
@@ -126,11 +128,8 @@ struct apic_redirect {
 } PACKED;
 
 void apic_init();
+void lapic_eoi();
 int madt_parse_next_entry(int offset);
-uint32_t ioapic_read(uintptr_t addr, uint8_t reg);
-void ioapic_write(uintptr_t addr, uint8_t reg, uint32_t value);
-uint32_t lapic_read(uintptr_t addr, unsigned int regoffset);
-uint32_t lapic_write(uintptr_t addr, unsigned int regoffset, uint32_t value);
 
 #endif /* __ASM__ */
 #endif /* _APIC_H_ */

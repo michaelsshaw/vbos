@@ -51,7 +51,7 @@ static inline void _pic_init()
 	cli();
 	pic_mask(4, 0);
 	pic_init();
-	console_resize();
+/*	console_resize(); */
 	sti();
 
 	while (!console_ready())

@@ -3,6 +3,7 @@
 #include <kernel/pio.h>
 
 #include <dev/serial.h>
+#include <dev/apic.h>
 #include <dev/console.h>
 
 #include <stdio.h>
@@ -44,4 +45,5 @@ void serial_trap()
 	while ((inb(COM1 | 5) & 0x01) == 0)
 		;
 	console_input(inb(COM1));
+	lapic_eoi();
 }

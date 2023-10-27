@@ -38,30 +38,7 @@ void exception(int vector, int error)
 
 void pic_init()
 {
-	uint8_t mask1 = inb(PIC1_CMD + 1);
-	uint8_t mask2 = inb(PIC2_CMD + 1);
-
-	outb(PIC1_CMD, 0x11);
-	iowait();
-	outb(PIC2_CMD, 0x11);
-	iowait();
-	outb(PIC1_DATA, 0x20);
-	iowait();
-	outb(PIC2_DATA, 0x28);
-	iowait();
-	outb(PIC1_DATA, 4);
-	iowait();
-	outb(PIC2_DATA, 2);
-	iowait();
-
-	outb(PIC1_DATA, 0x01);
-	iowait();
-	outb(PIC2_DATA, 0x01);
-	iowait();
-
-	outb(PIC1_DATA, mask1);
-	outb(PIC2_DATA, mask2);
-
-	pic_eoi(15);
-	kprintf(LOG_SUCCESS "8259 PIC initialized\n");
+	/* disable the PIC */
+	outb(PIC1_DATA, 0xFF);
+	outb(PIC2_DATA, 0xFF);
 }
