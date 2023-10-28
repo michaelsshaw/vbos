@@ -32,7 +32,6 @@ void ioapic_redirect_insert(size_t irq, size_t isr, size_t low_active, size_t le
 {
 	/* Set the interrupt redirection entry */
 	ioapic_write(0x10 + 2 * irq, (level_trigger << 15) | (low_active << 13) | isr);
-	kprintf("lapic_id: %d\n", lapic_id);
 	ioapic_write(0x10 + 2 * irq + 1, lapic_id << 24);
 }
 
@@ -106,7 +105,6 @@ void apic_init()
 
 	/* get ioapic version */
 	lapic_id = lapic_read(lapic_addr, 0x20);
-	kprintf(LOG_WARN "lapic_id: %d\n", lapic_id);
 	ioapic_redirect_insert(4, 0x24, 0, 0);
 
 	/* Set spurious interrupt vector to 0xFF and enable the LAPIC */

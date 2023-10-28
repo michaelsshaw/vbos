@@ -46,6 +46,13 @@ void yield()
 	}
 }
 
+void panic()
+{
+	kprintf(LOG_ERROR "KERNEL PANIC\n");
+	cli();
+	yield();
+}
+
 static inline void _pic_init()
 {
 	cli();

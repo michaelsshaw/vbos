@@ -273,7 +273,7 @@ void vfs_init(const char *rootdev_name)
 	struct block_device *rootdev = block_get_device(rootdev_name);
 	if (!rootdev) {
 		kprintf(LOG_ERROR "Failed to find root device %s\n", rootdev_name);
-		return;
+		panic();
 	}
 
 	kprintf(LOG_DEBUG "Found root device %s\n", rootdev_name);
@@ -286,6 +286,7 @@ void vfs_init(const char *rootdev_name)
 		return;
 	} else {
 		kprintf(LOG_DEBUG "Mounted root device %s\n", rootdev_name);
+		panic();
 	}
 
 	fs->mount_point = kzalloc(2, ALLOC_KERN);
