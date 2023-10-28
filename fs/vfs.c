@@ -283,10 +283,9 @@ void vfs_init(const char *rootdev_name)
 	struct fs *fs = ext2_init_fs(rootdev);
 	if (!fs) {
 		kprintf(LOG_ERROR "Failed to mount root device %s\n", rootdev_name);
-		return;
+		panic();
 	} else {
 		kprintf(LOG_DEBUG "Mounted root device %s\n", rootdev_name);
-		panic();
 	}
 
 	fs->mount_point = kzalloc(2, ALLOC_KERN);

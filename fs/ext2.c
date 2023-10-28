@@ -663,7 +663,7 @@ static int ext2_open_file(struct fs *vfs, struct file *file, const char *path)
 		return ret;
 	}
 
-	memcpy(&file->inode, inode, sizeof(struct inode));
+	memcpy(&file->inode, inode, sizeof(struct ext2_inode));
 	file->size = inode->size;
 	file->type = inode_to_ftype[inode->mode >> 12];
 	file->inode_num = inode_no;
