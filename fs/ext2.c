@@ -15,6 +15,8 @@
 #define ITYPE_DECL(_ino, _de) [(_ino >> 12)] = (_de)
 #define DTYPE_DECL(_de, _ino) [(_de)] = (_ino)
 
+static struct fs_ops *ext2_ops;
+
 static uint8_t inode_to_ftype[] = {
 	ITYPE_DECL(EXT2_INO_FIFO, VFS_FILE_FIFO), ITYPE_DECL(EXT2_INO_CHARDEV, VFS_FILE_CHARDEV),
 	ITYPE_DECL(EXT2_INO_DIR, VFS_FILE_DIR),	  ITYPE_DECL(EXT2_INO_BLKDEV, VFS_FILE_BLKDEV),
@@ -1162,14 +1164,22 @@ struct fs *ext2_init_fs(struct block_device *bdev)
 	ret->fs = extfs;
 	ret->type = VFS_TYPE_EXT2;
 
-	struct fs_ops ops = { .open = ext2_open_file,
-			      .read = ext2_read_file,
-			      .write = ext2_write_file,
-			      .readdir = ext2_readdir,
-			      .mkdir = ext2_mkdir,
-			      .unlink = ext2_unlink };
+	ext2_ops = kmalloc(sizeof(struct fs_ops), ALLOC_KERN);
 
-	ret->ops = ops;
+	if(!ext2_ops) {
+		kfree(extfs->bgdt);
+		kfree(extfs);
+		return NULL;
+	}
+
+	ext2_ops->open = ext2_open_file;
+	ext2_ops->read = ext2_read_file;
+	ext2_ops->write = ext2_write_file;
+	ext2_ops->readdir = ext2_readdir;
+	ext2_ops->mkdir = ext2_mkdir;
+	ext2_ops->unlink = ext2_unlink;
+
+	ret->ops = ext2_ops;
 
 	return ret;
 }

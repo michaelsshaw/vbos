@@ -29,7 +29,7 @@ int write(int fd, void *buf, size_t count)
 	if (fdesc->file.type != VFS_FILE_FILE)
 		return -EBADF;
 
-	int ret = fdesc->fs->ops.write(fdesc->fs, &fdesc->file, buf, fdesc->pos, count);
+	int ret = fdesc->fs->ops->write(fdesc->fs, &fdesc->file, buf, fdesc->pos, count);
 
 	if (ret < 0)
 		return ret;
@@ -54,7 +54,7 @@ int read(int fd, void *buf, size_t count)
 	if (fdesc->file.type != VFS_FILE_FILE)
 		return -EBADF;
 
-	int ret = fdesc->fs->ops.read(fdesc->fs, &fdesc->file, buf, fdesc->pos, count);
+	int ret = fdesc->fs->ops->read(fdesc->fs, &fdesc->file, buf, fdesc->pos, count);
 
 	if (ret < 0)
 		return ret;
@@ -90,7 +90,7 @@ int open(const char *pathname, int flags)
 	memset(fd, 0, sizeof(struct file_descriptor));
 
 	/* find the file */
-	int result = rootfs->ops.open(rootfs, &fd->file, pathname);
+	int result = rootfs->ops->open(rootfs, &fd->file, pathname);
 
 	if (result < 0) {
 		kprintf(LOG_ERROR "Failed to open %s: %s\n", pathname, strerror(-result));
@@ -166,12 +166,12 @@ size_t tell(int fd)
 
 int unlink(const char *pathname)
 {
-	return rootfs->ops.unlink(rootfs, pathname);
+	return rootfs->ops->unlink(rootfs, pathname);
 }
 
 int mkdir(const char *pathname)
 {
-	return rootfs->ops.mkdir(rootfs, pathname);
+	return rootfs->ops->mkdir(rootfs, pathname);
 }
 
 DIR *opendir(const char *name)
@@ -215,7 +215,7 @@ struct dirent *readdir(DIR *dir)
 		return NULL;
 
 	if (dir->dirents == NULL)
-		dir->num_dirents = fs->ops.readdir(fs, file->inode_num, &dir->dirents);
+		dir->num_dirents = fs->ops->readdir(fs, file->inode_num, &dir->dirents);
 
 	if (dir->dirents == NULL)
 		return NULL;

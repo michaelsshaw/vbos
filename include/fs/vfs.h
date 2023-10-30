@@ -106,7 +106,7 @@ struct fs_ops {
 struct fs {
 	void *fs;
 	uint32_t type;
-	struct fs_ops ops;
+	struct fs_ops *ops;
 
 	char *mount_point;
 };
