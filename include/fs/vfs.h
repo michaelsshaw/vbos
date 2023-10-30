@@ -8,13 +8,14 @@
 
 #define VFS_TYPE_EXT2 0x0001
 
-#define VFS_FILE_FILE 0x0001
-#define VFS_FILE_DIR 0x0002
-#define VFS_FILE_CHARDEV 0x0003
-#define VFS_FILE_BLKDEV 0x0004
-#define VFS_FILE_FIFO 0x0005
-#define VFS_FILE_SOCK 0x0006
-#define VFS_FILE_SYMLINK 0x0007
+#define VFS_VNO_FIFO 0x1000
+#define VFS_VNO_CHARDEV 0x2000
+#define VFS_VNO_DIR 0x4000
+#define VFS_VNO_BLKDEV 0x6000
+#define VFS_VNO_REG 0x8000
+#define VFS_VNO_SYMLINK 0xA000
+#define VFS_VNO_SOCK 0xC000
+#define VFS_VTYPE_MASK 0xF000
 
 #define SEEK_SET 0
 #define SEEK_CUR 1
@@ -23,36 +24,16 @@
 typedef uint32_t ino_t;
 typedef uint8_t ftype_t;
 
-struct inode {
-	uint16_t mode;
-	uint16_t uid;
-	uint32_t size;
-
-	uint32_t atime;
-	uint32_t ctime;
-	uint32_t mtime;
-	uint32_t dtime;
-
-	uint16_t gid;
-	uint16_t links_count;
-	uint32_t blocks;
+struct vnode {
+	char name[256];
 	uint32_t flags;
-	uint32_t osd1;
-	uint32_t block[12];
+	uint32_t gid;
+	uint32_t uid;
+	uint32_t size;
+	uint32_t ino_num;
 
-	uint32_t block_indirect;
-	uint32_t block_dindirect;
-	uint32_t block_tindirect;
-
-	uint32_t generation;
-	uint32_t file_acl;
-	uint32_t dir_acl;
-	uint32_t faddr;
-
-	uint64_t af_size;
-	uint16_t frag_number;
-	uint16_t frag_size;
-} PACKED; /* PACKED to allow for memcpy */
+	struct fs *fs;
+};
 
 struct dirent {
 	uint64_t inode;
@@ -65,26 +46,23 @@ typedef struct _DIR {
 	struct fs *fs;
 	struct dirent *dirents;
 	size_t num_dirents;
-	struct file *file;
+	struct vnode *vnode;
 	int fd;
 	uint64_t pos;
 } DIR;
 
 struct file {
-	struct inode inode;
+	struct vnode vnode;
 
 	ino_t inode_num; /* inode number */
 	uint32_t type; /* type of the file */
 	uint64_t size; /* size of the file */
 
-	char *path; /* path to the file */
-	char *name; /* name of the file */
-
 	void *fs_file; /* filesystem specific object */
 };
 
 struct file_descriptor {
-	struct file file;
+	struct vnode vnode;
 
 	uint64_t pos;
 	int fd;
@@ -95,9 +73,9 @@ struct file_descriptor {
 };
 
 struct fs_ops {
-	int (*read)(struct fs *fs, struct file *file, void *buf, size_t offset, size_t size);
-	int (*write)(struct fs *fs, struct file *file, void *buf, size_t offset, size_t size);
-	int (*open)(struct fs *fs, struct file *file, const char *path);
+	int (*read)(struct fs *fs, struct vnode *vnode, void *buf, size_t offset, size_t size);
+	int (*write)(struct fs *fs, struct vnode *vnode, void *buf, size_t offset, size_t size);
+	int (*open)(struct fs *fs, struct vnode *vnode, const char *path);
 	int (*readdir)(struct fs *fs, uint32_t ino, struct dirent **dir);
 	int (*mkdir)(struct fs *fs, const char *path);
 	int (*unlink)(struct fs *fs, const char *path);

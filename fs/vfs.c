@@ -23,18 +23,18 @@ int write(int fd, void *buf, size_t count)
 
 	struct file_descriptor *fdesc = (struct file_descriptor *)fdnode->value;
 
-	if (fdesc->file.type == VFS_FILE_DIR)
+	if ((fdesc->vnode.flags & VFS_VTYPE_MASK) == VFS_VNO_DIR)
 		return -EISDIR;
 
-	if (fdesc->file.type != VFS_FILE_FILE)
+	if ((fdesc->vnode.flags & VFS_VTYPE_MASK) != VFS_VNO_REG)
 		return -EBADF;
 
-	int ret = fdesc->fs->ops->write(fdesc->fs, &fdesc->file, buf, fdesc->pos, count);
+	int ret = fdesc->fs->ops->write(fdesc->fs, &fdesc->vnode, buf, fdesc->pos, count);
 
 	if (ret < 0)
 		return ret;
 
-	fdesc->pos = MIN(fdesc->pos + ret, fdesc->file.size);
+	fdesc->pos = MIN(fdesc->pos + ret, fdesc->vnode.size);
 
 	return ret;
 }
@@ -48,18 +48,18 @@ int read(int fd, void *buf, size_t count)
 
 	struct file_descriptor *fdesc = (struct file_descriptor *)fdnode->value;
 
-	if (fdesc->file.type == VFS_FILE_DIR)
+	if ((fdesc->vnode.flags & VFS_VTYPE_MASK) == VFS_VNO_DIR)
 		return -EISDIR;
 
-	if (fdesc->file.type != VFS_FILE_FILE)
+	if ((fdesc->vnode.flags & VFS_VTYPE_MASK) != VFS_VNO_REG)
 		return -EBADF;
 
-	int ret = fdesc->fs->ops->read(fdesc->fs, &fdesc->file, buf, fdesc->pos, count);
+	int ret = fdesc->fs->ops->read(fdesc->fs, &fdesc->vnode, buf, fdesc->pos, count);
 
 	if (ret < 0)
 		return ret;
 
-	fdesc->pos = MIN(fdesc->pos + ret, fdesc->file.size);
+	fdesc->pos = MIN(fdesc->pos + ret, fdesc->vnode.size);
 
 	return ret;
 }
@@ -73,7 +73,7 @@ int statfd(int fd, struct statbuf *statbuf)
 
 	struct file_descriptor *fdesc = (struct file_descriptor *)fdnode->value;
 
-	statbuf->size = fdesc->file.size;
+	statbuf->size = fdesc->vnode.size;
 
 	return 0;
 }
@@ -90,7 +90,7 @@ int open(const char *pathname, int flags)
 	memset(fd, 0, sizeof(struct file_descriptor));
 
 	/* find the file */
-	int result = rootfs->ops->open(rootfs, &fd->file, pathname);
+	int result = rootfs->ops->open(rootfs, &fd->vnode, pathname);
 
 	if (result < 0) {
 		kprintf(LOG_ERROR "Failed to open %s: %s\n", pathname, strerror(-result));
@@ -118,7 +118,6 @@ int close(int fd)
 		return -EBADF;
 
 	struct file_descriptor *fdesc = (struct file_descriptor *)fdnode->value;
-	kfree(fdesc->file.path);
 
 	slab_free(fd_slab, fdesc);
 	rbt_delete(kfd, fdnode);
@@ -143,7 +142,7 @@ int seek(int fd, size_t offset, int whence)
 		fdesc->pos += offset;
 		break;
 	case SEEK_END:
-		fdesc->pos = fdesc->file.size + offset;
+		fdesc->pos = fdesc->vnode.size + offset;
 		break;
 	default:
 		return -EINVAL;
@@ -186,9 +185,8 @@ DIR *opendir(const char *name)
 		return NULL;
 
 	struct fs *fs = fdesc->fs;
-	struct file *file = &fdesc->file;
 
-	if (file->type != VFS_FILE_DIR) {
+	if ((fdesc->vnode.flags & VFS_VTYPE_MASK) != VFS_VNO_DIR) {
 		close(fd);
 		return NULL;
 	}
@@ -196,7 +194,7 @@ DIR *opendir(const char *name)
 	DIR *dir = kzalloc(sizeof(DIR), ALLOC_KERN);
 	dir->fd = fd;
 	dir->fs = fs;
-	dir->file = file;
+	dir->vnode = &fdesc->vnode;
 	dir->pos = 0;
 	dir->dirents = NULL;
 
@@ -209,13 +207,12 @@ struct dirent *readdir(DIR *dir)
 		return NULL;
 
 	struct fs *fs = dir->fs;
-	struct file *file = dir->file;
 
-	if (file->type != VFS_FILE_DIR)
+	if ((dir->vnode->flags & VFS_VTYPE_MASK) != VFS_VNO_DIR)
 		return NULL;
 
 	if (dir->dirents == NULL)
-		dir->num_dirents = fs->ops->readdir(fs, file->inode_num, &dir->dirents);
+		dir->num_dirents = fs->ops->readdir(fs, dir->vnode->ino_num, &dir->dirents);
 
 	if (dir->dirents == NULL)
 		return NULL;

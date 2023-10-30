@@ -18,17 +18,10 @@
 static struct fs_ops *ext2_ops;
 
 static uint8_t inode_to_ftype[] = {
-	ITYPE_DECL(EXT2_INO_FIFO, VFS_FILE_FIFO), ITYPE_DECL(EXT2_INO_CHARDEV, VFS_FILE_CHARDEV),
-	ITYPE_DECL(EXT2_INO_DIR, VFS_FILE_DIR),	  ITYPE_DECL(EXT2_INO_BLKDEV, VFS_FILE_BLKDEV),
-	ITYPE_DECL(EXT2_INO_REG, VFS_FILE_FILE),  ITYPE_DECL(EXT2_INO_SYMLINK, VFS_FILE_SYMLINK),
-	ITYPE_DECL(EXT2_INO_SOCK, VFS_FILE_SOCK),
-};
-
-static uint16_t ftype_to_ino[] = {
-	DTYPE_DECL(VFS_FILE_FIFO, EXT2_INO_FIFO), DTYPE_DECL(VFS_FILE_CHARDEV, EXT2_INO_CHARDEV),
-	DTYPE_DECL(VFS_FILE_DIR, EXT2_INO_DIR),	  DTYPE_DECL(VFS_FILE_BLKDEV, EXT2_INO_BLKDEV),
-	DTYPE_DECL(VFS_FILE_FILE, EXT2_INO_REG),  DTYPE_DECL(VFS_FILE_SYMLINK, EXT2_INO_SYMLINK),
-	DTYPE_DECL(VFS_FILE_SOCK, EXT2_INO_SOCK),
+	ITYPE_DECL(EXT2_INO_FIFO, EXT2_DE_FIFO), ITYPE_DECL(EXT2_INO_CHARDEV, EXT2_DE_CHRDEV),
+	ITYPE_DECL(EXT2_INO_DIR, EXT2_DE_DIR),	 ITYPE_DECL(EXT2_INO_BLKDEV, EXT2_DE_BLKDEV),
+	ITYPE_DECL(EXT2_INO_REG, EXT2_DE_FILE),	 ITYPE_DECL(EXT2_INO_SYMLINK, EXT2_DE_SYMLINK),
+	ITYPE_DECL(EXT2_INO_SOCK, EXT2_DE_SOCK),
 };
 
 #undef ITYPE_DECL
@@ -625,7 +618,7 @@ static long ext2_inode_find_by_name(struct ext2fs *fs, const char *path)
 			}
 		}
 
-		if (!entry || !entry->inode) {
+		if (!entry || !entry->inode || ino_num_blocks == 0) {
 			kfree(inode);
 			kfree(path_copy);
 			kfree(oentry);
@@ -644,7 +637,7 @@ found:
 	return inode_no;
 }
 
-static int ext2_open_file(struct fs *vfs, struct file *file, const char *path)
+static int ext2_open_file(struct fs *vfs, struct vnode *vnode, const char *path)
 {
 	/* find the inode of the file */
 	struct ext2fs *fs = (struct ext2fs *)vfs->fs;
@@ -665,22 +658,19 @@ static int ext2_open_file(struct fs *vfs, struct file *file, const char *path)
 		return ret;
 	}
 
-	memcpy(&file->inode, inode, sizeof(struct ext2_inode));
-	file->size = inode->size;
-	file->type = inode_to_ftype[inode->mode >> 12];
-	file->inode_num = inode_no;
+	vnode->fs = vfs;
+	vnode->size = inode->size;
+	vnode->uid = inode->uid;
+	vnode->gid = inode->gid;
+	vnode->flags = inode->mode;
+	vnode->ino_num = inode_no;
 
-	file->path = kzalloc(strlen(path) + 1, ALLOC_KERN);
-	if (!file->path) {
-		kfree(inode);
-		return -ENOMEM;
-	}
-	strcpy((char *)file->path, path);
-	file->name = basename((char *)path);
+	char *bn = basename((char *)path);
+	memcpy(vnode->name, bn, MIN(strlen(bn), 255));
 
 	/* check for long filesize */
 	if (fs->sb.feature_ro_compat & EXT2_FLAG_LONG_FILESIZE)
-		file->size |= ((uint64_t)inode->dir_acl << 32);
+		vnode->size |= ((uint64_t)inode->dir_acl << 32);
 
 	kfree(inode);
 
@@ -758,27 +748,32 @@ static int ext2_readdir(struct fs *fs, uint32_t ino_num, struct dirent **out)
 	return num_entries;
 }
 
-static int ext2_write_file(struct fs *vfs, struct file *file, void *buf, size_t offset, size_t count)
+static int ext2_write_file(struct fs *vfs, struct vnode *vnode, void *buf, size_t offset, size_t count)
 {
 	struct ext2fs *fs = vfs->fs;
+	struct ext2_inode inode;
 
-	if ((file->inode.mode & 0xF000) != EXT2_INO_REG)
+	int res = ext2_read_inode(fs, &inode, vnode->ino_num);
+	if (res < 0)
+		return res;
+
+	if ((inode.flags & 0xF000) != EXT2_INO_REG)
 		return -EISDIR;
 
-	size_t cur_num_blocks = (file->inode.blocks * fs->block_size) / fs->bdev->block_size;
+	size_t cur_num_blocks = (inode.blocks * fs->block_size) / fs->bdev->block_size;
 	size_t block = offset / fs->block_size;
 	size_t ooffset = offset;
 
-	if (offset > file->size)
+	if (offset > vnode->size)
 		return -EINVAL;
 
-	if (offset + count > file->size) {
+	if (offset + count > vnode->size) {
 		/* allocate more blocks */
 		size_t new_num_blocks = npow2(offset + count) / fs->block_size;
 		new_num_blocks -= MIN(cur_num_blocks, new_num_blocks);
 
 		for (size_t i = 0; i < new_num_blocks; i++) {
-			long block_no = ext2_inode_alloc_block(fs, (struct ext2_inode *)&file->inode, file->inode_num);
+			long block_no = ext2_inode_alloc_block(fs, (struct ext2_inode *)&inode, vnode->ino_num);
 			if (block_no < 0)
 				return block_no;
 		}
@@ -794,7 +789,7 @@ static int ext2_write_file(struct fs *vfs, struct file *file, void *buf, size_t 
 	size_t num = 0;
 
 	while (count > 0) {
-		int retval = ext2_inode_read_block(fs, (struct ext2_inode *)&file->inode, block_buf, block);
+		int retval = ext2_inode_read_block(fs, (struct ext2_inode *)&inode, block_buf, block);
 		if (retval < 0) {
 			kfree(block_buf);
 			return retval;
@@ -804,7 +799,7 @@ static int ext2_write_file(struct fs *vfs, struct file *file, void *buf, size_t 
 		bufoffset += fs->block_size;
 		offset = 0;
 
-		retval = ext2_inode_write_block(fs, (struct ext2_inode *)&file->inode, block_buf, block);
+		retval = ext2_inode_write_block(fs, (struct ext2_inode *)&inode, block_buf, block);
 		if (retval < 0) {
 			kfree(block_buf);
 			return retval;
@@ -819,23 +814,45 @@ static int ext2_write_file(struct fs *vfs, struct file *file, void *buf, size_t 
 
 	kfree(block_buf);
 
-	file->inode.size = MAX(file->inode.size, num + ooffset);
-	ext2_write_inode(fs, (struct ext2_inode *)&file->inode, file->inode_num);
+	inode.size = MAX(vnode->size, num + ooffset);
+	ext2_write_inode(fs, (struct ext2_inode *)&inode, vnode->ino_num);
 
 	return num;
 }
 
-static long ext2_creat(struct fs *vfs, const char *path, ftype_t type)
+static int ino_type_to_dent(uint32_t ino_flags)
+{
+	/* convert from ext2 inode type to dirent type */
+	switch (ino_flags & 0xF000) {
+	case EXT2_INO_REG:
+		return EXT2_DE_FILE;
+	case EXT2_INO_DIR:
+		return EXT2_DE_DIR;
+	case EXT2_INO_CHARDEV:
+		return EXT2_DE_CHRDEV;
+	case EXT2_INO_BLKDEV:
+		return EXT2_DE_BLKDEV;
+	case EXT2_INO_FIFO:
+		return EXT2_DE_FIFO;
+	case EXT2_INO_SOCK:
+		return EXT2_DE_SOCK;
+	case EXT2_INO_SYMLINK:
+		return EXT2_DE_SYMLINK;
+	}
+
+	return -1;
+}
+
+static long ext2_creat(struct fs *vfs, const char *path, uint32_t type)
 {
 	struct ext2fs *fs = (struct ext2fs *)vfs->fs;
 
 	/* make sure the file doesn't already exist */
-	struct file file;
-	int ret = ext2_open_file(vfs, &file, path);
-	if (ret == 0) {
-		kfree(file.path);
+	struct vnode vnode;
+	int ret = ext2_open_file(vfs, &vnode, path);
+
+	if (ret == 0)
 		return -EEXIST;
-	}
 
 	/* find the parent directory */
 	char *path_copy = kzalloc(strlen(path) + 1, ALLOC_KERN);
@@ -881,7 +898,7 @@ static long ext2_creat(struct fs *vfs, const char *path, ftype_t type)
 	}
 
 	memset(inode, 0, sizeof(struct ext2_inode));
-	inode->mode = ftype_to_ino[type];
+	inode->mode = type;
 	inode->links_count = 1;
 	inode->size = 0;
 	inode->blocks = sizeof(struct ext2_inode) / fs->bdev->block_size;
@@ -926,7 +943,7 @@ static long ext2_creat(struct fs *vfs, const char *path, ftype_t type)
 				d_ent->inode = inode_no;
 				d_ent->rec_len = sizeof(struct ext2_dir_entry) + strlen(base);
 				d_ent->name_len = strlen(base);
-				d_ent->file_type = type;
+				d_ent->file_type = ino_type_to_dent(type);
 				memcpy(d_ent->name, base, strlen(base));
 
 				/* write the block back to disk */
@@ -961,7 +978,7 @@ static long ext2_creat(struct fs *vfs, const char *path, ftype_t type)
 	entry->inode = inode_no;
 	entry->rec_len = fs->block_size;
 	entry->name_len = strlen(base);
-	entry->file_type = type;
+	entry->file_type = ino_type_to_dent(type);
 	memcpy(entry->name, base, strlen(base));
 
 	/* write the block back to disk */
@@ -979,7 +996,7 @@ static long ext2_creat(struct fs *vfs, const char *path, ftype_t type)
 
 static int ext2_mkdir(struct fs *vfs, const char *path)
 {
-	long ret = ext2_creat(vfs, path, VFS_FILE_DIR);
+	long ret = ext2_creat(vfs, path, EXT2_INO_DIR);
 
 	if (ret < 0)
 		return ret;
@@ -1080,20 +1097,25 @@ static int ext2_unlink(struct fs *vfs, const char *path)
 	return -ENOENT;
 }
 
-static int ext2_read_file(struct fs *vfs, struct file *file, void *buf, size_t offset, size_t count)
+static int ext2_read_file(struct fs *vfs, struct vnode *vnode, void *buf, size_t offset, size_t count)
 {
 	struct ext2fs *fs = vfs->fs;
+	struct ext2_inode inode;
 
-	if ((file->inode.mode & 0xF000) != EXT2_INO_REG)
+	int res = ext2_read_inode(fs, &inode, vnode->ino_num);
+	if (res < 0)
+		return res;
+
+	if ((inode.mode & 0xF000) != EXT2_INO_REG)
 		return -EISDIR;
 
 	size_t block = offset / fs->block_size;
 
-	if (offset > file->size)
+	if (offset > vnode->size)
 		return -EINVAL;
 
-	if (offset + count > file->size)
-		count = (file->size - offset);
+	if (offset + count > vnode->size)
+		count = (vnode->size - offset);
 
 	offset %= fs->block_size;
 
@@ -1107,7 +1129,7 @@ static int ext2_read_file(struct fs *vfs, struct file *file, void *buf, size_t o
 	size_t bufoffset = 0;
 
 	while (count > 0) {
-		int retval = ext2_inode_read_block(fs, (struct ext2_inode *)&file->inode, block_buf, block);
+		int retval = ext2_inode_read_block(fs, (struct ext2_inode *)&inode, block_buf, block);
 		if (retval < 0) {
 			kfree(block_buf);
 			return retval;
@@ -1166,7 +1188,7 @@ struct fs *ext2_init_fs(struct block_device *bdev)
 
 	ext2_ops = kmalloc(sizeof(struct fs_ops), ALLOC_KERN);
 
-	if(!ext2_ops) {
+	if (!ext2_ops) {
 		kfree(extfs->bgdt);
 		kfree(extfs);
 		return NULL;
