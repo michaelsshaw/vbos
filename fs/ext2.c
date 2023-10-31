@@ -994,10 +994,87 @@ static long ext2_creat(struct fs *vfs, const char *path, uint32_t type)
 
 static int ext2_mkdir(struct fs *vfs, const char *path)
 {
-	long ret = ext2_creat(vfs, path, EXT2_INO_DIR);
+	long inode_no = ext2_creat(vfs, path, EXT2_INO_DIR);
 
-	if (ret < 0)
+	if (inode_no < 0)
+		return inode_no;
+
+	/* allocate a block for the . and .. entries */
+	struct ext2fs *fs = (struct ext2fs *)vfs->fs;
+	struct ext2_inode *inode = kmalloc(sizeof(struct ext2_inode), ALLOC_KERN);
+	if (!inode)
+		return -ENOMEM;
+
+	long ret = ext2_read_inode(fs, inode, inode_no);
+	if (ret < 0) {
+		kfree(inode);
 		return ret;
+	}
+
+	long block_no = ext2_inode_alloc_block(fs, inode, inode_no);
+	if (block_no < 0) {
+		kfree(inode);
+		return block_no;
+	}
+
+	/* write the . and .. entries */
+
+	/* open the parent directory */
+	char *path_copy = kzalloc(strlen(path) + 1, ALLOC_KERN);
+	if (!path_copy) {
+		kfree(inode);
+		return -ENOMEM;
+	}
+
+	strcpy(path_copy, path);
+
+	char *dir = dirname(path_copy);
+	long parent_ino_num;
+	if (dir == NULL)
+		parent_ino_num = EXT2_ROOT_INO;
+	else
+		parent_ino_num = ext2_inode_find_by_name(vfs->fs, dir);
+
+	kfree(path_copy);
+
+	if (parent_ino_num < 0) {
+		kfree(inode);
+		return parent_ino_num;
+	}
+
+	/* create the entries */
+	struct ext2_dir_entry *entry = kmalloc(fs->block_size, ALLOC_DMA);
+	if (!entry) {
+		kfree(inode);
+		return -ENOMEM;
+	}
+
+	entry->inode = inode_no;
+	entry->rec_len = sizeof(struct ext2_dir_entry) + 1;
+	entry->name_len = 1;
+	entry->file_type = EXT2_DE_DIR;
+	entry->name[0] = '.';
+
+	struct ext2_dir_entry *entry2 = (void *)entry + entry->rec_len;
+	entry2->inode = parent_ino_num;
+	entry2->rec_len = fs->block_size - entry->rec_len;
+	entry2->name_len = 2;
+	entry2->file_type = EXT2_DE_DIR;
+	entry2->name[0] = '.';
+	entry2->name[1] = '.';
+
+	/* write the block back to disk */
+	ext2_write_block(fs, entry, block_no);
+
+	kfree(inode);
+	kfree(entry);
+
+	/* update block group descriptor used directories count */
+	uint32_t group = (inode_no - 1) / fs->sb.inodes_per_group;
+	struct ext2_group_desc *bg = &fs->bgdt[group];
+	bg->used_dirs_count++;
+
+	ext2_write_bgdt(fs);
 
 	return 0;
 }
