@@ -484,7 +484,6 @@ static long ext2_alloc_inode(struct fs *vfs, uint32_t mode)
 
 		/* update superblock and bgdt */
 		fs->sb.free_inodes_count--;
-		fs->sb.inodes_count++;
 
 		bg->free_inodes_count--;
 
@@ -552,7 +551,6 @@ static int ext2_free_inode(struct fs *vfs, ino_t ino_num)
 
 	/* update superblock and bgdt */
 	fs->sb.free_inodes_count++;
-	fs->sb.inodes_count--;
 
 	bg->free_inodes_count++;
 
