@@ -4,6 +4,8 @@
 
 #include <stdarg.h>
 
+spinlock_t printf_lock = 0;
+
 static inline void printf_out(char c)
 {
 	console_write(c);
@@ -136,11 +138,13 @@ int snprintf(char *str, const char *restrict fmt, size_t size, ...)
 
 int kprintf(const char *restrict fmt, ...)
 {
+	spinlock_acquire(&printf_lock);
 	char buf[2048] = { 0 };
 	va_list args;
 	va_start(args, fmt);
 	int ret = vsnprintf(buf, fmt, 1024, args);
 	va_end(args);
 	printf_write(buf);
+	spinlock_release(&printf_lock);
 	return ret;
 }

@@ -28,6 +28,7 @@ void stack_init(uintptr_t rsp, uintptr_t rbp);
 
 struct limine_hhdm_request hhdm_req = { .id = LIMINE_HHDM_REQUEST, .revision = 0 };
 struct limine_kernel_file_request module_req = { .id = LIMINE_KERNEL_FILE_REQUEST, .revision = 0 };
+struct limine_smp_request smp_req = { .id = LIMINE_SMP_REQUEST, .revision = 0 };
 
 static char *kcmdline;
 static char *kpath;
@@ -38,6 +39,10 @@ uintptr_t hhdm_start;
 uintptr_t data_end;
 uintptr_t bss_start;
 uintptr_t bss_end;
+
+void gdt_load();
+void idt_load();
+void ap_kmain(struct limine_smp_info *info);
 
 void yield()
 {
@@ -58,7 +63,7 @@ static inline void _pic_init()
 	cli();
 	pic_mask(4, 0);
 	pic_init();
-/*	console_resize(); */
+	/*	console_resize(); */
 	sti();
 
 	while (!console_ready())
@@ -71,7 +76,6 @@ char *kcmdline_get_symbol(const char *sym)
 	/* only parse until the space after the value */
 	size_t sym_len = strlen(sym);
 	size_t cmd_len = strlen(kcmdline);
-
 
 	char *cmdline_copy = kmalloc(cmd_len + 1, ALLOC_KERN);
 	if (!cmdline_copy) {
@@ -99,7 +103,6 @@ char *kcmdline_get_symbol(const char *sym)
 		token = strtok(NULL, " ", &strtok_last);
 	}
 
-
 	return NULL;
 }
 
@@ -111,13 +114,13 @@ void kmain(void)
 	bss_end = (uintptr_t)(&__bss_end);
 
 	serial_init();
-	gdt_init();
-	idt_init();
-
 	/* Initialize early kernel memory array */
 	const uintptr_t one_gb = 0x40000000;
 	char kmem[one_gb] ALIGN(0x1000);
 	mem_early_init(kmem, one_gb);
+
+	gdt_init();
+	idt_init();
 
 	struct limine_kernel_file_response *resp = module_req.response;
 
@@ -160,6 +163,35 @@ void kmain_post_stack_init()
 	apic_init();
 
 	console_init();
+
+	struct limine_smp_response *smp_resp = smp_req.response;
+
+	/* init the application processors */
+	for (unsigned i = 0; i < smp_resp->cpu_count; i++) {
+		struct limine_smp_info *info = smp_resp->cpus[i];
+
+		if (info->lapic_id == smp_resp->bsp_lapic_id)
+			continue;
+
+		info->goto_address = ap_kmain;
+	}
+
+	/* wait for the application processors to finish their initialization */
+	for (unsigned i = 0; i < 100000; i++)
+		;
+
 	kprintf("\n\n# ");
+	yield();
+}
+
+void ap_kmain(struct limine_smp_info *info)
+{
+#ifdef KDEBUG
+	kprintf(LOG_DEBUG "Starting CPU %d\n", info->lapic_id);
+#endif
+	gdt_load();
+	idt_load();
+	cr3_write(kcr3);
+
 	yield();
 }
