@@ -108,6 +108,7 @@ char *kcmdline_get_symbol(const char *sym)
 
 void kmain(void)
 {
+	cli();
 	hhdm_start = hhdm_req.response->offset;
 	data_end = (uintptr_t)(&__data_end);
 	bss_start = (uintptr_t)(&__bss_start);
