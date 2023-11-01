@@ -31,6 +31,7 @@ struct block_device *block_register(char *name, struct block_device_ops *ops, vo
 struct block_device *block_get_device(const char *name);
 int block_read(struct block_device *bdev, void *buf, size_t offset, size_t size);
 int block_write(struct block_device *bdev, void *buf, size_t offset, size_t size);
+void kerror_print_blkdevs();
 
 extern struct block_device *block_devices[];
 extern size_t block_devices_count;

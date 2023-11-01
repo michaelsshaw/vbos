@@ -270,6 +270,7 @@ void vfs_init(const char *rootdev_name)
 	struct block_device *rootdev = block_get_device(rootdev_name);
 	if (!rootdev) {
 		kprintf(LOG_ERROR "Failed to find root device %s\n", rootdev_name);
+		kerror_print_blkdevs();
 		panic();
 	}
 
@@ -282,6 +283,7 @@ void vfs_init(const char *rootdev_name)
 	struct fs *fs = ext2_init_fs(rootdev);
 	if (!fs) {
 		kprintf(LOG_ERROR "Failed to mount root device %s\n", rootdev_name);
+		kerror_print_blkdevs();
 		panic();
 	} else {
 #ifdef KDEBUG

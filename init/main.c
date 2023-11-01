@@ -151,10 +151,14 @@ void kmain()
 	ahci_init();
 
 	char *root_path = kcmdline_get_symbol("root");
-	if (!root_path)
+	if (!root_path) {
 		kprintf(LOG_ERROR "No root= parameter specified\n");
-	else
+		
+		kerror_print_blkdevs();
+		panic();
+	} else {
 		vfs_init(root_path);
+	}
 
 	_pic_init();
 	apic_init();

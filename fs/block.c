@@ -54,3 +54,11 @@ inline int block_write(struct block_device *bdev, void *buf, size_t offset, size
 {
 	return bdev->ops.write(bdev, buf, offset + bdev->lba_start, size);
 }
+
+void kerror_print_blkdevs()
+{
+	kprintf(LOG_ERROR "List of available block devices:\n");
+	for (size_t i = 0; i < block_devices_count; i++) {
+		kprintf(LOG_ERROR "  %s\n", block_devices[i]->name);
+	}
+}
