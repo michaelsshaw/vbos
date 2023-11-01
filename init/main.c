@@ -105,7 +105,11 @@ char *kcmdline_get_symbol(const char *sym)
 	return NULL;
 }
 
-void kmain(void)
+/* kmain
+ *
+ * main kernel entry point, executed solely by the BSP
+ */
+void kmain()
 {
 	cli();
 	hhdm_start = hhdm_req.response->offset;
@@ -187,6 +191,11 @@ void kmain(void)
 	load_stack_and_park(ptr, ptr);
 }
 
+/* kmain for application processors
+ *
+ * This code enables basic processor functions and parks the processor, waiting
+ * for future scheduling
+ */
 void ap_kmain(struct limine_smp_info *info)
 {
 	gdt_load();
@@ -199,7 +208,7 @@ void ap_kmain(struct limine_smp_info *info)
 	void *kstack = buddy_alloc(KSTACK_SIZE);
 	uintptr_t ptr = (uintptr_t)kstack + KSTACK_SIZE - 8;
 
-/* insert the TSS for each processor into the GDT */
+	/* insert the TSS for each processor into the GDT */
 #ifdef KDEBUG
 	kprintf(LOG_DEBUG "Inserting TSS for AP #%d\n", info->lapic_id);
 #endif
