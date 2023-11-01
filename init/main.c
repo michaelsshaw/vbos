@@ -165,7 +165,8 @@ void kmain(void)
 	void *kstack = buddy_alloc(KSTACK_SIZE);
 	uintptr_t ptr = (uintptr_t)kstack + KSTACK_SIZE - 8;
 
-	gdt_insert_tss(ptr);
+	uint16_t tss = gdt_insert_tss(ptr);
+	ltr(tss);
 
 	/* init the application processors */
 	struct limine_smp_response *smp_resp = smp_req.response;

@@ -2,7 +2,7 @@
 #ifndef _GDT_H_
 #define _GDT_H_
 
-#define GDT_NUMDESC 64
+#define GDT_NUMDESC 192
 #define GDT_SIZE (64 * GDT_NUMDESC)
 
 #define GDT_ACCESS_DATA_RING0 0b10010010
