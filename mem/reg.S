@@ -15,11 +15,10 @@ genrw(rsp)
 genrw(rbp)
 genrw(cr3)
 
-.global stack_init
-stack_init:
+.global load_stack_and_park
+load_stack_and_park:
 	movq %rdi, %rsp
 	movq %rsi, %rbp
-	call kmain_post_stack_init
-__stack_init_no_escape:
+__load_stack_and_park_no_escape:
 	call yield
-	jmp __stack_init_no_escape
+	jmp __load_stack_and_park_no_escape

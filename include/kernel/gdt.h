@@ -26,7 +26,18 @@ struct gdt_desc {
 	uint8_t base_3;
 } PACKED;
 
-struct gdt_desc_tss {
+struct gdt_desc_sys {
+	uint16_t limit;
+	uint16_t base;
+	uint8_t base_2;
+	uint8_t access;
+	uint8_t flags;
+	uint8_t base_3;
+	uint32_t base_4;
+	uint32_t reserved;
+} PACKED;
+
+struct tss {
 	uint32_t reserved;
 	uint64_t rsp0;
 	uint64_t rsp1;

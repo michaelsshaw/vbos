@@ -24,8 +24,6 @@
 
 #define KSTACK_SIZE 0x4000
 
-void stack_init(uintptr_t rsp, uintptr_t rbp);
-
 struct limine_hhdm_request hhdm_req = { .id = LIMINE_HHDM_REQUEST, .revision = 0 };
 struct limine_kernel_file_request module_req = { .id = LIMINE_KERNEL_FILE_REQUEST, .revision = 0 };
 struct limine_smp_request smp_req = { .id = LIMINE_SMP_REQUEST, .revision = 0 };
@@ -43,6 +41,7 @@ uintptr_t bss_end;
 void gdt_load();
 void idt_load();
 void ap_kmain(struct limine_smp_info *info);
+void load_stack_and_park(uintptr_t rsp, uintptr_t rbp);
 
 void yield()
 {
@@ -145,13 +144,6 @@ void kmain(void)
 
 	pci_init();
 
-	void *kstack = buddy_alloc(KSTACK_SIZE);
-	uintptr_t ptr = (uintptr_t)kstack + KSTACK_SIZE - 8;
-	stack_init(ptr, ptr);
-}
-
-void kmain_post_stack_init()
-{
 	ahci_init();
 
 	char *root_path = kcmdline_get_symbol("root");
@@ -165,9 +157,18 @@ void kmain_post_stack_init()
 
 	console_init();
 
-	struct limine_smp_response *smp_resp = smp_req.response;
+	/* finished init, now load TSS */
+#ifdef KDEBUG
+	kprintf(LOG_DEBUG "Inserting TSS for BSP\n");
+#endif
+
+	void *kstack = buddy_alloc(KSTACK_SIZE);
+	uintptr_t ptr = (uintptr_t)kstack + KSTACK_SIZE - 8;
+
+	gdt_insert_tss(ptr);
 
 	/* init the application processors */
+	struct limine_smp_response *smp_resp = smp_req.response;
 	for (unsigned i = 0; i < smp_resp->cpu_count; i++) {
 		struct limine_smp_info *info = smp_resp->cpus[i];
 
@@ -181,15 +182,12 @@ void kmain_post_stack_init()
 	for (unsigned i = 0; i < 100000; i++)
 		;
 
-	kprintf("\n\n# ");
-	yield();
+	kprintf("\n# ");
+	load_stack_and_park(ptr, ptr);
 }
 
 void ap_kmain(struct limine_smp_info *info)
 {
-#ifdef KDEBUG
-	kprintf(LOG_DEBUG "Starting CPU %d\n", info->lapic_id);
-#endif
 	gdt_load();
 	idt_load();
 	cr3_write(kcr3);
@@ -197,9 +195,12 @@ void ap_kmain(struct limine_smp_info *info)
 	void *kstack = buddy_alloc(KSTACK_SIZE);
 	uintptr_t ptr = (uintptr_t)kstack + KSTACK_SIZE - 8;
 
-	/* insert the TSS for each processor into the GDT */
+/* insert the TSS for each processor into the GDT */
+#ifdef KDEBUG
+	kprintf(LOG_DEBUG "Inserting TSS for AP #%d\n", info->lapic_id);
+#endif
 	uint16_t tss = gdt_insert_tss(ptr);
 	ltr(tss);
 
-	yield();
+	load_stack_and_park(ptr, ptr);
 }
