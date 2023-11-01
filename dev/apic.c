@@ -80,6 +80,12 @@ void  lapic_eoi()
 	lapic_write(lapic_addr, LAPIC_EOI, 0);
 }
 
+void lapic_enable()
+{
+	/* Set spurious interrupt vector to 0xFF and enable the LAPIC */
+	lapic_write(lapic_addr, 0xF0, 0x1FF);
+}
+
 void apic_init()
 {
 	if (__madt == NULL) {
@@ -107,8 +113,7 @@ void apic_init()
 	lapic_id = lapic_read(lapic_addr, 0x20);
 	ioapic_redirect_insert(4, 0x24, 0, 0);
 
-	/* Set spurious interrupt vector to 0xFF and enable the LAPIC */
-	lapic_write(lapic_addr, 0xF0, 0x1FF);
+	lapic_enable();
 
 	uint64_t msr = rdmsr(MSR_IA32_APIC_BASE);
 	msr |= 1 << 11;

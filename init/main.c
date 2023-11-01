@@ -193,6 +193,9 @@ void ap_kmain(struct limine_smp_info *info)
 	idt_load();
 	cr3_write(kcr3);
 
+	/* enable the APIC */
+	lapic_enable();
+
 	void *kstack = buddy_alloc(KSTACK_SIZE);
 	uintptr_t ptr = (uintptr_t)kstack + KSTACK_SIZE - 8;
 

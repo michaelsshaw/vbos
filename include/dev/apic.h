@@ -130,6 +130,7 @@ struct apic_redirect {
 void apic_init();
 void lapic_eoi();
 int madt_parse_next_entry(int offset);
+void lapic_enable();
 
 #endif /* __ASM__ */
 #endif /* _APIC_H_ */
