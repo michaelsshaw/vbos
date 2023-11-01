@@ -273,7 +273,9 @@ void vfs_init(const char *rootdev_name)
 		panic();
 	}
 
+#ifdef KDEBUG
 	kprintf(LOG_DEBUG "Found root device %s\n", rootdev_name);
+#endif
 
 	/* TODO: detect filesystem type */
 	/* for now, assume ext2 */
@@ -282,7 +284,9 @@ void vfs_init(const char *rootdev_name)
 		kprintf(LOG_ERROR "Failed to mount root device %s\n", rootdev_name);
 		panic();
 	} else {
+#ifdef KDEBUG
 		kprintf(LOG_DEBUG "Mounted root device %s\n", rootdev_name);
+#endif
 	}
 
 	fs->mount_point = kzalloc(2, ALLOC_KERN);
