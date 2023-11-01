@@ -194,5 +194,12 @@ void ap_kmain(struct limine_smp_info *info)
 	idt_load();
 	cr3_write(kcr3);
 
+	void *kstack = buddy_alloc(KSTACK_SIZE);
+	uintptr_t ptr = (uintptr_t)kstack + KSTACK_SIZE - 8;
+
+	/* insert the TSS for each processor into the GDT */
+	uint16_t tss = gdt_insert_tss(ptr);
+	ltr(tss);
+
 	yield();
 }

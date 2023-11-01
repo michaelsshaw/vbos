@@ -38,3 +38,8 @@ gdt_load:
 idt_load:
 	lidt __idtr
 	ret
+
+.global ltr
+ltr:
+	ltr %di
+	ret
