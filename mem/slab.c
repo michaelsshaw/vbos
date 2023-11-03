@@ -7,6 +7,8 @@
 
 #define SLAB_ALIGN 7
 
+#define KMT_DMA 0xDE11A000
+
 static size_t slab_sizes[] = { 16, 32, 64, 128, 256, 512, 1024, 2048, 4096 };
 static slab_t *slab_cache[ARRAY_SIZE(slab_sizes)];
 static size_t dma_sizes[] = { 0x1000, 0x10000, 0x100000, 0x1000000 };
@@ -200,6 +202,22 @@ void *kmalloc(size_t size, uint64_t flags)
 
 	if (flags & ALLOC_DMA) {
 		ret = kmalloc_table(size, dma_sizes, ARRAY_SIZE(dma_sizes), slab_cache_dma, true);
+		if (ret == NULL) {
+			ret = buddy_alloc(npow2(size));
+			if (ret == NULL)
+				return NULL;
+
+			struct rbnode *n = rbt_insert(&kmalloc_tree, (uint64_t)ret);
+			if (n == NULL) {
+				buddy_free(ret);
+				return NULL;
+			}
+
+			n->value = 0;
+			n->value2 = size;
+			n->value3 = KMT_DMA;
+		}
+
 	} else {
 		ret = kmalloc_table(size, slab_sizes, ARRAY_SIZE(slab_sizes), slab_cache, false);
 	}
@@ -229,10 +247,16 @@ void kfree(void *ptr)
 	}
 
 	slab_t *slab = (slab_t *)n->value;
-	if (slab != NULL)
+	if (slab != NULL) {
 		slab_free(slab, ptr);
-	else
+	} else {
 		buddy_free(ptr);
+
+		if(n->value3 == KMT_DMA) {
+			uintptr_t p = (uintptr_t)ptr;
+			kmap(p & (~hhdm_start), p, n->value2, kdefault_attrs.val);
+		}
+	}
 
 	rbt_delete(&kmalloc_tree, n);
 }

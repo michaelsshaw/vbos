@@ -130,6 +130,10 @@ struct rbnode *rbt_insert(struct rbtree *tree, uint64_t key)
 	new->right = NULL;
 	new->color = RB_RED;
 
+	new->value = 0;
+	new->value2 = 0;
+	new->value3 = 0;
+
 	spinlock_acquire(&tree->lock);
 
 	if (parent == NULL)
