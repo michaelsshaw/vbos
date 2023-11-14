@@ -23,13 +23,14 @@ struct procregs {
 	uint64_t r13;
 	uint64_t r14;
 	uint64_t r15;
-	uint64_t rip;
 
+	/* IRETQ stack frame */
+	uint64_t rip;
+	uint64_t cs;
 	uint64_t rflags;
 	uint64_t rsp;
-	uint16_t fs;
-	uint16_t gs;
-	uint16_t cs;
+	uint64_t ss;
+
 } PACKED;
 
 struct proc {
