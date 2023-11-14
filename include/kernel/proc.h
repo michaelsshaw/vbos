@@ -5,6 +5,10 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#define PROC_RUNNING 0
+#define PROC_STOPPED 1
+#define PROC_BLOCKED 2
+
 typedef uint64_t pid_t;
 
 struct procregs {
@@ -40,6 +44,7 @@ struct proc {
 	uint64_t cr3;
 
 	bool is_kernel;
+	uint8_t state;
 };
 
 struct procregs *proc_current_regs();
