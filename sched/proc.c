@@ -27,11 +27,10 @@ struct proc *proc_find(pid_t pid)
 {
 	struct rbnode *proc_node = rbt_search(proc_tree, pid);
 
-	if (proc_node) {
+	if (proc_node)
 		return (void *)proc_node->value;
-	} else {
+	else
 		return NULL;
-	}
 }
 
 void schedule()
@@ -40,7 +39,7 @@ void schedule()
 
 	struct proc *proc = proc_find(proc_current[id]);
 
-	if(proc) {
+	if (proc) {
 		_return_to_user(&proc->regs, proc->cr3);
 	} else {
 		kprintf(LOG_ERROR "proc: schedule: proc_current[%u] is NULL\n", id);
