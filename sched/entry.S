@@ -192,3 +192,38 @@ _irq_schedule:
 	movq %rdi, 144(%rax)
 	popq %rdi
 	movq %rdi, 152(%rax)
+
+/* void return_from_irq(struct procregs *regs, paddr_t cr3); */
+.global return_from_irq
+return_from_irq:
+	/* restore IRETQ frame */
+	pushq 152(%rdi)
+	pushq 144(%rdi)
+	pushq 136(%rdi)
+	pushq 128(%rdi)
+	pushq 120(%rdi)
+
+	/* restore task registers */
+	movq 0(%rdi), %rax
+	movq 8(%rdi), %rbx
+	movq 16(%rdi), %rcx
+	movq 24(%rdi), %rdx
+	movq 48(%rdi), %rbp
+	movq 56(%rdi), %r8
+	movq 64(%rdi), %r9
+	movq 72(%rdi), %r10
+	movq 80(%rdi), %r11
+	movq 88(%rdi), %r12
+	movq 96(%rdi), %r13
+	movq 104(%rdi), %r14
+	movq 112(%rdi), %r15
+
+	/* load new page tables */
+	movq %rsi, %cr3
+
+	/* restore argument registers */
+	movq 32(%rdi), %rsi
+	movq 40(%rdi), %rdi
+	
+	iretq
+
