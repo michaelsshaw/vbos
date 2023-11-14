@@ -8,7 +8,7 @@
 static struct rbtree *proc_tree;
 static pid_t *proc_current;
 
-void return_to_user(struct procregs *regs, paddr_t cr3);
+void _return_to_user(struct procregs *regs, paddr_t cr3);
 
 struct procregs *proc_current_regs()
 {
@@ -20,6 +20,31 @@ struct procregs *proc_current_regs()
 		return &ret->regs;
 	} else {
 		return NULL;
+	}
+}
+
+struct proc *proc_find(pid_t pid)
+{
+	struct rbnode *proc_node = rbt_search(proc_tree, pid);
+
+	if (proc_node) {
+		return (void *)proc_node->value;
+	} else {
+		return NULL;
+	}
+}
+
+void schedule()
+{
+	uint8_t id = lapic_idno();
+
+	struct proc *proc = proc_find(proc_current[id]);
+
+	if(proc) {
+		_return_to_user(&proc->regs, proc->cr3);
+	} else {
+		kprintf(LOG_ERROR "proc: schedule: proc_current[%u] is NULL\n", id);
+		panic();
 	}
 }
 
