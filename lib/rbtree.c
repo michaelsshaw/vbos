@@ -343,6 +343,31 @@ struct rbnode *rbt_successor(struct rbnode *node)
 	return parent;
 }
 
+uint64_t rbt_next_key(struct rbtree *tree)
+{
+	/* find first available key */
+	struct rbnode *node = tree->root;
+
+	if (node == NULL)
+		return 0;
+
+	while (node->left != NULL)
+		node = node->left;
+
+	while (true) {
+		struct rbnode *next = rbt_successor(node);
+		if (next == NULL) {
+			return node->key + 1;
+		} else {
+			if (next->key != node->key + 1) {
+				return node->key + 1;
+			} else {
+				node = next;
+			}
+		}
+	}
+}
+
 void rbtree_print_diagram_fancy(struct rbtree *tree, struct rbnode *node, int indent)
 {
 	if (node == NULL) {

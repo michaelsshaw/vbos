@@ -118,8 +118,6 @@ void irq(int irq)
 		void (*handler)() = irq_handlers[irq];
 		handler();
 	}
-
-	pic_eoi(irq);
 }
 
 void idt_init()

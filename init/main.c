@@ -7,6 +7,7 @@
 #include <kernel/slab.h>
 #include <kernel/pio.h>
 #include <kernel/block.h>
+#include <kernel/proc.h>
 
 #include <dev/pic.h>
 #include <dev/console.h>
@@ -178,6 +179,7 @@ void kmain()
 
 	/* init the application processors */
 	struct limine_smp_response *smp_resp = smp_req.response;
+	proc_init(smp_resp->cpu_count);
 	for (unsigned i = 0; i < smp_resp->cpu_count; i++) {
 		struct limine_smp_info *info = smp_resp->cpus[i];
 

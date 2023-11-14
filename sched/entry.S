@@ -1,24 +1,67 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
+
 #define __ASM__
 #include <dev/serial.h>
+
+.macro push_regs
+	pushq %rax
+	pushq %rbx
+	pushq %rcx
+	pushq %rdx
+	pushq %rsi
+	pushq %rdi
+	pushq %rbp
+	pushq %r8
+	pushq %r9
+	pushq %r10
+	pushq %r11
+	pushq %r12
+	pushq %r13
+	pushq %r14
+	pushq %r15
+.endm
+
+.macro pop_regs
+	popq %r15
+	popq %r14
+	popq %r13
+	popq %r12
+	popq %r11
+	popq %r10
+	popq %r9
+	popq %r8
+	popq %rbp
+	popq %rdi
+	popq %rsi
+	popq %rdx
+	popq %rcx
+	popq %rbx
+	popq %rax
+.endm
 
 .macro exception nr
 	.global _exception_\nr 					
 	_exception_\nr: 						
+		cli
+		push_regs
 		movq $\nr, %rdi                                         
 		movq $0, %rsi                                           
 		call exception                                          
 		call yield
+		pop_regs
 		iretq
 .endm
 
 .macro exception_err nr
 	.global _exception_\nr 					
 	_exception_\nr: 						
+		cli
+		push_regs
 		popq %rsi 						
 		movq $\nr, %rdi 					
 		call exception 						
 		call yield
+		pop_regs
 		iretq
 .endm
 
@@ -26,9 +69,10 @@
 	.global _irq_\nr 					
 	_irq_\nr: 						
 		cli
+		push_regs
 		movq $\nr, %rdi 					
 		call irq 						
-		sti
+		pop_regs
 		iretq
 .endm
 
@@ -92,3 +136,11 @@ irq 0x0D
 irq 0x0E
 irq 0x0F
 
+.global _irq_schedule
+_irq_schedule:
+	cli
+	push_regs
+	movq $0x00, %rdi
+	call irq_schedule
+	pop_regs
+	iretq

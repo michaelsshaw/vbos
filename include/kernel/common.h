@@ -22,6 +22,8 @@
 #define MB (KB * KB)
 #define GB (KB * MB)
 
+#define RFLAGS_IF (1 << 9)
+
 void yield();
 void panic();
 

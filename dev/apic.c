@@ -86,6 +86,11 @@ void lapic_enable()
 	lapic_write(lapic_addr, 0xF0, 0x1FF);
 }
 
+uint8_t lapic_idno()
+{
+	return lapic_read(lapic_addr, LAPIC_ID) >> 24;
+}
+
 void apic_init()
 {
 	if (__madt == NULL) {
