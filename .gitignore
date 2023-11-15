@@ -1,5 +1,5 @@
 .cache
 *.o
 *.d
-kernel.elf
+*.elf
 compile_commands.json

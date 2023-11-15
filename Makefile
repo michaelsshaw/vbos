@@ -66,7 +66,7 @@ override HEADER_DEPS := $(CFILES:.c=.d) $(ASFILES:.S=.d)
 
 # Default target.
 .PHONY: all
-all: $(KERNEL)
+all: $(KERNEL) uprg
 
 # Link rules for the final kernel executable.
 $(KERNEL): $(OBJ) linker.ld
@@ -86,10 +86,16 @@ $(KERNEL): $(OBJ) linker.ld
 	@$(CC) $(CFLAGS) -c $< -o $@
 	@echo "  CC      $@"
 
+.PHONY: uprg
+uprg:
+	@$(MAKE) --no-print-directory -C usr.bin 
+
 # Remove object files and the final executable.
 .PHONY: clean
 clean:
-	rm -rf $(KERNEL) $(OBJ) $(HEADER_DEPS)
+	@rm -rf $(KERNEL) $(OBJ) $(HEADER_DEPS)
+	@echo "  CLEAN   kernel"
+	@make --no-print-directory -C usr.bin clean
 
 .PHONY: distclean
 distclean: clean
