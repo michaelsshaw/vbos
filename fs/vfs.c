@@ -93,7 +93,6 @@ int open(const char *pathname, int flags)
 	int result = rootfs->ops->open(rootfs, &fd->vnode, pathname);
 
 	if (result < 0) {
-		kprintf(LOG_ERROR "Failed to open %s: %s\n", pathname, strerror(-result));
 		return result;
 	} else if (result == VFSE_IS_BDEV) {
 		/* TODO: continue search into mounted filesystems */
