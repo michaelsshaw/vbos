@@ -44,6 +44,11 @@ void idt_load();
 void ap_kmain(struct limine_smp_info *info);
 void load_stack_and_park(uintptr_t rsp, uintptr_t rbp);
 
+void prompt()
+{
+	kprintf(COL_YELLOW_BLACK "vbos # " COL_RESET);
+}
+
 void yield()
 {
 	for (;;) {
@@ -193,7 +198,8 @@ void kmain()
 	for (unsigned i = 0; i < 100000; i++)
 		;
 
-	kprintf("\n# ");
+	kprintf("\n");
+	prompt();
 	load_stack_and_park(ptr, ptr);
 }
 

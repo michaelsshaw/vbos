@@ -20,6 +20,8 @@ int kcmd_mkdir(int argc, char **argv);
 int kcmd_unlink(int argc, char **argv);
 int kcmd_elf(int argc, char **argv);
 
+void prompt();
+
 #define KCMD_DECL(name)            \
 	{                          \
 		#name, kcmd_##name \
@@ -282,5 +284,5 @@ cleanup:
 	}
 	kfree(spl);
 
-	kprintf("# ");
+	prompt();
 }
