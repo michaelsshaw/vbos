@@ -8,10 +8,11 @@
 #define BBMAP_SPLIT 1
 #define BBMAP_USED 2
 
-#define PAGE_PRESENT 0x1
-#define PAGE_RW 0x2
-#define PAGE_USERMODE 0x4
 #define PAGE_XD 0x8000000000000000
+#define PAGE_GLOBAL (1 << 8)
+#define PAGE_USERMODE 0x4
+#define PAGE_RW 0x2
+#define PAGE_PRESENT 0x1
 
 #define PAGE_PWT 0x8
 #define PAGE_PCD 0x10
