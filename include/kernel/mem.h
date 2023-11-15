@@ -3,6 +3,7 @@
 #define _MEM_H_
 
 #include <kernel/common.h>
+#include <kernel/rbtree.h>
 
 #define BBMAP_FREE 0
 #define BBMAP_SPLIT 1
@@ -98,7 +99,7 @@ extern struct page kdefault_attrs;
 
 void *buddy_alloc(size_t size);
 void buddy_free(void *paddr_hhdm);
-uintptr_t kmap_find_unmapped(size_t len);
+uintptr_t mmap_find_unmapped(struct rbtree *tree, spinlock_t *lock, uintptr_t start, size_t len);
 void kmap(paddr_t paddr, uintptr_t vaddr, size_t len, uint64_t attr);
 void *kmap_device(void *dev_paddr, size_t len);
 void kunmap(uintptr_t vaddr);

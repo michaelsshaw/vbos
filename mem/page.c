@@ -3,8 +3,9 @@
 #include <kernel/mem.h>
 #include <kernel/slab.h>
 #include <kernel/rbtree.h>
+#include <kernel/proc.h>
 
-static slab_t *kmap_slab;
+static slab_t *page_slab;
 static spinlock_t kmap_lock = 0;
 
 extern void *(*alloc_page)();
@@ -13,7 +14,7 @@ static struct rbtree *kmap_tree = NULL;
 
 static void *kmap_alloc_page()
 {
-	return slab_alloc(kmap_slab);
+	return slab_alloc(page_slab);
 }
 
 static uint64_t *pagemap_traverse(uint64_t *this_level, size_t next_num)
@@ -29,20 +30,20 @@ static uint64_t *pagemap_traverse(uint64_t *this_level, size_t next_num)
 	return r;
 }
 
-uintptr_t kmap_find_unmapped(size_t len)
+uintptr_t mmap_find_unmapped(struct rbtree *tree, spinlock_t *lock, uintptr_t start, size_t len)
 {
 	len = MIN(len, 0x1000);
 	len = npow2(len);
 
-	spinlock_acquire(&kmap_lock);
-	if (kmap_tree == NULL) {
-		spinlock_release(&kmap_lock);
+	spinlock_acquire(lock);
+	if (tree == NULL) {
+		spinlock_release(lock);
 		return 0;
 	}
 
-	struct rbnode *node = kmap_tree->root;
+	struct rbnode *node = tree->root;
 	if (node == NULL) {
-		spinlock_release(&kmap_lock);
+		spinlock_release(lock);
 		return 0;
 	}
 
@@ -50,7 +51,7 @@ uintptr_t kmap_find_unmapped(size_t len)
 	while (node->left != NULL)
 		node = node->left;
 
-	size_t ret = hhdm_start;
+	size_t ret = start;
 
 	while (node != NULL) {
 		/* node value is the physical address, node key is the virtual address 
@@ -58,7 +59,7 @@ uintptr_t kmap_find_unmapped(size_t len)
 		 * we want to find the lowest virtual address that is not mapped
 		 */
 		if (node->key > ret + len) {
-			spinlock_release(&kmap_lock);
+			spinlock_release(lock);
 			return ret;
 		}
 
@@ -66,13 +67,12 @@ uintptr_t kmap_find_unmapped(size_t len)
 		node = rbt_successor(node);
 	}
 
-	spinlock_release(&kmap_lock);
+	spinlock_release(lock);
 	return ret;
 }
 
-void kmap(paddr_t paddr, uintptr_t vaddr, size_t len, uint64_t attr)
+void mmap(uintptr_t pml4, struct rbtree *tree, paddr_t paddr, uintptr_t vaddr, size_t len, uint64_t attr)
 {
-	spinlock_acquire(&kmap_lock);
 	uint64_t *pdpt;
 	uint64_t *pdt;
 	uint64_t *pt;
@@ -82,24 +82,23 @@ void kmap(paddr_t paddr, uintptr_t vaddr, size_t len, uint64_t attr)
 	size_t ptn;
 	size_t pn;
 
-	if (pml4 == NULL) {
-		pml4 = alloc_page();
-		assert(pml4 != NULL);
-		memset(pml4, 0, 0x1000);
-	}
-
 	len += paddr & 4095;
 	paddr &= -4096ull;
 	vaddr &= -4096ull;
 
 	len = (len + 4095) & -4096ull;
 
-	if (kmap_tree != NULL) {
-		struct rbnode *node = rbt_insert(kmap_tree, vaddr);
+	if (tree != NULL) {
+		struct rbnode *test = NULL;
+		if ((test = rbt_range_val2(tree, vaddr, len))) {
+			kprintf(LOG_WARN "mmap: Tried to map already mapped address %X\n", vaddr);
+			kprintf(LOG_WARN "mmap: overlapping with mapping: %X-%X\n", test->key, test->key + test->value2);
+			return;
+		}
 
-		if (node == NULL) {
-			kprintf(LOG_WARN "kmap: Tried to map already mapped address %X\n", vaddr);
-			spinlock_release(&kmap_lock);
+		struct rbnode *node = rbt_insert(tree, vaddr);
+		if(node == NULL) {
+			kprintf(LOG_WARN "mmap: failed to insert node\n");
 			return;
 		}
 
@@ -122,7 +121,42 @@ void kmap(paddr_t paddr, uintptr_t vaddr, size_t len, uint64_t attr)
 	/* flush TLB */
 	uint64_t cr3 = cr3_read();
 	cr3_write(cr3);
+}
 
+void *proc_mmap(struct proc *proc, paddr_t paddr, uintptr_t vaddr, size_t len, uint64_t attr)
+{
+	if (vaddr + len >= hhdm_start) {
+		/* higher-half addresses are only for kernel use, so we need to find a lower address to map to */
+		vaddr = mmap_find_unmapped(&proc->page_map, &proc->page_map_lock, 0, len);
+		if (vaddr + len >= hhdm_start) {
+			kprintf(LOG_WARN "proc_mmap: Tried to map higher-half address %X\n", vaddr);
+			return NULL;
+		}
+	}
+
+	/* if the memory address is already mapped */
+	if (rbt_search(&proc->page_map, vaddr) != NULL) {
+		kprintf(LOG_WARN "proc_mmap: Tried to map already mapped address %X\n", vaddr);
+		return NULL;
+	}
+
+	spinlock_acquire(&proc->page_map_lock);
+	mmap(proc->cr3 | hhdm_start, &proc->page_map, paddr, vaddr, len, attr);
+	spinlock_release(&proc->page_map_lock);
+
+	return (void *)vaddr;
+}
+
+void kmap(paddr_t paddr, uintptr_t vaddr, size_t len, uint64_t attr)
+{
+	if (pml4 == NULL) {
+		pml4 = alloc_page();
+		assert(pml4 != NULL);
+		memset(pml4, 0, 0x1000);
+	}
+
+	spinlock_acquire(&kmap_lock);
+	mmap((uintptr_t)pml4, kmap_tree, paddr, vaddr, len, attr);
 	spinlock_release(&kmap_lock);
 }
 
@@ -130,7 +164,7 @@ void *kmap_device(void *dev_paddr, size_t len)
 {
 	paddr_t dev = (paddr_t)dev_paddr;
 	paddr_t dev_page = dev & ~(0xFFF);
-	uintptr_t vaddr = kmap_find_unmapped(len);
+	uintptr_t vaddr = mmap_find_unmapped(kmap_tree, &kmap_lock, hhdm_start, len);
 	kmap(dev_page, vaddr, len, PAGE_PCD | PAGE_PWT | PAGE_RW | PAGE_PRESENT);
 
 	vaddr |= (dev & 0xFFF);
@@ -144,7 +178,7 @@ static bool kunmap_check_table(uint64_t *table, uint64_t *parent, size_t n)
 			return false;
 		}
 	}
-	slab_free(kmap_slab, table);
+	slab_free(page_slab, table);
 
 	if (parent != NULL)
 		parent[n] = 0;
@@ -202,7 +236,7 @@ void kunmap(uintptr_t vaddr)
 
 void page_init(paddr_t kpaddr, uintptr_t kvaddr, size_t kernel_size, struct mem_region *regions, size_t num_regions)
 {
-	kmap_slab = slab_create(0x1000, 4 * MB, SLAB_PAGE_ALIGN);
+	page_slab = slab_create(0x1000, 4 * MB, SLAB_PAGE_ALIGN);
 
 	/* this inits kmalloc */
 	slabtypes_init();

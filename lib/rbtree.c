@@ -311,6 +311,43 @@ void rbt_destroy(struct rbtree *tree, struct rbnode *node)
 	rbt_delete(tree, node);
 }
 
+struct rbnode *rbt_range_val2(struct rbtree *tree, uint64_t sval, uint64_t len)
+{
+	/* find closest node to sval */
+	struct rbnode *node = tree->root;
+	struct rbnode *closest = NULL;
+
+	while (node != NULL) {
+		if (node->key == sval) {
+			closest = node;
+			break;
+		} else if (node->key < sval) {
+			closest = node;
+			node = node->right;
+		} else {
+			node = node->left;
+		}
+	}
+
+	if(closest == NULL)
+		return NULL;
+
+	/* check if closest node is in range */
+	if (closest->key + closest->value2 > sval)
+		return closest;
+
+	/* find next node */
+	node = rbt_successor(closest);
+	if (node == NULL)
+		return NULL;
+
+	/* check if next node is in range */
+	if (node->key < sval + len)
+		return node;
+
+	return NULL;
+}
+
 struct rbnode *rbt_search(struct rbtree *tree, uint64_t key)
 {
 	struct rbnode *node = tree->root;

@@ -4,6 +4,8 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include <kernel/lock.h>
+#include <kernel/rbtree.h>
 
 #define PROC_RUNNING 0
 #define PROC_STOPPED 1
@@ -45,6 +47,9 @@ struct proc {
 
 	bool is_kernel;
 	uint8_t state;
+
+	struct rbtree page_map;
+	spinlock_t page_map_lock;
 };
 
 struct procregs *proc_current_regs();

@@ -35,6 +35,7 @@ void rbt_delete(struct rbtree *tree, struct rbnode *del);
 struct rbnode *rbt_search(struct rbtree *tree, uint64_t key);
 struct rbnode *rbt_successor(struct rbnode *node);
 uint64_t rbt_next_key(struct rbtree *tree);
+struct rbnode *rbt_range_val2(struct rbtree *tree, uint64_t sval, uint64_t len);
 
 void rbt_slab_init();
 
