@@ -9,22 +9,9 @@
 
 static const char elf_magic[] = { 0x7F, 'E', 'L', 'F' };
 
-pid_t elf_load_proc(const char *proc_path)
+int elf_check_compat(char *buf)
 {
-	int fd = open(proc_path, O_RDONLY);
-	if (fd < 0)
-		return fd;
-
-	char *buf = kmalloc(4096, ALLOC_KERN);
-	if (!buf)
-		return -ENOMEM;
-
-	int ret = read(fd, buf, 4096);
-
-	if (ret < 0)
-		return ret;
-
-	if(strncmp(buf, elf_magic, 4))
+	if (strncmp(buf, elf_magic, 4))
 		return -ENOEXEC;
 
 	struct elf64_header *hdr = (struct elf64_header *)buf;
@@ -48,3 +35,30 @@ pid_t elf_load_proc(const char *proc_path)
 	return 0;
 }
 
+pid_t elf_load_proc(const char *proc_path)
+{
+	int fd = open(proc_path, O_RDONLY);
+	if (fd < 0)
+		return fd;
+
+	char *buf = kmalloc(4096, ALLOC_KERN);
+	if (!buf)
+		return -ENOMEM;
+
+	int ret = read(fd, buf, 4096);
+
+	if (ret < 0)
+		return ret;
+
+	ret = elf_check_compat(buf);
+
+	if (ret < 0) {
+		kfree(buf);
+		close(fd);
+		return ret;
+	}
+
+	close(fd);
+
+	return 0;
+}
