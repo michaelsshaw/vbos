@@ -56,9 +56,11 @@ ifeq ($(shell $(LD) --help 2>&1 | grep 'no-pie' >/dev/null 2>&1; echo $$?),0)
 	override LDFLAGS += -no-pie
 endif
 
+KDIRS := dev/ fs/ lib/ mem/ sched/ init/
+
 # Use find to glob all *.c, *.S, and *.asm files in the directory and extract the object names.
-override CFILES := $(shell find . -type f -name '*.c')
-override ASFILES := $(shell find . -type f -name '*.S')
+override CFILES := $(shell find $(KDIRS) -type f -name '*.c')
+override ASFILES := $(shell find $(KDIRS) -type f -name '*.S')
 override OBJ := $(CFILES:.c=.o) $(ASFILES:.S=.o)
 override HEADER_DEPS := $(CFILES:.c=.d) $(ASFILES:.S=.d)
 
