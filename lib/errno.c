@@ -12,6 +12,7 @@ static const char *errno_str[] = {
 	[EISDIR] = "Is a directory",
 	[ENOSPC] = "No space left on device",
 	[EEXIST] = "File exists",
+	[ENOEXEC] = "Exec format error",
 };
 
 inline const char *strerror(int errnum)

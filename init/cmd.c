@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 #include <kernel/cmd.h>
 #include <kernel/slab.h>
+#include <kernel/elf.h>
 
 #include <dev/console.h>
 
@@ -17,6 +18,7 @@ int kcmd_basename(int argc, char **argv);
 int kcmd_dirname(int argc, char **argv);
 int kcmd_mkdir(int argc, char **argv);
 int kcmd_unlink(int argc, char **argv);
+int kcmd_elf(int argc, char **argv);
 
 #define KCMD_DECL(name)            \
 	{                          \
@@ -28,8 +30,8 @@ struct kcmd {
 	int (*func)(int argc, char **argv);
 };
 
-struct kcmd cmd_list[] = { KCMD_DECL(basename), KCMD_DECL(cat), KCMD_DECL(dirname), KCMD_DECL(clear),
-			   KCMD_DECL(help),	KCMD_DECL(ls),	KCMD_DECL(mkdir),   KCMD_DECL(stat), KCMD_DECL(unlink) };
+struct kcmd cmd_list[] = { KCMD_DECL(basename), KCMD_DECL(cat),	  KCMD_DECL(dirname), KCMD_DECL(clear),	 KCMD_DECL(help),
+			   KCMD_DECL(ls),	KCMD_DECL(mkdir), KCMD_DECL(stat),    KCMD_DECL(unlink), KCMD_DECL(elf) };
 
 int kcmd_basename(int argc, char **argv)
 {
@@ -189,6 +191,63 @@ int kcmd_unlink(int argc, char **argv)
 		kprintf("Failed to unlink %s: %s\n", argv[1], strerror(-ret));
 		return 1;
 	}
+
+	return 0;
+}
+
+int kcmd_elf(int argc, char **argv)
+{
+	/* open file and check magic */
+	if (!argv[1] || strempty(argv[1])) {
+		kprintf("Usage: elf <file>\n");
+		return 1;
+	}
+
+	int fd = open(argv[1], 0);
+	if (fd < 0) {
+		kprintf("Failed to open %s: %s\n", argv[1], strerror(-fd));
+		return 1;
+	}
+
+	char *buf = kmalloc(4096, ALLOC_KERN);
+	if (!buf)
+		return -ENOMEM;
+
+	int ret = read(fd, buf, 4096);
+	if (ret < 0) {
+		kprintf("Failed to read %s: %s\n", argv[1], strerror(-ret));
+		close(fd);
+		return 1;
+	}
+
+	char elf_magic[] = { 0x7F, 'E', 'L', 'F' };
+	if (strncmp(buf, elf_magic, 4)) {
+		kprintf("Not an ELF file\n");
+		close(fd);
+		return 1;
+	}
+
+	struct elf64_header *hdr = (struct elf64_header *)buf;
+
+	kprintf("ELF header:\n");
+	kprintf("  Magic: %x %x %x %x\n", buf[0], buf[1], buf[2], buf[3]);
+	kprintf("  Class: %d\n", hdr->e_ident[EI_CLASS]);
+	kprintf("  Data: %d\n", hdr->e_ident[EI_DATA]);
+	kprintf("  Type: %d\n", hdr->e_type);
+	kprintf("  Machine: %d\n", hdr->e_machine);
+	kprintf("  Version: %d\n", hdr->e_version);
+	kprintf("  Entry: %Xh\n", hdr->e_entry);
+	kprintf("  Program header offset: %d\n", hdr->e_phoff);
+	kprintf("  Section header offset: %d\n", hdr->e_shoff);
+	kprintf("  Flags: %d\n", hdr->e_flags);
+	kprintf("  Header size: %d\n", hdr->e_ehsize);
+	kprintf("  Program header size: %d\n", hdr->e_phentsize);
+	kprintf("  Program header count: %d\n", hdr->e_phnum);
+	kprintf("  Section header size: %d\n", hdr->e_shentsize);
+	kprintf("  Section header count: %d\n", hdr->e_shnum);
+	kprintf("  Section header string table index: %d\n", hdr->e_shstrndx);
+
+	close(fd);
 
 	return 0;
 }
