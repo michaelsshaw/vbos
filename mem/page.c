@@ -6,11 +6,11 @@
 #include <kernel/proc.h>
 
 static slab_t *page_slab;
-static spinlock_t kmap_lock = 0;
 
 extern void *(*alloc_page)();
 
-static struct rbtree *kmap_tree = NULL;
+struct rbtree *kmap_tree = NULL;
+spinlock_t kmap_lock = 0;
 
 static void *kmap_alloc_page()
 {

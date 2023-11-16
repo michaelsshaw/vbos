@@ -93,6 +93,9 @@ extern struct mem_region *regions;
 extern size_t num_regions;
 extern size_t max_regions;
 
+extern struct rbtree *kmap_tree;
+extern spinlock_t kmap_lock;
+
 extern struct page *pml4;
 extern paddr_t kcr3;
 extern struct page kdefault_attrs;

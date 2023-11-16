@@ -22,6 +22,7 @@ static uint8_t sata_device_count = 0;
 static struct sata_device sata_devices[32] = { 0 };
 
 static paddr_t ahci_pbase = 0;
+static uintptr_t ahci_vbase = 0;
 
 static void ahci_irq_handler()
 {
@@ -286,12 +287,14 @@ void ahci_init()
 	ahci_pbase = (paddr_t)buddy_alloc(ahci_zone_size) & (~hhdm_start); /* 1 MiB */
 	ahci_probe_ports(dev, abar);
 
+	ahci_vbase = mmap_find_unmapped(kmap_tree, &kmap_lock, hhdm_start, ahci_zone_size);
+
 	/* map ahci zone with cache disabled (pcd=1) */
 	struct page attrs;
 	attrs.val = 1;
 	attrs.rw = 1;
 	attrs.pcd = 1;
-	kmap(ahci_pbase, ahci_pbase | hhdm_start, ahci_zone_size, attrs.val);
+	kmap(ahci_pbase, ahci_vbase, ahci_zone_size, attrs.val);
 
 	if (sata_device_count == 0) {
 		kprintf(LOG_WARN "No SATA devices found\n");
