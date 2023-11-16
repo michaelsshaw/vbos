@@ -32,7 +32,7 @@ static uint64_t *pagemap_traverse(uint64_t *this_level, size_t next_num)
 
 uintptr_t mmap_find_unmapped(struct rbtree *tree, spinlock_t *lock, uintptr_t start, size_t len)
 {
-	len = MIN(len, 0x1000);
+	len = MAX(len, 0x1000);
 	len = npow2(len);
 
 	spinlock_acquire(lock);
@@ -54,11 +54,13 @@ uintptr_t mmap_find_unmapped(struct rbtree *tree, spinlock_t *lock, uintptr_t st
 	size_t ret = start;
 
 	while (node != NULL) {
-		/* node value is the physical address, node key is the virtual address 
-		 *
-		 * we want to find the lowest virtual address that is not mapped
-		 */
-		if (node->key > ret + len) {
+		if (ret + len <= node->key) {
+			struct rbnode *node2 = rbt_successor(node);
+			if (node2->key <= ret + len) {
+				ret = node2->key + node2->value2;
+				node = node2;
+				continue;
+			}
 			spinlock_release(lock);
 			return ret;
 		}
@@ -97,7 +99,7 @@ void mmap(uintptr_t pml4, struct rbtree *tree, paddr_t paddr, uintptr_t vaddr, s
 		}
 
 		struct rbnode *node = rbt_insert(tree, vaddr);
-		if(node == NULL) {
+		if (node == NULL) {
 			kprintf(LOG_WARN "mmap: failed to insert node\n");
 			return;
 		}
