@@ -53,6 +53,8 @@ struct proc {
 };
 
 struct procregs *proc_current_regs();
+struct proc *proc_create();
+struct proc *proc_get(pid_t pid);
 void proc_init(unsigned num_cpus);
 
 #endif /* _PROC_H_ */

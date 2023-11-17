@@ -19,6 +19,7 @@ int kcmd_dirname(int argc, char **argv);
 int kcmd_mkdir(int argc, char **argv);
 int kcmd_unlink(int argc, char **argv);
 int kcmd_elf(int argc, char **argv);
+int kcmd_exec(int argc, char **argv);
 
 void prompt();
 
@@ -32,8 +33,9 @@ struct kcmd {
 	int (*func)(int argc, char **argv);
 };
 
-struct kcmd cmd_list[] = { KCMD_DECL(basename), KCMD_DECL(cat),	  KCMD_DECL(dirname), KCMD_DECL(clear),	 KCMD_DECL(help),
-			   KCMD_DECL(ls),	KCMD_DECL(mkdir), KCMD_DECL(stat),    KCMD_DECL(unlink), KCMD_DECL(elf) };
+struct kcmd cmd_list[] = { KCMD_DECL(basename), KCMD_DECL(cat), KCMD_DECL(dirname), KCMD_DECL(clear),
+			   KCMD_DECL(help),	KCMD_DECL(ls),	KCMD_DECL(mkdir),   KCMD_DECL(stat),
+			   KCMD_DECL(unlink),	KCMD_DECL(elf), KCMD_DECL(exec) };
 
 int kcmd_basename(int argc, char **argv)
 {
@@ -250,6 +252,36 @@ int kcmd_elf(int argc, char **argv)
 	kprintf("  Section header string table index: %d\n", hdr->e_shstrndx);
 
 	close(fd);
+
+	return 0;
+}
+
+int kcmd_exec(int argc, char **argv)
+{
+	/* open file and check magic */
+	if (!argv[1] || strempty(argv[1])) {
+		kprintf("Usage: exec <file>\n");
+		return 1;
+	}
+	
+	pid_t pid = elf_load_proc(argv[1]);
+
+	if (pid < 0) {
+		kprintf("Failed to load %s: %s\n", argv[1], strerror(-pid));
+		return 1;
+	}
+
+	kprintf("Loaded %s as PID %d\n", argv[1], pid);
+
+	struct proc *proc = proc_get(pid);
+	if (!proc) {
+		kprintf("Failed to get proc %d\n", pid);
+		return 1;
+	}
+
+	proc->state = PROC_RUNNING;
+	void _return_to_user(struct procregs *regs, paddr_t cr3);
+	_return_to_user(&proc->regs, proc->cr3);
 
 	return 0;
 }

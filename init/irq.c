@@ -67,7 +67,6 @@ irq_decl(0x0E);
 irq_decl(0x0F);
 
 void idt_load(); /* descriptor.S */
-void __irq_handler_base(); /* isr.S */
 
 void idt_insert(uint16_t gate, uint8_t type, uint8_t ist, uint16_t segment, void *func)
 {
@@ -118,6 +117,12 @@ void irq(int irq)
 		void (*handler)() = irq_handlers[irq];
 		handler();
 	}
+}
+
+void gate_syscall(uint64_t rdi)
+{
+	kprintf("System call: %X\n", rdi);
+	yield();
 }
 
 void idt_init()
@@ -171,6 +176,8 @@ void idt_init()
 	idt_insert(0x2D, GATE_INTR, 0, GDT_SEGMENT_CODE_RING0, __irq(0x0D));
 	idt_insert(0x2E, GATE_INTR, 0, GDT_SEGMENT_CODE_RING0, __irq(0x0E));
 	idt_insert(0x2F, GATE_INTR, 0, GDT_SEGMENT_CODE_RING0, __irq(0x0F));
+
+	idt_insert(0x80, GATE_TRAP, 0, GDT_SEGMENT_CODE_RING0, gate_syscall);
 
 	irq_map(4, serial_trap);
 

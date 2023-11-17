@@ -3,6 +3,7 @@
 #define _ELF_H_
 
 #include <kernel/common.h>
+#include <kernel/proc.h>
 
 #define ET_NONE 0
 #define ET_REL 1
@@ -24,6 +25,46 @@
 
 #define ELFCLASS64 2
 #define ELFDATA2LSB 1 /* Little endian, two's complement */
+
+#define PT_NULL 0
+#define PT_LOAD 1
+#define PT_DYNAMIC 2
+#define PT_INTERP 3
+#define PT_NOTE 4
+#define PT_SHLIB 5
+
+#define R_X86_64_NONE 0
+#define R_X86_64_64 1
+#define R_X86_64_PC32 2
+#define R_X86_64_RELATIVE 8
+
+#define SHT_NULL 0
+#define SHT_PROGBITS 1
+#define SHT_SYMTAB 2
+#define SHT_STRTAB 3
+#define SHT_RELA 4
+#define SHT_NOBITS 8
+#define SHT_REL 9
+
+#define SHF_WRITE 1
+#define SHF_ALLOC 2
+
+#define STB_LOCAL 0
+#define STB_GLOBAL 1
+#define STB_WEAK 2
+
+#define STT_NOTYPE 0
+#define STT_OBJECT 1
+#define STT_FUNC 2
+
+#define SHN_UNDEF 0
+#define SHN_ABS 0xFFF1
+#define SHN_COMMON 0xFFF2
+
+#define ELF64_R_TYPE(i) ((i)&0xffffffff)
+#define ELF64_R_SYM(i) ((i) >> 32)
+
+#define ELF_RELOC_ERR -1
 
 struct elf64_header {
 	uint8_t e_ident[16];
@@ -65,5 +106,27 @@ struct elf64_section_header {
 	uint64_t sh_addralign;
 	uint64_t sh_entsize;
 } PACKED;
+
+struct elf64_symbol {
+	uint32_t st_name;
+	uint8_t st_info;
+	uint8_t st_other;
+	uint16_t st_shndx;
+	uint64_t st_value;
+	uint64_t st_size;
+} PACKED;
+
+struct elf64_rel {
+	uint64_t r_offset;
+	uint64_t r_info;
+} PACKED;
+
+struct elf64_rela {
+	uint64_t r_offset;
+	uint64_t r_info;
+	int64_t r_addend;
+} PACKED;
+
+pid_t elf_load_proc(char *fname);
 
 #endif /* _ELF_H_ */

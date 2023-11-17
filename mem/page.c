@@ -143,7 +143,7 @@ void *proc_mmap(struct proc *proc, paddr_t paddr, uintptr_t vaddr, size_t len, u
 	}
 
 	spinlock_acquire(&proc->page_map_lock);
-	mmap(proc->cr3 | hhdm_start, &proc->page_map, paddr, vaddr, len, attr);
+	mmap(proc->cr3 | hhdm_start, &proc->page_map, paddr, vaddr, len, attr | PAGE_USER);
 	spinlock_release(&proc->page_map_lock);
 
 	return (void *)vaddr;

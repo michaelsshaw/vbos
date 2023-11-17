@@ -47,6 +47,29 @@ void schedule()
 	}
 }
 
+struct proc *proc_create()
+{
+	struct proc *proc = kzalloc(sizeof(struct proc), ALLOC_KERN);
+
+	proc->pid = rbt_next_key(proc_tree);
+	proc->is_kernel = false;
+
+	struct rbnode *proc_node = rbt_insert(proc_tree, proc->pid);
+	proc_node->value = (uintptr_t)proc;
+
+	return proc;
+}
+
+struct proc *proc_get(pid_t pid)
+{
+	struct rbnode *proc_node = rbt_search(proc_tree, pid);
+
+	if (proc_node)
+		return (void *)proc_node->value;
+	else
+		return NULL;
+}
+
 void proc_init(unsigned num_cpus)
 {
 	/* allocate current process structs */

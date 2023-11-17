@@ -62,6 +62,8 @@ void gdt_init()
 	gdt_insert(4, GDT_ACCESS_DATA_RING0, 0xC0);
 	gdt_insert(5, GDT_ACCESS_CODE_RING0, 0xA0);
 	gdt_insert(6, GDT_ACCESS_DATA_RING0, 0xC0);
+	gdt_insert(7, GDT_ACCESS_CODE_RING3, 0xA0);
+	gdt_insert(8, GDT_ACCESS_DATA_RING3, 0xC0);
 
 	__gdtr.size = (sizeof(__gdt) - 1);
 	__gdtr.offset = (uint64_t)__gdt;

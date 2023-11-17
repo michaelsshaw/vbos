@@ -4,6 +4,7 @@
 
 #include <kernel/common.h>
 #include <kernel/rbtree.h>
+#include <kernel/proc.h>
 
 #define BBMAP_FREE 0
 #define BBMAP_SPLIT 1
@@ -11,7 +12,7 @@
 
 #define PAGE_PRESENT 0x1
 #define PAGE_RW 0x2
-#define PAGE_USERMODE 0x4
+#define PAGE_USER 0x4
 #define PAGE_XD 0x8000000000000000
 
 #define PAGE_PWT 0x8
@@ -104,6 +105,7 @@ void *buddy_alloc(size_t size);
 void buddy_free(void *paddr_hhdm);
 uintptr_t mmap_find_unmapped(struct rbtree *tree, spinlock_t *lock, uintptr_t start, size_t len);
 void kmap(paddr_t paddr, uintptr_t vaddr, size_t len, uint64_t attr);
+void *proc_mmap(struct proc *proc, paddr_t paddr, uintptr_t vaddr, size_t len, uint64_t attr);
 void *kmap_device(void *dev_paddr, size_t len);
 void kunmap(uintptr_t vaddr);
 
