@@ -74,6 +74,15 @@ void console_input(char c)
 			}
 		} else if (c == '\n' || c == '\r') {
 			console_write('\n');
+			if (strlen(console.line) >= 4 && !memcmp("exec", console.line, 4)) {
+				/* because this one doesn't return. i know it's bad, it will be changed later */
+				void lapic_eoi();
+				char line[512];
+				strcpy(line, console.line);
+				memset(console.line, 0, sizeof(console.line));
+				lapic_eoi();
+				kexec(line);
+			}
 			kexec(console.line);
 			memset(console.line, 0, sizeof(console.line));
 			console.l_line = 0;

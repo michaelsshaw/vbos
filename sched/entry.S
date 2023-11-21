@@ -3,6 +3,62 @@
 #define __ASM__
 #include <dev/serial.h>
 
+.macro save_context
+	pushq %rax
+	pushq %rcx
+	pushq %rdx
+	pushq %rsi
+	pushq %rdi
+	pushq %r8
+	pushq %r9
+	pushq %r10
+	pushq %r11
+
+	/* get current task registers */
+	call proc_current_regs
+
+	/* save current task registers */
+	popq %rdi
+	movq %rdi, 80(%rax) /* r11 */
+	popq %rdi
+	movq %rdi, 72(%rax) /* r10 */
+	popq %rdi
+	movq %rdi, 64(%rax) /* r9 */
+	popq %rdi
+	movq %rdi, 56(%rax) /* r8 */
+	popq %rdi
+	movq %rdi, 40(%rax) /* rdi */
+	popq %rdi
+	movq %rdi, 32(%rax) /* rsi */
+	popq %rdi
+	movq %rdi, 24(%rax) /* rdx */
+	popq %rdi
+	movq %rdi, 16(%rax) /* rcx */
+	popq %rdi
+	movq %rdi, 0(%rax) /* rax */
+
+	/* save remaining registers */
+	movq %rbx, 8(%rax) 
+	movq %rbp, 48(%rax)
+	movq %r12, 88(%rax)
+	movq %r13, 96(%rax)
+	movq %r14, 104(%rax)
+	movq %r15, 112(%rax)
+
+	/* save IRETQ frame */
+	popq %rdi
+	movq %rdi, 120(%rax) 
+	popq %rdi
+	movq %rdi, 128(%rax)
+	popq %rdi
+	/* enable interrupts */
+	movq %rdi, 136(%rax)
+	popq %rdi
+	movq %rdi, 144(%rax)
+	popq %rdi
+	movq %rdi, 152(%rax)
+.endm
+
 .macro push_regs
 	pushq %rax
 	pushq %rbx
@@ -69,60 +125,7 @@
 	.global _irq_\nr 					
 	_irq_\nr: 						
 		cli
-		/* push scratch registers */
-		pushq %rax
-		pushq %rcx
-		pushq %rdx
-		pushq %rsi
-		pushq %rdi
-		pushq %r8
-		pushq %r9
-		pushq %r10
-		pushq %r11
-
-		/* get current task registers */
-		call proc_current_regs
-		
-		/* save current task registers */
-		popq %rdi
-		movq %rdi, 80(%rax) /* r11 */
-		popq %rdi
-		movq %rdi, 72(%rax) /* r10 */
-		popq %rdi
-		movq %rdi, 64(%rax) /* r9 */
-		popq %rdi
-		movq %rdi, 56(%rax) /* r8 */
-		popq %rdi
-		movq %rdi, 40(%rax) /* rdi */
-		popq %rdi
-		movq %rdi, 32(%rax) /* rsi */
-		popq %rdi
-		movq %rdi, 24(%rax) /* rdx */
-		popq %rdi
-		movq %rdi, 16(%rax) /* rcx */
-		popq %rdi
-		movq %rdi, 0(%rax) /* rax */
-
-		/* save remaining registers */
-		movq %rbx, 8(%rax) 
-		movq %rbp, 48(%rax)
-		movq %r12, 88(%rax)
-		movq %r13, 96(%rax)
-		movq %r14, 104(%rax)
-		movq %r15, 112(%rax)
-
-		/* save IRETQ frame */
-		popq %rdi
-		movq %rdi, 120(%rax) 
-		popq %rdi
-		movq %rdi, 128(%rax)
-		popq %rdi
-		movq %rdi, 136(%rax)
-		popq %rdi
-		movq %rdi, 144(%rax)
-		popq %rdi
-		movq %rdi, 152(%rax)
-
+		save_context
 		/* call irq handler */
 		movq $\nr, %rdi
 		call irq
@@ -193,65 +196,11 @@ irq 0x0F
 .global gate_syscall
 gate_syscall:
 	cli
-	/* push scratch registers */
-	pushq %rax
-	pushq %rcx
-	pushq %rdx
-	pushq %rsi
-	pushq %rdi
-	pushq %r8
-	pushq %r9
-	pushq %r10
-	pushq %r11
-
-	/* get current task registers */
-	call proc_current_regs
-
-	/* save current task registers */
-	popq %rdi
-	movq %rdi, 80(%rax) /* r11 */
-	popq %rdi
-	movq %rdi, 72(%rax) /* r10 */
-	popq %rdi
-	movq %rdi, 64(%rax) /* r9 */
-	popq %rdi
-	movq %rdi, 56(%rax) /* r8 */
-	popq %rdi
-	movq %rdi, 40(%rax) /* rdi */
-	popq %rdi
-	movq %rdi, 32(%rax) /* rsi */
-	popq %rdi
-	movq %rdi, 24(%rax) /* rdx */
-	popq %rdi
-	movq %rdi, 16(%rax) /* rcx */
-	popq %rdi
-	movq %rdi, 0(%rax) /* rax */
-
-	/* save remaining registers */
-	movq %rbx, 8(%rax) 
-	movq %rbp, 48(%rax)
-	movq %r12, 88(%rax)
-	movq %r13, 96(%rax)
-	movq %r14, 104(%rax)
-	movq %r15, 112(%rax)
-
-	/* save IRETQ frame */
-	popq %rdi
-	movq %rdi, 120(%rax) 
-	popq %rdi
-	movq %rdi, 128(%rax)
-	popq %rdi
-	movq %rdi, 136(%rax)
-	popq %rdi
-	movq %rdi, 144(%rax)
-	popq %rdi
-	movq %rdi, 152(%rax)
-
+	save_context
 	movq 0(%rax), %rdi /* syscall number */
-
 	movq 40(%rax), %rsi /* arguments */
-	call syscall
 
+	call syscall
 	call schedule
 
 /* void return_from_irq(struct procregs *regs, paddr_t cr3); */
