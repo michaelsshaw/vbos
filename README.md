@@ -1,7 +1,25 @@
-# vbos - very bad os - now with ext2 filesystem!
+# vbos - very bad os - now with executables!
 
-This is still an early project. It supports a very select few commands and is
-under heavy development. This is very much a for-fun project
+```
+"Don't reinvent the wheel" - Some idiot, probably
+```
+
+For-fun operating system created by me!
+
+## Installation
+
+You will need to deploy limine onto a filesystem image, the limine barebones
+project will suffice for creating this. In addition, you must also have an
+ext2 filesystem image.
+
+Be sure to set `SERIAL=yes` at the top of your limine.cfg as well as the
+`KERNEL_CMDLINE=` parameter `root=` as your root filesystem (not necessarily
+the boot filesystem). Booting without the `root=` parameter will cause a panic
+giving you a list of available block devices to mount. Only ext2 is supported
+for mounting filesystems.
+
+If you wish to use a partition scheme, it must be GPT. If not, mounting the bare
+block device should (probably) work fine.
 
 ## License
 
