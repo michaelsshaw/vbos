@@ -34,13 +34,13 @@ uint16_t gdt_insert_tss(uintptr_t rsp0)
 
 	struct gdt_desc_sys *desc = (struct gdt_desc_sys *)((struct gdt_desc *)__gdt + gdt_index);
 
-	paddr_t tss_addr = (paddr_t)(tss_table + tss_index) & (~hhdm_start);
+	paddr_t tss_addr = (paddr_t)(tss_table + tss_index);
 	desc->limit = sizeof(struct tss) - 1;
-	desc->base = tss_addr & 0xFFFF;
+	desc->base = tss_addr & 0xFFFFFF;
 	desc->base_2 = (tss_addr >> 16) & 0xFF;
 	desc->base_3 = (tss_addr >> 24) & 0xFF;
 	desc->base_4 = (tss_addr >> 32) & 0xFFFFFFFF;
-	desc->access = 0x89;
+	desc->access = 0xE9;
 	desc->flags = 0x00;
 
 	tss_index += 1;

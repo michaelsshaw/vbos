@@ -5,6 +5,8 @@
 #define GATE_INTR 0x8E
 #define GATE_TRAP 0x8F
 
+#define GATE_INTR_DPL3 0xEE
+
 #define IDT_GATE_SIZE 16
 #define IDT_NUM_VECTORS 256
 #define IDT_SIZE (IDT_GATE_SIZE * IDT_NUM_VECTORS)

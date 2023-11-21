@@ -66,42 +66,42 @@ pid_t elf_load_proc(char *fname)
 
 	struct proc *proc = proc_create();
 	/* allocate page tables */
-	proc->cr3 = (uintptr_t)buddy_alloc(0x1000) & (~hhdm_start);
+	proc->cr3 = (uintptr_t)buddy_alloc(0x1000);
 
+	/* map kernel pages */
+	memcpy((void *)proc->cr3, (void *)(kcr3 | hhdm_start), 0x1000);
+
+	proc->cr3 &= (~hhdm_start);
+
+	/* map text segment */
 	struct elf64_program_header *phdr = (struct elf64_program_header *)(buf + hdr->e_phoff);
-	for (int i = 0; i < hdr->e_phnum; i++) {
-		if (phdr[i].p_type == PT_LOAD) {
-			/* allocate memory for segment */
-			size_t psize = MAX(0x1000, npow2(phdr[i].p_memsz));
-			uintptr_t prog_buf = (uintptr_t)buddy_alloc(psize);
-			void *addr = proc_mmap(proc, prog_buf & (~hhdm_start), phdr[i].p_vaddr, psize, PAGE_RW | PAGE_PRESENT);
-			if (!addr) {
-				kfree(buf);
-				return -ENOMEM;
-			}
+	for (unsigned int i = 0; i < hdr->e_phnum; i++) {
+		if (phdr[i].p_type != PT_LOAD)
+			continue;
 
-			/* copy data from file to memory */
-			memcpy((void *)prog_buf, buf + phdr[i].p_offset, phdr[i].p_filesz);
-
-			/* zero out remaining memory */
-			memset((void *)prog_buf + phdr[i].p_filesz, 0, phdr[i].p_memsz - phdr[i].p_filesz);
-		}
+		uintptr_t vaddr = phdr[i].p_vaddr;
+		size_t len = MAX(0x1000, npow2(phdr[i].p_filesz));
+		uintptr_t paddr = (uintptr_t)buddy_alloc(len);
+		(void)proc_mmap(proc, paddr & (~hhdm_start), vaddr, len, PAGE_RW | PAGE_PRESENT | PAGE_USER);
+		memcpy((void *)paddr, buf + phdr[i].p_offset, len);
 	}
 
 	/* set entry point */
 	proc->regs.rip = hdr->e_entry;
-	proc->regs.rflags = 0x202; /* interrupts enabled, IOPL = 0 */
+	proc->regs.rflags = 0x242;
+
 	/* descriptor #7 is the user code segment */
-	proc->regs.cs = 7 * sizeof(struct gdt_desc) | 0x3;
-	proc->regs.ss = 8 * sizeof(struct gdt_desc) | 0x3;
+	proc->regs.cs = 0x38 | 3;
+	proc->regs.ss = 0x40 | 3;
+	ds_write(0x40 | 3);
 
 	/* allocate user stack */
 	uintptr_t stack_buf = (uintptr_t)buddy_alloc(0x1000);
-	uintptr_t u_stack_addr = 0x202020202000;
-	(void)proc_mmap(proc, stack_buf & (~hhdm_start), u_stack_addr, 0x1000, PAGE_RW | PAGE_PRESENT);
+	uintptr_t u_stack_addr = 0x20002000;
+	(void)proc_mmap(proc, stack_buf & (~hhdm_start), u_stack_addr, 0x1000, PAGE_RW | PAGE_PRESENT | PAGE_USER);
 
 	/* set stack pointer */
-	proc->regs.rsp = u_stack_addr + 0x1000;
+	proc->regs.rsp = u_stack_addr + 0xFF0;
 
 	kfree(buf);
 

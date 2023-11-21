@@ -30,6 +30,7 @@
 
 typedef uint32_t ino_t;
 typedef uint8_t ftype_t;
+typedef size_t off_t;
 
 struct vnode {
 	char name[256];

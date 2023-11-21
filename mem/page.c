@@ -17,13 +17,15 @@ static void *kmap_alloc_page()
 	return slab_alloc(page_slab);
 }
 
-static uint64_t *pagemap_traverse(uint64_t *this_level, size_t next_num)
+static uint64_t *pagemap_traverse(uint64_t *this_level, size_t next_num, uint64_t attr)
 {
 	uint64_t *r;
 	if (!(this_level[next_num] & 1)) {
+		if (!attr)
+			return NULL;
 		r = alloc_page();
 		memset(r, 0, 4096);
-		this_level[next_num] = ((uintptr_t)r | 3) & ~hhdm_start;
+		this_level[next_num] = (((uintptr_t)r | 3) & ~hhdm_start) | attr;
 	} else {
 		r = (void *)((this_level[next_num] & -4096ull) | hhdm_start);
 	}
@@ -33,7 +35,8 @@ static uint64_t *pagemap_traverse(uint64_t *this_level, size_t next_num)
 uintptr_t mmap_find_unmapped(struct rbtree *tree, spinlock_t *lock, uintptr_t start, size_t len)
 {
 	len = MAX(len, 0x1000);
-	len = npow2(len);
+	len = len | 0xFFF;
+	len += 1;
 
 	spinlock_acquire(lock);
 	if (tree == NULL) {
@@ -114,9 +117,9 @@ void mmap(uintptr_t pml4, struct rbtree *tree, paddr_t paddr, uintptr_t vaddr, s
 		pdn = (vaddr >> 30) & 0x1FF;
 		pdpn = (vaddr >> 39) & 0x1FF;
 
-		pdpt = pagemap_traverse((uint64_t *)pml4, pdpn);
-		pdt = pagemap_traverse(pdpt, pdn);
-		pt = pagemap_traverse(pdt, ptn);
+		pdpt = pagemap_traverse((uint64_t *)pml4, pdpn, attr);
+		pdt = pagemap_traverse(pdpt, pdn, attr);
+		pt = pagemap_traverse(pdt, ptn, attr);
 		pt[pn] = paddr | attr;
 	}
 
@@ -143,7 +146,7 @@ void *proc_mmap(struct proc *proc, paddr_t paddr, uintptr_t vaddr, size_t len, u
 	}
 
 	spinlock_acquire(&proc->page_map_lock);
-	mmap(proc->cr3 | hhdm_start, &proc->page_map, paddr, vaddr, len, attr | PAGE_USER);
+	mmap(proc->cr3 | hhdm_start, &proc->page_map, paddr, vaddr, len, attr);
 	spinlock_release(&proc->page_map_lock);
 
 	return (void *)vaddr;
@@ -219,9 +222,9 @@ void kunmap(uintptr_t vaddr)
 		pdn = (vaddr >> 30) & 0x1FF;
 		pdpn = (vaddr >> 39) & 0x1FF;
 
-		pdpt = pagemap_traverse((uint64_t *)pml4, pdpn);
-		pdt = pagemap_traverse(pdpt, pdn);
-		pt = pagemap_traverse(pdt, ptn);
+		pdpt = pagemap_traverse((uint64_t *)pml4, pdpn, 0);
+		pdt = pagemap_traverse(pdpt, pdn, 0);
+		pt = pagemap_traverse(pdt, ptn, 0);
 		pt[pn] = 0;
 
 		if (!kunmap_check_table(pt, pdt, ptn))
@@ -250,7 +253,6 @@ void page_init(paddr_t kpaddr, uintptr_t kvaddr, size_t kernel_size, struct mem_
 	alloc_page = kmap_alloc_page;
 	pml4 = NULL;
 
-	/* do not invalidate TLB entries for kernel pages */
 	uint64_t attrs = PAGE_PRESENT | PAGE_RW;
 	kmap(kpaddr, kvaddr, kernel_size, attrs);
 

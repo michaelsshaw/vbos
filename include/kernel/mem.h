@@ -29,6 +29,7 @@
 genrw(rsp);
 genrw(rbp);
 genrw(cr3);
+genrw(ds);
 
 #undef genrw
 

@@ -41,20 +41,17 @@ uintptr_t bss_end;
 
 void gdt_load();
 void idt_load();
+void yield();
 void ap_kmain(struct limine_smp_info *info);
 void load_stack_and_park(uintptr_t rsp, uintptr_t rbp);
+
+uintptr_t kstacks[256] = { 0 };
 
 void prompt()
 {
 	kprintf(COL_YELLOW_BLACK "vbos # " COL_RESET);
 }
 
-void yield()
-{
-	for (;;) {
-		__asm__("hlt");
-	}
-}
 
 void panic()
 {
@@ -159,7 +156,7 @@ void kmain()
 	char *root_path = kcmdline_get_symbol("root");
 	if (!root_path) {
 		kprintf(LOG_ERROR "No root= parameter specified\n");
-		
+
 		kerror_print_blkdevs();
 		panic();
 	} else {
@@ -184,7 +181,6 @@ void kmain()
 
 	/* init the application processors */
 	struct limine_smp_response *smp_resp = smp_req.response;
-	proc_init(smp_resp->cpu_count);
 	for (unsigned i = 0; i < smp_resp->cpu_count; i++) {
 		struct limine_smp_info *info = smp_resp->cpus[i];
 
@@ -193,6 +189,9 @@ void kmain()
 
 		info->goto_address = ap_kmain;
 	}
+	proc_init(smp_resp->cpu_count);
+	void syscall_init();
+	syscall_init();
 
 	/* wait for the application processors to finish their initialization */
 	for (unsigned i = 0; i < 100000; i++)
@@ -219,6 +218,8 @@ void ap_kmain(struct limine_smp_info *info)
 
 	void *kstack = buddy_alloc(KSTACK_SIZE);
 	uintptr_t ptr = (uintptr_t)kstack + KSTACK_SIZE - 8;
+
+	kstacks[info->lapic_id] = (uintptr_t)ptr;
 
 	/* insert the TSS for each processor into the GDT */
 #ifdef KDEBUG
