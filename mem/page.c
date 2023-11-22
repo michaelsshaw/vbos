@@ -25,7 +25,7 @@ static uint64_t *pagemap_traverse(uint64_t *this_level, size_t next_num, uint64_
 			return NULL;
 		r = alloc_page();
 		memset(r, 0, 4096);
-		this_level[next_num] = (((uintptr_t)r | 3) & ~hhdm_start) | attr;
+		this_level[next_num] = (((uintptr_t)r | 3) & ~hhdm_start) | (attr & (PAGE_PRESENT | PAGE_USER));
 	} else {
 		r = (void *)((this_level[next_num] & -4096ull) | hhdm_start);
 	}
