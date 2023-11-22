@@ -35,6 +35,7 @@ void sys_exit(int status)
 	kprintf("(syscall)Process %d exited with status 0x%x\n", getpid(), status);
 
 	proc_set_current(0);
+	schedule();
 }
 
 static void syscall_insert(uint64_t syscall_no, syscall_t syscall)

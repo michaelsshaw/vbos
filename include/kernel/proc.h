@@ -60,5 +60,6 @@ void proc_term(pid_t pid);
 struct proc *proc_find(pid_t pid);
 void proc_set_current(pid_t pid);
 void proc_init(unsigned num_cpus);
+void schedule();
 
 #endif /* _PROC_H_ */

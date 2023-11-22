@@ -32,23 +32,6 @@ void pic_eoi(uint8_t irq)
 	outb(PIC1_CMD, 0x20);
 }
 
-void exception(int vector, int error)
-{
-	kprintf(LOG_WARN "EXCEPTION: %x, error code: %d\n", vector, error);
-	pid_t pid = getpid();
-
-	struct proc *proc = proc_find(pid);
-
-	if (proc->is_kernel) {
-		kprintf(LOG_ERROR "Kernel process %d crashed\n", pid);
-		panic();
-	} else {
-		proc_term(pid);
-		kprintf(LOG_WARN "Process %d terminated\n", pid);
-		yield();
-	}
-}
-
 void pic_init()
 {
 	/* disable the PIC */

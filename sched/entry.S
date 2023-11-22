@@ -201,7 +201,7 @@ gate_syscall:
 	movq 40(%rax), %rsi /* arguments */
 
 	call syscall
-	call schedule
+	iretq
 
 /* void return_from_irq(struct procregs *regs, paddr_t cr3); */
 .global _return_to_user
