@@ -8,6 +8,7 @@
 
 #include <fs/vfs.h>
 
+static slab_t *proc_slab;
 static struct rbtree *proc_tree;
 static pid_t *proc_current;
 
@@ -63,7 +64,7 @@ void proc_term(pid_t pid)
 		struct proc *proc = (void *)proc_node->value;
 
 		rbt_delete(proc_tree, proc_node);
-		kfree(proc);
+		slab_free(proc_slab, proc);
 	} else {
 		kprintf(LOG_ERROR "proc: proc_term: proc %u not found\n", pid);
 		panic();
@@ -104,7 +105,8 @@ static int proc_insert_charfd(struct proc *proc, int fdno, int flags)
 
 struct proc *proc_create()
 {
-	struct proc *proc = kzalloc(sizeof(struct proc), ALLOC_KERN);
+	struct proc *proc = slab_alloc(proc_slab);
+	memset(proc, 0, sizeof(struct proc));
 
 	proc->pid = rbt_next_key(proc_tree);
 	proc->is_kernel = false;
@@ -135,6 +137,7 @@ void proc_init(unsigned num_cpus)
 	/* allocate current process structs */
 	proc_current = kzalloc(num_cpus * sizeof(pid_t), ALLOC_KERN);
 	proc_tree = kzalloc(sizeof(struct rbtree), ALLOC_KERN);
+	proc_slab = slab_create(sizeof(struct proc), 32 * KB, 0);
 
 	for (unsigned i = 0; i < num_cpus; i++) {
 		proc_current[i] = -1;

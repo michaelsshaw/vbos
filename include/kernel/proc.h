@@ -52,6 +52,7 @@ struct proc {
 	spinlock_t page_map_lock;
 
 	struct rbtree fd_map;
+	spinlock_t fd_map_lock;
 };
 
 struct procregs *proc_current_regs();
