@@ -196,37 +196,15 @@ irq 0x0F
 .global gate_syscall
 gate_syscall:
 	cli
-	pushq %rbx
-	pushq %rbp
-	pushq %r12
-	pushq %r13
-	pushq %r14
-	pushq %r15
-
-	pushq %rax
-	pushq %rdi
-	pushq %rsi
-	pushq %rdx
-	pushq %rcx
-	pushq %r8
-
-	popq %r9
-	popq %r8
-	popq %rcx
-	popq %rdx
-	popq %rsi
-	popq %rdi
-	
+	save_context
+	movq 0(%rax), %rdi
+	movq 40(%rax), %rsi
+	movq 32(%rax), %rdx
+	movq 24(%rax), %rcx
+	movq 16(%rax), %r8
+	movq 56(%rax), %r9
 	call syscall
-
-	popq %r15
-	popq %r14
-	popq %r13
-	popq %r12
-	popq %rbp
-	popq %rbx
-	
-	iretq
+	call schedule
 
 /* void return_from_irq(struct procregs *regs, paddr_t cr3); */
 .global _return_to_user
