@@ -117,14 +117,15 @@ void slab_free(slab_t *slab, void *ptr)
 	uintptr_t low = 0;
 	uintptr_t high = 0;
 
-	spinlock_acquire(&slab->lock);
+	spinlock_t *lock = &slab->lock;
+	spinlock_acquire(lock);
 
 	slab_range(slab, &low, &high);
 	while ((uintptr_t)ptr < low || (uintptr_t)ptr > high) {
 		slab_range(slab, &low, &high);
 		slab = slab->next;
 		if (slab == NULL) {
-			spinlock_release(&slab->lock);
+			spinlock_release(lock);
 			return;
 		}
 	}
@@ -151,7 +152,7 @@ void slab_free(slab_t *slab, void *ptr)
 		buddy_free(slab);
 	}
 
-	spinlock_release(&slab->lock);
+	spinlock_release(lock);
 }
 
 void kmalloc_init()

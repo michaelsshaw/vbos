@@ -243,8 +243,10 @@ static void rbt_delete_fixup(struct rbtree *tree, struct rbnode *node)
 	tree->root->color = RB_BLACK;
 }
 
-static struct rbnode *rbt_minimum(struct rbnode *node)
+struct rbnode *rbt_minimum(struct rbnode *node)
 {
+	if(node == NULL)
+		return NULL;
 	/* find the leftmost node */
 	while (node->left != NULL)
 		node = node->left;
@@ -300,15 +302,13 @@ void rbt_delete(struct rbtree *tree, struct rbnode *del)
 	spinlock_release(&tree->lock);
 }
 
-void rbt_destroy(struct rbtree *tree, struct rbnode *node)
+void rbt_destroy(struct rbtree *tree)
 {
-	if (node == NULL)
+	if (!tree)
 		return;
 
-	rbt_destroy(tree, node->left);
-	rbt_destroy(tree, node->right);
-
-	rbt_delete(tree, node);
+	while (tree->root)
+		rbt_delete(tree, tree->root);
 }
 
 struct rbnode *rbt_range_val2(struct rbtree *tree, uint64_t sval, uint64_t len)
@@ -329,7 +329,7 @@ struct rbnode *rbt_range_val2(struct rbtree *tree, uint64_t sval, uint64_t len)
 		}
 	}
 
-	if(closest == NULL)
+	if (closest == NULL)
 		return NULL;
 
 	/* check if closest node is in range */

@@ -108,7 +108,7 @@ uintptr_t mmap_find_unmapped(struct rbtree *tree, spinlock_t *lock, uintptr_t st
 void kmap(paddr_t paddr, uintptr_t vaddr, size_t len, uint64_t attr);
 void *proc_mmap(struct proc *proc, paddr_t paddr, uintptr_t vaddr, size_t len, uint64_t attr);
 void *kmap_device(void *dev_paddr, size_t len);
-void kunmap(uintptr_t vaddr);
+void proc_munmap(struct proc *proc, uintptr_t vaddr);
 
 void mem_early_init(char *mem, size_t len);
 

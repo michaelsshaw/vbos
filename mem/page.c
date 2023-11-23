@@ -176,7 +176,7 @@ void *kmap_device(void *dev_paddr, size_t len)
 	return (void *)vaddr;
 }
 
-static bool kunmap_check_table(uint64_t *table, uint64_t *parent, size_t n)
+static bool munmap_check_table(uint64_t *table, uint64_t *parent, size_t n)
 {
 	for (size_t i = 0; i < 512; i++) {
 		if (table[i] & 1) {
@@ -191,9 +191,8 @@ static bool kunmap_check_table(uint64_t *table, uint64_t *parent, size_t n)
 	return true;
 }
 
-void kunmap(uintptr_t vaddr)
+void munmap(struct rbtree *map_tree, uintptr_t vaddr, uintptr_t pml4_vaddr)
 {
-	spinlock_acquire(&kmap_lock);
 	if (kmap_tree == NULL)
 		return;
 
@@ -206,11 +205,10 @@ void kunmap(uintptr_t vaddr)
 	size_t ptn;
 	size_t pn;
 
-	struct rbnode *node = rbt_search(kmap_tree, vaddr);
+	struct rbnode *node = rbt_search(map_tree, vaddr);
 
 	if (node == NULL) {
 		kprintf("kunmap: Tried to unmap unmapped address %X\n", vaddr);
-		spinlock_release(&kmap_lock);
 		return;
 	}
 
@@ -222,21 +220,27 @@ void kunmap(uintptr_t vaddr)
 		pdn = (vaddr >> 30) & 0x1FF;
 		pdpn = (vaddr >> 39) & 0x1FF;
 
-		pdpt = pagemap_traverse((uint64_t *)pml4, pdpn, 0);
+		pdpt = pagemap_traverse((uint64_t *)pml4_vaddr, pdpn, 0);
 		pdt = pagemap_traverse(pdpt, pdn, 0);
 		pt = pagemap_traverse(pdt, ptn, 0);
 		pt[pn] = 0;
 
-		if (!kunmap_check_table(pt, pdt, ptn))
+		if (!munmap_check_table(pt, pdt, ptn))
 			continue;
-		if (!kunmap_check_table(pdt, pdpt, pdn))
+		if (!munmap_check_table(pdt, pdpt, pdn))
 			continue;
 
-		kunmap_check_table(pdpt, (uint64_t *)pml4, pdpn);
+		munmap_check_table(pdpt, (uint64_t *)pml4, pdpn);
 	}
 
-	rbt_delete(kmap_tree, node);
-	spinlock_release(&kmap_lock);
+	rbt_delete(map_tree, node);
+}
+
+void proc_munmap(struct proc *proc, uintptr_t vaddr)
+{
+	spinlock_acquire(&proc->page_map_lock);
+	munmap(&proc->page_map, vaddr, proc->cr3 | hhdm_start);
+	spinlock_release(&proc->page_map_lock);
 }
 
 void page_init(paddr_t kpaddr, uintptr_t kvaddr, size_t kernel_size, struct mem_region *regions, size_t num_regions)

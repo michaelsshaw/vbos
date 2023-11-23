@@ -64,6 +64,14 @@ void proc_term(pid_t pid)
 		struct proc *proc = (void *)proc_node->value;
 
 		rbt_delete(proc_tree, proc_node);
+
+		struct rbnode *map_node = rbt_minimum(proc->page_map.root);
+		while (map_node) {
+			struct rbnode *next = rbt_successor(map_node);
+			proc_munmap(proc, map_node->key);
+			map_node = next;
+		}
+
 		slab_free(proc_slab, proc);
 	} else {
 		kprintf(LOG_ERROR "proc: proc_term: proc %u not found\n", pid);
