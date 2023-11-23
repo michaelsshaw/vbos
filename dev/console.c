@@ -80,8 +80,10 @@ void console_input(char c)
 				char line[512];
 				strcpy(line, console.line);
 				memset(console.line, 0, sizeof(console.line));
+				console.l_line = 0;
 				lapic_eoi();
 				kexec(line);
+				return;
 			}
 			kexec(console.line);
 			memset(console.line, 0, sizeof(console.line));
