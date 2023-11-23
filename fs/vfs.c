@@ -14,15 +14,8 @@ static int fd_counter = 0;
 
 typedef struct fs *(*vfs_init_t)(struct block_device *);
 
-int write(int fd, void *buf, size_t count)
+int write(struct file_descriptor *fdesc, void *buf, size_t count)
 {
-	struct rbnode *fdnode = rbt_search(kfd, fd);
-
-	if (!fdnode)
-		return -EBADF;
-
-	struct file_descriptor *fdesc = (struct file_descriptor *)fdnode->value;
-
 	if ((fdesc->vnode.flags & VFS_VTYPE_MASK) == VFS_VNO_DIR)
 		return -EISDIR;
 
@@ -39,15 +32,8 @@ int write(int fd, void *buf, size_t count)
 	return ret;
 }
 
-int read(int fd, void *buf, size_t count)
+int read(struct file_descriptor *fdesc, void *buf, size_t count)
 {
-	struct rbnode *fdnode = rbt_search(kfd, fd);
-
-	if (!fdnode)
-		return -EBADF;
-
-	struct file_descriptor *fdesc = (struct file_descriptor *)fdnode->value;
-
 	if ((fdesc->vnode.flags & VFS_VTYPE_MASK) == VFS_VNO_DIR)
 		return -EISDIR;
 
@@ -64,27 +50,20 @@ int read(int fd, void *buf, size_t count)
 	return ret;
 }
 
-int statfd(int fd, struct statbuf *statbuf)
+int statfd(struct file_descriptor *fdesc, struct statbuf *statbuf)
 {
-	struct rbnode *fdnode = rbt_search(kfd, fd);
-
-	if (!fdnode)
-		return -EBADF;
-
-	struct file_descriptor *fdesc = (struct file_descriptor *)fdnode->value;
-
 	statbuf->size = fdesc->vnode.size;
 
 	return 0;
 }
 
-int open(const char *pathname, int flags)
+struct file_descriptor *open(const char *pathname, int flags)
 {
 	/* allocate a file descriptor */
 	struct file_descriptor *fd = slab_alloc(fd_slab);
 	if (!fd) {
 		kprintf(LOG_ERROR "Failed to allocate file descriptor\n");
-		return -ENOMEM;
+		return NULL;
 	}
 
 	memset(fd, 0, sizeof(struct file_descriptor));
@@ -93,7 +72,8 @@ int open(const char *pathname, int flags)
 	int result = rootfs->ops->open(rootfs, &fd->vnode, pathname);
 
 	if (result < 0) {
-		return result;
+		fd->fd = result;
+		return fd;
 	} else if (result == VFSE_IS_BDEV) {
 		/* TODO: continue search into mounted filesystems */
 	}
@@ -106,33 +86,20 @@ int open(const char *pathname, int flags)
 	struct rbnode *fdnode = rbt_insert(kfd, fd->fd);
 	fdnode->value = (uint64_t)fd;
 
-	return fd->fd;
+	return fd;
 }
 
-int close(int fd)
+int close(struct file_descriptor *fdesc)
 {
-	struct rbnode *fdnode = rbt_search(kfd, fd);
-
-	if (!fdnode)
-		return -EBADF;
-
-	struct file_descriptor *fdesc = (struct file_descriptor *)fdnode->value;
-
+	struct rbnode *node = rbt_search(kfd, fdesc->fd);
+	rbt_delete(kfd, node);
 	slab_free(fd_slab, fdesc);
-	rbt_delete(kfd, fdnode);
 
 	return 0;
 }
 
-int seek(int fd, size_t offset, int whence)
+int seek(struct file_descriptor *fdesc, size_t offset, int whence)
 {
-	struct rbnode *fdnode = rbt_search(kfd, fd);
-
-	if (!fdnode)
-		return -EBADF;
-
-	struct file_descriptor *fdesc = (struct file_descriptor *)fdnode->value;
-
 	switch (whence) {
 	case SEEK_SET:
 		fdesc->pos = offset;
@@ -150,15 +117,8 @@ int seek(int fd, size_t offset, int whence)
 	return fdesc->pos;
 }
 
-size_t tell(int fd)
+size_t tell(struct file_descriptor *fdesc)
 {
-	struct rbnode *fdnode = rbt_search(kfd, fd);
-
-	if (!fdnode)
-		return -EBADF;
-
-	struct file_descriptor *fdesc = (struct file_descriptor *)fdnode->value;
-
 	return fdesc->pos;
 }
 
@@ -174,30 +134,43 @@ int mkdir(const char *pathname)
 
 DIR *opendir(const char *name)
 {
-	int fd = open(name, 0);
-	if (fd < 0)
-		return NULL;
-
-	struct file_descriptor *fdesc = (struct file_descriptor *)rbt_search(kfd, fd)->value;
-
+	struct file_descriptor *fdesc = open(name, 0);
 	if (!fdesc)
 		return NULL;
 
 	struct fs *fs = fdesc->fs;
 
 	if ((fdesc->vnode.flags & VFS_VTYPE_MASK) != VFS_VNO_DIR) {
-		close(fd);
+		close(fdesc);
 		return NULL;
 	}
 
 	DIR *dir = kzalloc(sizeof(DIR), ALLOC_KERN);
-	dir->fd = fd;
+	dir->fdesc = fdesc;
 	dir->fs = fs;
 	dir->vnode = &fdesc->vnode;
 	dir->pos = 0;
 	dir->dirents = NULL;
 
 	return dir;
+}
+
+struct file_descriptor *fd_special()
+{
+	struct file_descriptor *fd = slab_alloc(fd_slab);
+	if (!fd) {
+		kprintf(LOG_ERROR "Failed to allocate file descriptor\n");
+		return NULL;
+	}
+
+	memset(fd, 0, sizeof(struct file_descriptor));
+
+	return fd;
+}
+
+void fd_special_free(struct file_descriptor *fd)
+{
+	slab_free(fd_slab, fd);
 }
 
 struct dirent *readdir(DIR *dir)
@@ -227,7 +200,7 @@ int closedir(DIR *dir)
 	if (!dir)
 		return -EBADF;
 
-	int ret = close(dir->fd);
+	int ret = close(dir->fdesc);
 	kfree(dir->dirents);
 	kfree(dir);
 

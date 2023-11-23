@@ -38,20 +38,24 @@ int elf_check_compat(char *buf)
 
 pid_t elf_load_proc(char *fname)
 {
-	int fd = open(fname, O_RDONLY);
-	if (fd < 0)
-		return fd;
+	struct file_descriptor *fdesc = open(fname, 0);
 
-	seek(fd, 0, SEEK_END);
-	size_t size = tell(fd);
-	seek(fd, 0, SEEK_SET);
+	if (!fdesc)
+		return -ENOENT;
+
+	if (fdesc->fd < 0)
+		return fdesc->fd;
+
+	seek(fdesc, 0, SEEK_END);
+	size_t size = tell(fdesc);
+	seek(fdesc, 0, SEEK_SET);
 
 	char *buf = kmalloc(size, ALLOC_KERN);
 	if (!buf)
 		return -ENOMEM;
 
-	read(fd, buf, size);
-	close(fd);
+	read(fdesc, buf, size);
+	close(fdesc);
 
 	int ret;
 

@@ -3,7 +3,10 @@
 #include <kernel/proc.h>
 #include <kernel/rbtree.h>
 #include <kernel/slab.h>
+
 #include <dev/apic.h>
+
+#include <fs/vfs.h>
 
 static struct rbtree *proc_tree;
 static pid_t *proc_current;
@@ -81,6 +84,24 @@ void schedule()
 	}
 }
 
+static int proc_insert_charfd(struct proc *proc, int fdno, int flags)
+{
+	struct file_descriptor *fd = fd_special();
+	fd->vnode = (struct vnode){ 0 };
+	fd->pos = 0;
+	fd->fd = fdno;
+	fd->flags = flags;
+	fd->mode = FD_TYPE_CHARDEV;
+	fd->buf = NULL;
+	fd->buf_size = 0;
+	fd->fs = NULL;
+
+	struct rbnode *fd_node = rbt_insert(&proc->fd_map, fdno);
+	fd_node->value = (uintptr_t)fd;
+
+	return fdno;
+}
+
 struct proc *proc_create()
 {
 	struct proc *proc = kzalloc(sizeof(struct proc), ALLOC_KERN);
@@ -90,6 +111,11 @@ struct proc *proc_create()
 
 	struct rbnode *proc_node = rbt_insert(proc_tree, proc->pid);
 	proc_node->value = (uintptr_t)proc;
+
+	/* insert stdin, stdout, stderr */
+	proc_insert_charfd(proc, 0, O_RDONLY); /* stdin */
+	proc_insert_charfd(proc, 1, O_WRONLY); /* stdout */
+	proc_insert_charfd(proc, 2, O_WRONLY); /* stderr */
 
 	return proc;
 }

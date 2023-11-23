@@ -28,6 +28,8 @@
 #define O_TRUNC 0x0010
 #define O_APPEND 0x0020
 
+#define FD_TYPE_CHARDEV 0x0001
+
 typedef uint32_t ino_t;
 typedef uint8_t ftype_t;
 typedef size_t off_t;
@@ -55,7 +57,7 @@ typedef struct _DIR {
 	struct dirent *dirents;
 	size_t num_dirents;
 	struct vnode *vnode;
-	int fd;
+	struct file_descriptor *fdesc;
 	uint64_t pos;
 } DIR;
 
@@ -76,6 +78,9 @@ struct file_descriptor {
 	int fd;
 	uint32_t flags;
 	uint32_t mode;
+
+	char *buf;
+	size_t buf_size;
 
 	struct fs *fs;
 };
@@ -102,14 +107,14 @@ struct statbuf {
 };
 
 void vfs_init(const char *rootfs);
-int write(int fd, void *buf, size_t count);
-int read(int fd, void *buf, size_t count);
-int open(const char *pathname, int flags);
-int close(int fd);
-int seek(int fd, size_t offset, int whence);
-size_t tell(int fd);
+int write(struct file_descriptor *fdesc, void *buf, size_t count);
+int read(struct file_descriptor *fdesc, void *buf, size_t count);
+struct file_descriptor *open(const char *pathname, int flags);
+int close(struct file_descriptor *fdesc);
+int seek(struct file_descriptor *fdesc, size_t offset, int whence);
+size_t tell(struct file_descriptor *fdesc);
 int unlink(const char *pathname);
-int statfd(int fd, struct statbuf *statbuf);
+int statfd(struct file_descriptor *fdesc, struct statbuf *statbuf);
 int mkdir(const char *pathname);
 
 DIR *opendir(const char *name);
@@ -118,5 +123,7 @@ int closedir(DIR *dir);
 
 char *basename(char *path);
 char *dirname(char *path);
+struct file_descriptor *fd_special();
+void fd_special_free(struct file_descriptor *fd);
 
 #endif /* _VFS_H_ */

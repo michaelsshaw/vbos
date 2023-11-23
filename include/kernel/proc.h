@@ -11,7 +11,7 @@
 #define PROC_STOPPED 1
 #define PROC_BLOCKED 2
 
-typedef uint64_t pid_t;
+typedef int64_t pid_t;
 
 struct procregs {
 	uint64_t rax;
@@ -50,6 +50,8 @@ struct proc {
 
 	struct rbtree page_map;
 	spinlock_t page_map_lock;
+
+	struct rbtree fd_map;
 };
 
 struct procregs *proc_current_regs();

@@ -73,9 +73,14 @@ int kcmd_cat(int argc, char **argv)
 		return 1;
 	}
 
-	int fd = open(argv[1], 0);
-	if (fd < 0) {
-		kprintf("Failed to open %s: %s\n", argv[1], strerror(-fd));
+	struct file_descriptor *fd = open(argv[1], 0);
+	if (!fd) {
+		kprintf("Failed to open %s: fd is NULL\n", argv[1]);
+		return 1;
+	}
+
+	if (fd->fd < 0) {
+		kprintf("Failed to open %s: %s\n", argv[1], strerror(-fd->fd));
 		return 1;
 	}
 
@@ -168,7 +173,17 @@ int kcmd_stat(int argc, char **argv)
 		return 1;
 	}
 
-	int fd = open(argv[1], 0);
+	struct file_descriptor *fd = open(argv[1], 0);
+
+	if (!fd) {
+		kprintf("Failed to open %s: fd is NULL\n", argv[1]);
+		return 1;
+	}
+
+	if (fd->fd < 0) {
+		kprintf("Failed to open %s: %s\n", argv[1], strerror(-fd->fd));
+		return 1;
+	}
 
 	struct statbuf st;
 	int ret = statfd(fd, &st);
@@ -207,9 +222,14 @@ int kcmd_elf(int argc, char **argv)
 		return 1;
 	}
 
-	int fd = open(argv[1], 0);
+	struct file_descriptor *fd = open(argv[1], 0);
+	if (fd == NULL) {
+		kprintf("Failed to open %s: fd is NULL\n", argv[1]);
+		return 1;
+	}
+
 	if (fd < 0) {
-		kprintf("Failed to open %s: %s\n", argv[1], strerror(-fd));
+		kprintf("Failed to open %s: %s\n", argv[1], strerror(-fd->fd));
 		return 1;
 	}
 
@@ -263,7 +283,7 @@ int kcmd_exec(int argc, char **argv)
 		kprintf("Usage: exec <file>\n");
 		return 1;
 	}
-	
+
 	pid_t pid = elf_load_proc(argv[1]);
 
 	if (pid < 0) {
@@ -280,7 +300,7 @@ int kcmd_exec(int argc, char **argv)
 	}
 
 	proc->state = PROC_RUNNING;
-	void _return_to_user(struct procregs *regs, paddr_t cr3);
+	void _return_to_user(struct procregs * regs, paddr_t cr3);
 	proc_set_current(pid);
 	_return_to_user(&proc->regs, proc->cr3);
 
