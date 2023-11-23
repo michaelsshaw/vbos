@@ -13,6 +13,7 @@ static const char *errno_str[] = {
 	[ENOSPC] = "No space left on device",
 	[EEXIST] = "File exists",
 	[ENOEXEC] = "Exec format error",
+	[EFAULT] = "Bad address",
 };
 
 inline const char *strerror(int errnum)

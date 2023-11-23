@@ -80,7 +80,9 @@ struct file_descriptor {
 	uint32_t mode;
 
 	char *buf;
-	size_t buf_size;
+	size_t buf_len;
+	int (*buf_write)(struct file_descriptor *fdesc, void *buf, size_t count);
+	int (*buf_read)(struct file_descriptor *fdesc, void *buf, size_t count);
 
 	struct fs *fs;
 };
@@ -125,5 +127,7 @@ char *basename(char *path);
 char *dirname(char *path);
 struct file_descriptor *fd_special();
 void fd_special_free(struct file_descriptor *fd);
+
+int stdout_write(struct file_descriptor *fdesc, void *buf, size_t len);
 
 #endif /* _VFS_H_ */

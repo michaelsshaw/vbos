@@ -5,18 +5,25 @@
  * Test the basic functionality of the kernel loader
  */
 
+sys_write = 1
 sys_exit = 60
 
 .global _start
 _start:
-	movq test_var, %rdi
-	movq $sys_exit, %rax
+	movl $sys_write, %eax
+	movl $1, %edi
+	movq $test_string, %rsi
+	movl $test_string_len, %edx
+	int $0x80
+
+	movl $sys_exit, %eax
+	movl $0xDEADC0DE, %edi
 	int $0x80
 _no_exit:
 	movq $0, %rbx
 	jmp _no_exit
 
 .data
-test_var:
-	.long 0xfeedbeef
-	.long 0xdeadbeef
+test_string:
+	.ascii "hello, world\n\n"
+test_string_len = . - test_string

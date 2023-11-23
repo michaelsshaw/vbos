@@ -62,6 +62,7 @@ void proc_term(pid_t pid)
 
 	if (proc_node) {
 		struct proc *proc = (void *)proc_node->value;
+		spinlock_acquire(&proc->lock);
 
 		rbt_delete(proc_tree, proc_node);
 
@@ -71,6 +72,9 @@ void proc_term(pid_t pid)
 			proc_munmap(proc, map_node->key);
 			map_node = next;
 		}
+
+		rbt_destroy(&proc->page_map);
+		rbt_destroy(&proc->fd_map);
 
 		slab_free(proc_slab, proc);
 	} else {
@@ -85,15 +89,31 @@ void schedule()
 
 	struct proc *proc = proc_find(proc_current[id]);
 
-	if (proc) {
-		_return_to_user(&proc->regs, proc->cr3);
-	} else {
-		kprintf(LOG_ERROR "proc: schedule: proc_current[%u] is NULL\n", id);
-		panic();
+	if (proc && proc->state == PROC_RUNNING)
+		proc->state = PROC_STOPPED;
+
+	while (1) {
+		if (proc) {
+			spinlock_acquire(&proc->lock);
+
+			if (proc->state == PROC_STOPPED) {
+				proc->state = PROC_RUNNING;
+				spinlock_release(&proc->lock);
+				_return_to_user(&proc->regs, proc->cr3);
+			} else if (proc->state == PROC_BLOCKED) {
+				spinlock_release(&proc->lock);
+				return;
+			} else {
+				spinlock_release(&proc->lock);
+			}
+		} else {
+			kprintf(LOG_ERROR "proc: schedule: proc_current[%u] is NULL\n", id);
+			panic();
+		}
 	}
 }
 
-static int proc_insert_charfd(struct proc *proc, int fdno, int flags)
+static struct file_descriptor *proc_insert_charfd(struct proc *proc, int fdno, int flags)
 {
 	struct file_descriptor *fd = fd_special();
 	fd->vnode = (struct vnode){ 0 };
@@ -102,19 +122,24 @@ static int proc_insert_charfd(struct proc *proc, int fdno, int flags)
 	fd->flags = flags;
 	fd->mode = FD_TYPE_CHARDEV;
 	fd->buf = NULL;
-	fd->buf_size = 0;
+	fd->buf_len = 0;
 	fd->fs = NULL;
+
+	fd->buf_write = NULL;
+	fd->buf_read = NULL;
 
 	struct rbnode *fd_node = rbt_insert(&proc->fd_map, fdno);
 	fd_node->value = (uintptr_t)fd;
 
-	return fdno;
+	return fd;
 }
 
 struct proc *proc_create()
 {
 	struct proc *proc = slab_alloc(proc_slab);
 	memset(proc, 0, sizeof(struct proc));
+
+	spinlock_acquire(&proc->lock);
 
 	proc->pid = rbt_next_key(proc_tree);
 	proc->is_kernel = false;
@@ -123,9 +148,14 @@ struct proc *proc_create()
 	proc_node->value = (uintptr_t)proc;
 
 	/* insert stdin, stdout, stderr */
-	proc_insert_charfd(proc, 0, O_RDONLY); /* stdin */
-	proc_insert_charfd(proc, 1, O_WRONLY); /* stdout */
-	proc_insert_charfd(proc, 2, O_WRONLY); /* stderr */
+	struct file_descriptor *fd;
+	fd = proc_insert_charfd(proc, STDIN_FILENO, O_RDONLY);
+	fd = proc_insert_charfd(proc, STDOUT_FILENO, O_WRONLY);
+	fd->buf_write = stdout_write;
+	fd = proc_insert_charfd(proc, STDERR_FILENO, O_WRONLY);
+	fd->buf_write = stdout_write;
+
+	spinlock_release(&proc->lock);
 
 	return proc;
 }

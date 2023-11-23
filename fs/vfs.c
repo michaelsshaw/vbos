@@ -16,10 +16,19 @@ typedef struct fs *(*vfs_init_t)(struct block_device *);
 
 int write(struct file_descriptor *fdesc, void *buf, size_t count)
 {
+	if (fdesc->mode == FD_TYPE_CHARDEV) {
+		if (fdesc->buf_write)
+			return fdesc->buf_write(fdesc, buf, count);
+		return -EBADF;
+	}
+
 	if ((fdesc->vnode.flags & VFS_VTYPE_MASK) == VFS_VNO_DIR)
 		return -EISDIR;
 
 	if ((fdesc->vnode.flags & VFS_VTYPE_MASK) != VFS_VNO_REG)
+		return -EBADF;
+
+	if (fdesc->flags & O_RDONLY)
 		return -EBADF;
 
 	int ret = fdesc->fs->ops->write(fdesc->fs, &fdesc->vnode, buf, fdesc->pos, count);
@@ -34,10 +43,19 @@ int write(struct file_descriptor *fdesc, void *buf, size_t count)
 
 int read(struct file_descriptor *fdesc, void *buf, size_t count)
 {
+	if (fdesc->mode == FD_TYPE_CHARDEV) {
+		if (fdesc->buf_read)
+			return fdesc->buf_read(fdesc, buf, count);
+		return -EBADF;
+	}
+
 	if ((fdesc->vnode.flags & VFS_VTYPE_MASK) == VFS_VNO_DIR)
 		return -EISDIR;
 
 	if ((fdesc->vnode.flags & VFS_VTYPE_MASK) != VFS_VNO_REG)
+		return -EBADF;
+
+	if (fdesc->flags & O_WRONLY)
 		return -EBADF;
 
 	int ret = fdesc->fs->ops->read(fdesc->fs, &fdesc->vnode, buf, fdesc->pos, count);

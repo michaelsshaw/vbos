@@ -3,8 +3,9 @@
 #include <kernel/proc.h>
 #include <kernel/slab.h>
 #include <kernel/rbtree.h>
+#include <kernel/syscall.h>
 
-#define SYS_EXIT 60
+#include <fs/vfs.h>
 
 static struct rbtree *syscall_tree;
 
@@ -20,6 +21,44 @@ void syscall(uint64_t syscall_no, uint64_t arg1, uint64_t arg2, uint64_t arg3, u
 	syscall_t syscall = (void *)node->value;
 
 	syscall(arg1, arg2, arg3, arg4, arg5);
+}
+
+int sys_read(int fd, void *buf, size_t count)
+{
+	if ((uintptr_t)buf >= hhdm_start)
+		return -EFAULT;
+
+	struct proc *proc = proc_find(getpid());
+	if (proc == NULL)
+		return -1;
+
+	struct rbnode *fdesc_node = rbt_search(&proc->fd_map, fd);
+
+	if (fdesc_node == NULL)
+		return -EBADF;
+
+	struct file_descriptor *fdesc = (void *)fdesc_node->value;
+
+	return read(fdesc, buf, count);
+}
+
+int sys_write(int fd, void *buf, size_t count)
+{
+	if ((uintptr_t)buf >= hhdm_start)
+		return -EFAULT;
+
+	struct proc *proc = proc_find(getpid());
+	if (proc == NULL)
+		return -1;
+
+	struct rbnode *fdesc_node = rbt_search(&proc->fd_map, fd);
+
+	if (fdesc_node == NULL)
+		return -EBADF;
+
+	struct file_descriptor *fdesc = (void *)fdesc_node->value;
+
+	return write(fdesc, buf, count);
 }
 
 void sys_exit(int status)
@@ -47,5 +86,6 @@ static void syscall_insert(uint64_t syscall_no, syscall_t syscall)
 void syscall_init()
 {
 	syscall_tree = kzalloc(sizeof(struct rbtree), ALLOC_KERN);
+	syscall_insert(SYS_WRITE, (syscall_t)sys_write);
 	syscall_insert(SYS_EXIT, (syscall_t)sys_exit);
 }

@@ -299,7 +299,6 @@ int kcmd_exec(int argc, char **argv)
 		return 1;
 	}
 
-	proc->state = PROC_RUNNING;
 	void _return_to_user(struct procregs * regs, paddr_t cr3);
 	proc_set_current(pid);
 	_return_to_user(&proc->regs, proc->cr3);

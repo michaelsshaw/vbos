@@ -196,11 +196,36 @@ irq 0x0F
 .global gate_syscall
 gate_syscall:
 	cli
-	save_context
-	movq 0(%rax), %rdi /* syscall number */
-	movq 40(%rax), %rsi /* arguments */
+	pushq %rbx
+	pushq %rbp
+	pushq %r12
+	pushq %r13
+	pushq %r14
+	pushq %r15
 
+	pushq %rax
+	pushq %rdi
+	pushq %rsi
+	pushq %rdx
+	pushq %rcx
+	pushq %r8
+
+	popq %r9
+	popq %r8
+	popq %rcx
+	popq %rdx
+	popq %rsi
+	popq %rdi
+	
 	call syscall
+
+	popq %r15
+	popq %r14
+	popq %r13
+	popq %r12
+	popq %rbp
+	popq %rbx
+	
 	iretq
 
 /* void return_from_irq(struct procregs *regs, paddr_t cr3); */
