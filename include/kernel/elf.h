@@ -61,6 +61,10 @@
 #define SHN_ABS 0xFFF1
 #define SHN_COMMON 0xFFF2
 
+#define PF_X 0x1
+#define PF_W 0x2
+#define PF_R 0x4
+
 #define ELF64_R_TYPE(i) ((i)&0xffffffff)
 #define ELF64_R_SYM(i) ((i) >> 32)
 

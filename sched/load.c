@@ -73,7 +73,6 @@ pid_t elf_load_proc(char *fname)
 
 	proc->cr3 &= (~hhdm_start);
 
-	/* map text segment */
 	struct elf64_program_header *phdr = (struct elf64_program_header *)(buf + hdr->e_phoff);
 	for (unsigned int i = 0; i < hdr->e_phnum; i++) {
 		if (phdr[i].p_type != PT_LOAD)
@@ -82,8 +81,19 @@ pid_t elf_load_proc(char *fname)
 		uintptr_t vaddr = phdr[i].p_vaddr;
 		size_t len = MAX(0x1000, npow2(phdr[i].p_filesz));
 		uintptr_t paddr = (uintptr_t)buddy_alloc(len);
-		(void)proc_mmap(proc, paddr & (~hhdm_start), vaddr, len, PAGE_RW | PAGE_PRESENT | PAGE_USER);
-		memcpy((void *)paddr, buf + phdr[i].p_offset, len);
+
+		/* length to copy, not allocated length */
+		len = phdr[i].p_filesz;
+		uint64_t flags = PAGE_PRESENT | PAGE_USER;
+
+		if (phdr[i].p_flags & PF_W)
+			flags |= PAGE_RW;
+
+		if (!(phdr[i].p_flags & PF_X))
+			flags |= PAGE_XD;
+
+		(void)proc_mmap(proc, paddr & (~hhdm_start), vaddr, len, flags);
+		memcpy((void *)paddr + (vaddr & 0xFFF), buf + phdr[i].p_offset, len);
 	}
 
 	/* set entry point */
@@ -98,7 +108,7 @@ pid_t elf_load_proc(char *fname)
 	/* allocate user stack */
 	uintptr_t stack_buf = (uintptr_t)buddy_alloc(0x1000);
 	uintptr_t u_stack_addr = 0x20002000;
-	(void)proc_mmap(proc, stack_buf & (~hhdm_start), u_stack_addr, 0x1000, PAGE_RW | PAGE_PRESENT | PAGE_USER);
+	(void)proc_mmap(proc, stack_buf & (~hhdm_start), u_stack_addr, 0x1000, PAGE_RW | PAGE_PRESENT | PAGE_USER | PAGE_XD);
 
 	/* set stack pointer */
 	proc->regs.rsp = u_stack_addr + 0xFF0;
