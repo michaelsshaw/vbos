@@ -81,19 +81,20 @@ void *slab_alloc(slab_t *slab)
 	if (slab == NULL)
 		return NULL;
 
-	spinlock_acquire(&slab->lock);
+	spinlock_t *lock = &slab->lock;
+	spinlock_acquire(lock);
 	if (slab->nextfree == NULL) {
 		if (slab->next == NULL) {
 			slab->next = slab_create(slab->size, slab->tsize, slab->flags);
 			if (slab->next == NULL) {
-				spinlock_release(&slab->lock);
+				spinlock_release(lock);
 				return NULL;
 			}
 			slab->next->prev = slab;
 		}
 
 		void *ret = slab_alloc(slab->next);
-		spinlock_release(&slab->lock);
+		spinlock_release(lock);
 
 		return ret;
 	}
@@ -102,7 +103,7 @@ void *slab_alloc(slab_t *slab)
 	uintptr_t *ret = slab->nextfree;
 	slab->nextfree = (uintptr_t *)*slab->nextfree;
 
-	spinlock_release(&slab->lock);
+	spinlock_release(lock);
 
 	return ret;
 }
@@ -252,7 +253,7 @@ void kfree(void *ptr)
 	} else {
 		buddy_free(ptr);
 
-		if(n->value3 == KMT_DMA) {
+		if (n->value3 == KMT_DMA) {
 			uintptr_t p = (uintptr_t)ptr;
 			kmap(p & (~hhdm_start), p, n->value2, kdefault_attrs.val);
 		}
