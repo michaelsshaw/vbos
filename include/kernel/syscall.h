@@ -4,6 +4,7 @@
 
 #define SYS_READ 0
 #define SYS_WRITE 1
+#define SYS_OPEN 2
 #define SYS_EXIT 60
 
 #endif /* _SYSCALL_H_ */

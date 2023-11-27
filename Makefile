@@ -93,7 +93,7 @@ uprg:
 # Remove object files and the final executable.
 .PHONY: clean
 clean:
-	@rm -rf $(KERNEL) $(OBJ) $(HEADER_DEPS)
+	@rm -rf $(KERNEL) $(OBJ) $(HEADER_DEPS) bin
 	@echo "  CLEAN   kernel"
 	@make --no-print-directory -C usr.bin clean
 

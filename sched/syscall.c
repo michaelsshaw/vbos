@@ -7,18 +7,15 @@
 
 #include <fs/vfs.h>
 
-static struct rbtree *syscall_tree;
+#define SYSCALL_MAX 0x100
 
 typedef void (*syscall_t)(uint64_t arg1, uint64_t arg2, uint64_t arg3, uint64_t arg4, uint64_t arg5);
 
+syscall_t syscall_table[SYSCALL_MAX];
+
 void syscall(uint64_t syscall_no, uint64_t arg1, uint64_t arg2, uint64_t arg3, uint64_t arg4, uint64_t arg5)
 {
-	struct rbnode *node = rbt_search(syscall_tree, syscall_no);
-	if (node == NULL) {
-		return;
-	}
-
-	syscall_t syscall = (void *)node->value;
+	syscall_t syscall = (void *)syscall_table[syscall_no];
 
 	syscall(arg1, arg2, arg3, arg4, arg5);
 }
@@ -38,8 +35,18 @@ int sys_read(int fd, void *buf, size_t count)
 		return -EBADF;
 
 	struct file_descriptor *fdesc = (void *)fdesc_node->value;
+	void *tmp_buf = kzalloc(count, ALLOC_KERN);
+	if (tmp_buf == NULL)
+		return -ENOMEM;
 
-	return read(fdesc, buf, count);
+	int ret = read(fdesc, tmp_buf, count);
+	if (ret > 0)
+		memcpy(buf, tmp_buf, count);
+	else
+		ret = -1;
+
+	kfree(tmp_buf);
+	return ret;
 }
 
 int sys_write(int fd, void *buf, size_t count)
@@ -58,7 +65,38 @@ int sys_write(int fd, void *buf, size_t count)
 
 	struct file_descriptor *fdesc = (void *)fdesc_node->value;
 
-	return write(fdesc, buf, count);
+	void *tmp_buf = kzalloc(count, ALLOC_KERN);
+	if (tmp_buf == NULL)
+		return -ENOMEM;
+
+	memcpy(tmp_buf, buf, count);
+	int ret = write(fdesc, tmp_buf, count);
+
+	if (ret < 0)
+		ret = -1;
+	kfree(tmp_buf);
+	return ret;
+}
+
+int sys_open(const char *pathname, int flags)
+{
+	if ((uintptr_t)pathname >= hhdm_start)
+		return -EFAULT;
+
+	struct proc *proc = proc_find(getpid());
+	if (proc == NULL)
+		return -1;
+
+	struct file_descriptor *fdesc = open(pathname, flags);
+	if (fdesc == NULL)
+		return -1;
+
+	uint64_t fdno = rbt_next_key(&proc->fd_map);
+
+	struct rbnode *node = rbt_insert(&proc->fd_map, fdno);
+	node->value = (uintptr_t)fdesc;
+
+	return fdno;
 }
 
 void sys_exit(int status)
@@ -79,13 +117,14 @@ void sys_exit(int status)
 
 static void syscall_insert(uint64_t syscall_no, syscall_t syscall)
 {
-	struct rbnode *node = rbt_insert(syscall_tree, syscall_no);
-	node->value = (uintptr_t)syscall;
+	syscall_table[syscall_no] = syscall;
 }
 
 void syscall_init()
 {
-	syscall_tree = kzalloc(sizeof(struct rbtree), ALLOC_KERN);
+	memset(syscall_table, 0, sizeof(syscall_table));
+	syscall_insert(SYS_READ, (syscall_t)sys_read);
 	syscall_insert(SYS_WRITE, (syscall_t)sys_write);
+	syscall_insert(SYS_OPEN, (syscall_t)sys_open);
 	syscall_insert(SYS_EXIT, (syscall_t)sys_exit);
 }

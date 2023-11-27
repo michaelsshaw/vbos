@@ -3,3 +3,4 @@
 *.d
 *.elf
 compile_commands.json
+bin

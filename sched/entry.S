@@ -204,6 +204,10 @@ gate_syscall:
 	movq 16(%rax), %r8
 	movq 56(%rax), %r9
 	call syscall
+	pushq %rax
+	call proc_current_regs
+	popq %rdi
+	movq %rdi, 0(%rax)
 	call schedule
 
 /* void return_from_irq(struct procregs *regs, paddr_t cr3); */

@@ -1,17 +1,11 @@
 # SPDX-License-Identifier: GPL-2.0-only
 
-# usr.bin/test1/Makefile
-#
-# test1 is the first test program, to be removed later.
-#
-# This Makefile also serves as a template for other user programs.
-
 CC := x86_64-elf-gcc
 LD := x86_64-elf-ld
 
-OUT := test1.elf
+OUT := ftest.elf
 CSRC :=
-SSRC := start.S
+SSRC := ftest.S
 OBJ := $(CSRC:.c=.o) $(SSRC:.S=.o)
 DEP := $(OBJ:.o=.d)
 
