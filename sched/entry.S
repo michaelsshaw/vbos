@@ -197,6 +197,7 @@ irq 0x0F
 gate_syscall:
 	cli
 	save_context
+	pushq %rax
 	movq 0(%rax), %rdi
 	movq 40(%rax), %rsi
 	movq 32(%rax), %rdx
@@ -204,10 +205,8 @@ gate_syscall:
 	movq 16(%rax), %r8
 	movq 56(%rax), %r9
 	call syscall
-	pushq %rax
-	call proc_current_regs
 	popq %rdi
-	movq %rdi, 0(%rax)
+	movq %rax, 0(%rdi)
 	call schedule
 
 /* void return_from_irq(struct procregs *regs, paddr_t cr3); */
