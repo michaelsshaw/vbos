@@ -150,6 +150,22 @@ void kmain()
 	acpi_init();
 
 	pci_init();
+	/* finished init, now load TSS */
+#ifdef KDEBUG
+	kprintf(LOG_DEBUG "Inserting TSS for BSP\n");
+#endif
+
+	void *kstack = buddy_alloc(KSTACK_SIZE);
+	uintptr_t ptr = (uintptr_t)kstack + KSTACK_SIZE - 8;
+
+	uint16_t tss = gdt_insert_tss(ptr);
+	ltr(tss);
+
+	/* init the application processors */
+	struct limine_smp_response *smp_resp = smp_req.response;
+	proc_init(smp_resp->cpu_count);
+	void syscall_init();
+	syscall_init();
 
 	ahci_init();
 
@@ -168,19 +184,6 @@ void kmain()
 
 	console_init();
 
-	/* finished init, now load TSS */
-#ifdef KDEBUG
-	kprintf(LOG_DEBUG "Inserting TSS for BSP\n");
-#endif
-
-	void *kstack = buddy_alloc(KSTACK_SIZE);
-	uintptr_t ptr = (uintptr_t)kstack + KSTACK_SIZE - 8;
-
-	uint16_t tss = gdt_insert_tss(ptr);
-	ltr(tss);
-
-	/* init the application processors */
-	struct limine_smp_response *smp_resp = smp_req.response;
 	for (unsigned i = 0; i < smp_resp->cpu_count; i++) {
 		struct limine_smp_info *info = smp_resp->cpus[i];
 
@@ -189,9 +192,6 @@ void kmain()
 
 		info->goto_address = ap_kmain;
 	}
-	proc_init(smp_resp->cpu_count);
-	void syscall_init();
-	syscall_init();
 
 	/* wait for the application processors to finish their initialization */
 	for (unsigned i = 0; i < 100000; i++)
