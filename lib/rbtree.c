@@ -217,7 +217,7 @@ static void rbt_delete_fixup(struct rbtree *tree, struct rbnode *node)
 				sibling = node->parent->right;
 			}
 
-			if ((!sibling->right || sibling->left->color == RB_BLACK) &&
+			if ((!sibling->left || sibling->left->color == RB_BLACK) &&
 			    (!sibling->right || sibling->right->color == RB_BLACK)) {
 				sibling->color = RB_RED;
 				node = node->parent;
