@@ -58,6 +58,16 @@ struct proc {
 
 	struct rbtree fd_map;
 	spinlock_t fd_map_lock;
+
+	ssize_t (*unblock)(void *, void *, void *, void *, void *);
+	struct {
+		void *arg0;
+		void *arg1;
+		void *arg2;
+		void *arg3;
+		void *arg4;
+	} unblock_args;
+	ssize_t block_retval;
 };
 
 struct procregs *proc_current_regs();
