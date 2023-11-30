@@ -138,3 +138,18 @@ void console_putchar(char c)
 	}
 	serial_write(c);
 }
+
+ssize_t console_write(const char *buf, size_t count)
+{
+	for (size_t i = 0; i < count; i++)
+		console_putchar(buf[i]);
+	return count;
+}
+
+ssize_t console_read(char *buf, size_t count)
+{
+	if(console.l_line == 0)
+		return -EAGAIN;
+
+	return 0;
+}

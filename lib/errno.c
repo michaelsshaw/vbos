@@ -14,6 +14,7 @@ static const char *errno_str[] = {
 	[EEXIST] = "File exists",
 	[ENOEXEC] = "Exec format error",
 	[EFAULT] = "Bad address",
+	[EAGAIN] = "Try again",
 };
 
 inline const char *strerror(int errnum)

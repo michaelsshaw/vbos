@@ -29,5 +29,6 @@ void panic();
 
 typedef uintptr_t paddr_t;
 typedef uint32_t paddr32_t;
+typedef int64_t ssize_t;
 
 #endif /* _COMMON_H_ */
