@@ -61,7 +61,7 @@ struct proc *proc_next(struct proc *proc)
 	if (proc_node) {
 		if (proc_node->key == 0)
 			goto kernel_proc;
-		
+
 		return (void *)proc_node->value;
 	} else {
 kernel_proc:
