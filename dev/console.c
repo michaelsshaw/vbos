@@ -66,14 +66,14 @@ void console_input(char c)
 {
 	if (!console.resizemode) {
 		if (is_printable(c)) {
-			console_write(c);
+			console_putchar(c);
 
 			if (console.l_line < (sizeof(console.line) - 1)) {
 				console.line[console.l_line] = c;
 				console.l_line++;
 			}
 		} else if (c == '\n' || c == '\r') {
-			console_write('\n');
+			console_putchar('\n');
 			if (strlen(console.line) >= 4 && !memcmp("exec", console.line, 4)) {
 				/* because this one doesn't return. i know it's bad, it will be changed later */
 				void lapic_eoi();
@@ -90,9 +90,9 @@ void console_input(char c)
 			console.l_line = 0;
 		} else if (c == 0x7F || c == '\b') {
 			if (console.l_line > 0) {
-				console_write('\b');
-				console_write(' ');
-				console_write('\b');
+				console_putchar('\b');
+				console_putchar(' ');
+				console_putchar('\b');
 				console.l_line--;
 				console.line[console.l_line] = 0;
 			}
@@ -127,13 +127,13 @@ void console_input(char c)
 	}
 }
 
-void console_write(char c)
+void console_putchar(char c)
 {
 	if (!console.resizemode) {
 		if (c == '\n')
 			console.cursorpos = 0;
 		if (console.cursorpos == console.cols && c != '\n')
-			console_write('\n');
+			console_putchar('\n');
 		console.cursorpos++;
 	}
 	serial_write(c);

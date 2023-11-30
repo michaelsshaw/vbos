@@ -10,7 +10,7 @@ void console_resize();
 void console_input(char c);
 void console_clear();
 bool console_ready();
-void console_write(char c);
+void console_putchar(char c);
 
 #endif /* __ASM__ */
 #endif /* _CONSOLE_H_ */

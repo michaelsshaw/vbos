@@ -99,7 +99,7 @@ int kcmd_cat(int argc, char **argv)
 		}
 
 		for (int i = 0; i < n; i++) {
-			console_write(buf[i]);
+			console_putchar(buf[i]);
 		}
 
 		lastchar = buf[n - 1];

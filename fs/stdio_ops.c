@@ -9,7 +9,7 @@ int stdout_write(struct file_descriptor *fdesc, void *buf, size_t len)
 {
 	int i;
 	for (i = 0; i < len; i++) {
-		console_write(((char *)buf)[i]);
+		console_putchar(((char *)buf)[i]);
 	}
 	return i;
 }

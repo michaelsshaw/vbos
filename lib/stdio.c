@@ -8,7 +8,7 @@ spinlock_t printf_lock = 0;
 
 static inline void printf_out(char c)
 {
-	console_write(c);
+	console_putchar(c);
 }
 
 static int printf_write(const char *restrict s)
