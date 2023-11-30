@@ -51,6 +51,24 @@ struct proc *proc_find(pid_t pid)
 		return NULL;
 }
 
+struct proc *proc_next(struct proc *proc)
+{
+	struct rbnode *proc_node = rbt_search(proc_tree, proc->pid);
+
+	if (proc_node)
+		proc_node = rbt_successor(proc_node);
+
+	if (proc_node) {
+		if (proc_node->key == 0)
+			goto kernel_proc;
+		
+		return (void *)proc_node->value;
+	} else {
+kernel_proc:
+		return &kernel_procs[lapic_idno()];
+	}
+}
+
 void proc_set_current(pid_t pid)
 {
 	proc_current[lapic_idno()] = pid;
@@ -87,13 +105,7 @@ void schedule()
 {
 	uint8_t id = lapic_idno();
 
-	struct rbnode *proc_node = rbt_search(proc_tree, proc_current[id]);
-
-	if (!proc_node) {
-		proc_node = rbt_minimum(proc_tree->root);
-	}
-
-	struct proc *proc = (void *)proc_node->value;
+	struct proc *proc = proc_find(proc_current[id]);
 
 	if (proc && proc->state == PROC_RUNNING) {
 		spinlock_acquire(&proc->lock);
@@ -103,12 +115,7 @@ void schedule()
 
 	while (1) {
 		/* next process */
-		proc_node = rbt_successor(proc_node);
-		if (!proc_node)
-			proc_node = rbt_minimum(proc_tree->root);
-
-		proc = (void *)proc_node->value;
-
+		proc = proc_next(proc);
 		spinlock_acquire(&proc->lock);
 
 		switch (proc->state) {
