@@ -87,28 +87,43 @@ void schedule()
 {
 	uint8_t id = lapic_idno();
 
-	struct proc *proc = proc_find(proc_current[id]);
+	struct rbnode *proc_node = rbt_search(proc_tree, proc_current[id]);
 
-	if (proc && proc->state == PROC_RUNNING)
+	if (!proc_node) {
+		proc_node = rbt_minimum(proc_tree->root);
+	}
+
+	struct proc *proc = (void *)proc_node->value;
+
+	if (proc && proc->state == PROC_RUNNING) {
+		spinlock_acquire(&proc->lock);
 		proc->state = PROC_STOPPED;
+		spinlock_release(&proc->lock);
+	}
 
 	while (1) {
-		if (proc) {
-			spinlock_acquire(&proc->lock);
+		/* next process */
+		proc_node = rbt_successor(proc_node);
+		if (!proc_node)
+			proc_node = rbt_minimum(proc_tree->root);
 
-			if (proc->state == PROC_STOPPED) {
-				proc->state = PROC_RUNNING;
-				spinlock_release(&proc->lock);
-				_return_to_user(&proc->regs, proc->cr3);
-			} else if (proc->state == PROC_BLOCKED) {
-				spinlock_release(&proc->lock);
-				return;
-			} else {
-				spinlock_release(&proc->lock);
-			}
-		} else {
-			kprintf(LOG_ERROR "proc: schedule: proc_current[%u] is NULL\n", id);
-			panic();
+		proc = (void *)proc_node->value;
+
+		spinlock_acquire(&proc->lock);
+
+		switch (proc->state) {
+		case PROC_STOPPED:
+			proc->state = PROC_RUNNING;
+			spinlock_release(&proc->lock);
+			_return_to_user(&proc->regs, proc->cr3);
+
+			break;
+		case PROC_BLOCKED:
+			spinlock_release(&proc->lock);
+			break;
+		case PROC_RUNNING:
+			spinlock_release(&proc->lock);
+			break;
 		}
 	}
 }
