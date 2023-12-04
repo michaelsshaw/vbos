@@ -156,6 +156,11 @@ DIR *opendir(const char *name)
 	if (!fdesc)
 		return NULL;
 
+	if (fdesc->fd < 0) {
+		slab_free(fd_slab, fdesc);
+		return NULL;
+	}
+
 	struct fs *fs = fdesc->fs;
 
 	if ((fdesc->vnode.flags & VFS_VTYPE_MASK) != VFS_VNO_DIR) {
