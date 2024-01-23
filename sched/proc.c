@@ -126,8 +126,6 @@ void schedule()
 
 			break;
 		case PROC_BLOCKED:
-			spinlock_release(&proc->lock);
-			break;
 		case PROC_RUNNING:
 			spinlock_release(&proc->lock);
 			break;
