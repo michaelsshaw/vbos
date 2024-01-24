@@ -16,7 +16,7 @@ typedef struct fs *(*vfs_init_t)(struct block_device *);
 ssize_t vfs_write(struct file *file, void *buf, off_t off, size_t count)
 {
 	/* TODO: implement */
-	if ((file->vnode.flags & VFS_VTYPE_MASK) == VFS_VNO_CHARDEV)
+	if (file->type == FTYPE_CHARDEV)
 		return -EBADF;
 
 	if ((file->vnode.flags & VFS_VTYPE_MASK) != VFS_VNO_REG)
@@ -28,7 +28,7 @@ ssize_t vfs_write(struct file *file, void *buf, off_t off, size_t count)
 ssize_t vfs_read(struct file *file, void *buf, off_t off, size_t count)
 {
 	/* TODO: implement */
-	if ((file->vnode.flags & VFS_VTYPE_MASK) == VFS_VNO_CHARDEV)
+	if (file->type == FTYPE_CHARDEV)
 		return -EBADF;
 
 	/* TODO: implement */
@@ -56,11 +56,15 @@ struct file *vfs_open(const char *pathname, int *err)
 	/* allocate a file */
 	struct file *file = slab_alloc(file_slab);
 	if (!file) {
-		kprintf(LOG_ERROR "Failed to allocate file descriptor\n");
+		kprintf(LOG_ERROR "Failed to allocate file struct\n");
 		return NULL;
 	}
 
 	memset(file, 0, sizeof(struct file));
+
+	/* terrible temporary hack */
+	if (pathname == NULL && (uintptr_t)err == 0x4)
+		return file;
 
 	/* find the file */
 	int result = rootfs->ops->open(rootfs, &file->vnode, pathname);

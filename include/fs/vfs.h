@@ -28,7 +28,7 @@
 #define O_TRUNC 0x0010
 #define O_APPEND 0x0020
 
-#define FD_TYPE_CHARDEV 0x0001
+#define FTYPE_CHARDEV 0x0001
 
 typedef uint32_t ino_t;
 typedef uint8_t ftype_t;

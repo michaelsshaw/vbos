@@ -4,7 +4,6 @@
 
 #include <kernel/common.h>
 #include <kernel/rbtree.h>
-#include <kernel/proc.h>
 
 #define BBMAP_FREE 0
 #define BBMAP_SPLIT 1
@@ -32,6 +31,8 @@ genrw(cr3);
 genrw(ds);
 
 #undef genrw
+
+struct proc;
 
 struct page { /* I would rather refer to this as a struct */
 	union {

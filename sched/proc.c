@@ -16,6 +16,7 @@ static struct proc kernel_procs[256] = { 0 };
 
 void _return_to_user(struct procregs *regs, paddr_t cr3);
 extern uintptr_t kstacks[256];
+extern slab_t *fd_slab;
 
 struct procregs *proc_current_regs()
 {
@@ -84,11 +85,20 @@ void proc_term(pid_t pid)
 
 		rbt_delete(proc_tree, proc_node);
 
-		struct rbnode *map_node = rbt_minimum(proc->page_map.root);
-		while (map_node) {
-			struct rbnode *next = rbt_successor(map_node);
-			proc_munmap(proc, map_node->key);
-			map_node = next;
+		struct rbnode *node = rbt_minimum(proc->page_map.root);
+		while (node) {
+			struct rbnode *next = rbt_successor(node);
+			proc_munmap(proc, node->key);
+			node = next;
+		}
+
+		node = rbt_minimum(proc->fd_map.root);
+		while (node) {
+			struct rbnode *next = rbt_successor(node);
+			struct file_descriptor *fdesc = (void *)node->value;
+			vfs_close(fdesc->file);
+			slab_free(fd_slab, fdesc);
+			node = next;
 		}
 
 		rbt_destroy(&proc->page_map);
@@ -136,10 +146,12 @@ void schedule()
 static struct file_descriptor *proc_insert_charfd(struct proc *proc, int fdno, int flags)
 {
 	struct file_descriptor *fd = fd_special();
+	fd->file = vfs_open(NULL, (void *)0x4); /* FIXME LATER */
 	fd->file->vnode = (struct vnode){ 0 };
 	fd->pos = 0;
 	fd->fd = fdno;
 	fd->flags = flags;
+	fd->file->type = FTYPE_CHARDEV;
 	fd->file->vnode.flags = VFS_VNO_CHARDEV;
 	fd->buf = NULL;
 	fd->buf_len = 0;

@@ -12,7 +12,7 @@
 typedef void (*syscall_t)(uint64_t arg1, uint64_t arg2, uint64_t arg3, uint64_t arg4, uint64_t arg5);
 
 syscall_t syscall_table[SYSCALL_MAX];
-static slab_t *fd_slab;
+slab_t *fd_slab;
 
 struct file_descriptor *fd_special()
 {
