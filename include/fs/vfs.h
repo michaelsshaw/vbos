@@ -56,8 +56,7 @@ typedef struct _DIR {
 	struct fs *fs;
 	struct dirent *dirents;
 	size_t num_dirents;
-	struct vnode *vnode;
-	struct file_descriptor *fdesc;
+	struct file *file;
 	uint64_t pos;
 } DIR;
 
@@ -67,15 +66,14 @@ struct file {
 	ino_t inode_num; /* inode number */
 	uint32_t type; /* type of the file */
 	uint64_t size; /* size of the file */
-
-	void *fs_file; /* filesystem specific object */
 };
 
 struct file_descriptor {
+	struct file *file;
 	struct vnode vnode;
 
-	uint64_t pos;
 	int fd;
+	uint64_t pos;
 	uint32_t flags;
 	uint32_t mode;
 
@@ -110,11 +108,14 @@ struct statbuf {
 
 void vfs_init(const char *rootfs);
 int write(struct file_descriptor *fdesc, void *buf, size_t count);
+ssize_t vfs_write(struct file *file, void *buf, off_t off, size_t count);
+ssize_t vfs_read(struct file *file, void *buf, off_t off, size_t count);
+int vfs_statf(struct file *file, struct statbuf *statbuf);
+struct file *vfs_open(const char *pathname, int *err);
+int vfs_close(struct file *file);
 int read(struct file_descriptor *fdesc, void *buf, size_t count);
 struct file_descriptor *open(const char *pathname, int flags);
 int close(struct file_descriptor *fdesc);
-int seek(struct file_descriptor *fdesc, size_t offset, int whence);
-size_t tell(struct file_descriptor *fdesc);
 int unlink(const char *pathname);
 int statfd(struct file_descriptor *fdesc, struct statbuf *statbuf);
 int mkdir(const char *pathname);

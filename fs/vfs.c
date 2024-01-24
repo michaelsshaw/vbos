@@ -9,6 +9,7 @@
 
 static struct rbtree *kfd;
 static slab_t *fd_slab;
+static slab_t *file_slab;
 static struct fs *rootfs;
 static int fd_counter = 0;
 
@@ -68,11 +69,69 @@ int read(struct file_descriptor *fdesc, void *buf, size_t count)
 	return ret;
 }
 
+ssize_t vfs_write(struct file *file, void *buf, off_t off, size_t count)
+{
+	/* TODO: implement */
+	if ((file->vnode.flags & VFS_VTYPE_MASK) == VFS_VNO_CHARDEV)
+		return -EBADF;
+
+	if ((file->vnode.flags & VFS_VTYPE_MASK) != VFS_VNO_REG)
+		return -EISDIR;
+
+	return file->vnode.fs->ops->write(file->vnode.fs, &file->vnode, buf, off, count);
+}
+
+ssize_t vfs_read(struct file *file, void *buf, off_t off, size_t count)
+{
+	/* TODO: implement */
+	if ((file->vnode.flags & VFS_VTYPE_MASK) == VFS_VNO_CHARDEV)
+		return -EBADF;
+
+	/* TODO: implement */
+	if ((file->vnode.flags & VFS_VTYPE_MASK) != VFS_VNO_REG)
+		return -EISDIR;
+
+	return file->vnode.fs->ops->read(file->vnode.fs, &file->vnode, buf, off, count);
+}
+
+int vfs_statf(struct file *file, struct statbuf *statbuf)
+{
+	statbuf->size = file->vnode.size;
+
+	return 0;
+}
+
 int statfd(struct file_descriptor *fdesc, struct statbuf *statbuf)
 {
 	statbuf->size = fdesc->vnode.size;
 
 	return 0;
+}
+
+struct file *vfs_open(const char *pathname, int *err)
+{
+	/* allocate a file */
+	struct file *file = slab_alloc(file_slab);
+	if (!file) {
+		kprintf(LOG_ERROR "Failed to allocate file descriptor\n");
+		return NULL;
+	}
+
+	memset(file, 0, sizeof(struct file));
+
+	/* find the file */
+	int result = rootfs->ops->open(rootfs, &file->vnode, pathname);
+
+	if (result < 0) {
+		*err = result;
+		slab_free(file_slab, file);
+		return NULL;
+	} else if (result == VFSE_IS_BDEV) {
+		/* TODO: continue search into mounted filesystems */
+	} else {
+	}
+
+	return file;
 }
 
 struct file_descriptor *open(const char *pathname, int flags)
@@ -116,28 +175,10 @@ int close(struct file_descriptor *fdesc)
 	return 0;
 }
 
-int seek(struct file_descriptor *fdesc, size_t offset, int whence)
+int vfs_close(struct file *file)
 {
-	switch (whence) {
-	case SEEK_SET:
-		fdesc->pos = offset;
-		break;
-	case SEEK_CUR:
-		fdesc->pos += offset;
-		break;
-	case SEEK_END:
-		fdesc->pos = fdesc->vnode.size + offset;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	return fdesc->pos;
-}
-
-size_t tell(struct file_descriptor *fdesc)
-{
-	return fdesc->pos;
+	slab_free(file_slab, file);
+	return 0;
 }
 
 int unlink(const char *pathname)
@@ -152,26 +193,23 @@ int mkdir(const char *pathname)
 
 DIR *opendir(const char *name)
 {
-	struct file_descriptor *fdesc = open(name, 0);
-	if (!fdesc)
-		return NULL;
-
-	if (fdesc->fd < 0) {
-		slab_free(fd_slab, fdesc);
+	int err;
+	struct file *file = vfs_open(name, &err);
+	if (!file) {
+		kprintf(LOG_ERROR "Failed to open directory %s: %s\n", name, strerror(err));
 		return NULL;
 	}
 
-	struct fs *fs = fdesc->fs;
+	struct fs *fs = file->vnode.fs;
 
-	if ((fdesc->vnode.flags & VFS_VTYPE_MASK) != VFS_VNO_DIR) {
-		close(fdesc);
+	if ((file->vnode.flags & VFS_VTYPE_MASK) != VFS_VNO_DIR) {
+		vfs_close(file);
 		return NULL;
 	}
 
 	DIR *dir = kzalloc(sizeof(DIR), ALLOC_KERN);
-	dir->fdesc = fdesc;
+	dir->file = file;
 	dir->fs = fs;
-	dir->vnode = &fdesc->vnode;
 	dir->pos = 0;
 	dir->dirents = NULL;
 
@@ -203,11 +241,11 @@ struct dirent *readdir(DIR *dir)
 
 	struct fs *fs = dir->fs;
 
-	if ((dir->vnode->flags & VFS_VTYPE_MASK) != VFS_VNO_DIR)
+	if ((dir->file->vnode.flags & VFS_VTYPE_MASK) != VFS_VNO_DIR)
 		return NULL;
 
 	if (dir->dirents == NULL)
-		dir->num_dirents = fs->ops->readdir(fs, dir->vnode->ino_num, &dir->dirents);
+		dir->num_dirents = fs->ops->readdir(fs, dir->file->vnode.ino_num, &dir->dirents);
 
 	if (dir->dirents == NULL)
 		return NULL;
@@ -223,7 +261,7 @@ int closedir(DIR *dir)
 	if (!dir)
 		return -EBADF;
 
-	int ret = close(dir->fdesc);
+	int ret = vfs_close(dir->file);
 	kfree(dir->dirents);
 	kfree(dir);
 
@@ -293,4 +331,5 @@ void vfs_init(const char *rootdev_name)
 
 	/* init file descriptor slab */
 	fd_slab = slab_create(sizeof(struct file_descriptor), 16 * KB, 0);
+	file_slab = slab_create(sizeof(struct file), 16 * KB, 0);
 }

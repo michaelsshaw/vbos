@@ -38,24 +38,20 @@ int elf_check_compat(char *buf)
 
 pid_t elf_load_proc(char *fname)
 {
-	struct file_descriptor *fdesc = open(fname, 0);
+	int err;
+	struct file *file = vfs_open(fname, &err);
 
-	if (!fdesc)
+	if (!file)
 		return -ENOENT;
 
-	if (fdesc->fd < 0)
-		return fdesc->fd;
-
-	seek(fdesc, 0, SEEK_END);
-	size_t size = tell(fdesc);
-	seek(fdesc, 0, SEEK_SET);
+	size_t size = file->vnode.size;
 
 	char *buf = kmalloc(size, ALLOC_KERN);
 	if (!buf)
 		return -ENOMEM;
 
-	read(fdesc, buf, size);
-	close(fdesc);
+	vfs_read(file, buf, 0, size);
+	vfs_close(file);
 
 	int ret;
 
