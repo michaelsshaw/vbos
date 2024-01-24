@@ -70,12 +70,10 @@ struct file {
 
 struct file_descriptor {
 	struct file *file;
-	struct vnode vnode;
 
 	int fd;
 	uint64_t pos;
 	uint32_t flags;
-	uint32_t mode;
 
 	char *buf;
 	size_t buf_len;
@@ -107,15 +105,11 @@ struct statbuf {
 };
 
 void vfs_init(const char *rootfs);
-int write(struct file_descriptor *fdesc, void *buf, size_t count);
 ssize_t vfs_write(struct file *file, void *buf, off_t off, size_t count);
 ssize_t vfs_read(struct file *file, void *buf, off_t off, size_t count);
 int vfs_statf(struct file *file, struct statbuf *statbuf);
 struct file *vfs_open(const char *pathname, int *err);
 int vfs_close(struct file *file);
-int read(struct file_descriptor *fdesc, void *buf, size_t count);
-struct file_descriptor *open(const char *pathname, int flags);
-int close(struct file_descriptor *fdesc);
 int unlink(const char *pathname);
 int statfd(struct file_descriptor *fdesc, struct statbuf *statbuf);
 int mkdir(const char *pathname);

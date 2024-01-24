@@ -136,11 +136,11 @@ void schedule()
 static struct file_descriptor *proc_insert_charfd(struct proc *proc, int fdno, int flags)
 {
 	struct file_descriptor *fd = fd_special();
-	fd->vnode = (struct vnode){ 0 };
+	fd->file->vnode = (struct vnode){ 0 };
 	fd->pos = 0;
 	fd->fd = fdno;
 	fd->flags = flags;
-	fd->mode = FD_TYPE_CHARDEV;
+	fd->file->vnode.flags = VFS_VNO_CHARDEV;
 	fd->buf = NULL;
 	fd->buf_len = 0;
 	fd->fs = NULL;

@@ -8,66 +8,10 @@
 #include <fs/vfs.h>
 
 static struct rbtree *kfd;
-static slab_t *fd_slab;
 static slab_t *file_slab;
 static struct fs *rootfs;
-static int fd_counter = 0;
 
 typedef struct fs *(*vfs_init_t)(struct block_device *);
-
-int write(struct file_descriptor *fdesc, void *buf, size_t count)
-{
-	if (fdesc->mode == FD_TYPE_CHARDEV) {
-		if (fdesc->buf_write)
-			return fdesc->buf_write(fdesc, buf, count);
-		return -EBADF;
-	}
-
-	if ((fdesc->vnode.flags & VFS_VTYPE_MASK) == VFS_VNO_DIR)
-		return -EISDIR;
-
-	if ((fdesc->vnode.flags & VFS_VTYPE_MASK) != VFS_VNO_REG)
-		return -EBADF;
-
-	if (fdesc->flags & O_RDONLY)
-		return -EBADF;
-
-	int ret = fdesc->fs->ops->write(fdesc->fs, &fdesc->vnode, buf, fdesc->pos, count);
-
-	if (ret < 0)
-		return ret;
-
-	fdesc->pos = MIN(fdesc->pos + ret, fdesc->vnode.size);
-
-	return ret;
-}
-
-int read(struct file_descriptor *fdesc, void *buf, size_t count)
-{
-	if (fdesc->mode == FD_TYPE_CHARDEV) {
-		if (fdesc->buf_read)
-			return fdesc->buf_read(fdesc, buf, count);
-		return -EBADF;
-	}
-
-	if ((fdesc->vnode.flags & VFS_VTYPE_MASK) == VFS_VNO_DIR)
-		return -EISDIR;
-
-	if ((fdesc->vnode.flags & VFS_VTYPE_MASK) != VFS_VNO_REG)
-		return -EBADF;
-
-	if (fdesc->flags & O_WRONLY)
-		return -EBADF;
-
-	int ret = fdesc->fs->ops->read(fdesc->fs, &fdesc->vnode, buf, fdesc->pos, count);
-
-	if (ret < 0)
-		return ret;
-
-	fdesc->pos = MIN(fdesc->pos + ret, fdesc->vnode.size);
-
-	return ret;
-}
 
 ssize_t vfs_write(struct file *file, void *buf, off_t off, size_t count)
 {
@@ -91,19 +35,18 @@ ssize_t vfs_read(struct file *file, void *buf, off_t off, size_t count)
 	if ((file->vnode.flags & VFS_VTYPE_MASK) != VFS_VNO_REG)
 		return -EISDIR;
 
+	if (off >= file->vnode.size)
+		return 0;
+
+	if (off + count > file->vnode.size)
+		count = file->vnode.size - off;
+
 	return file->vnode.fs->ops->read(file->vnode.fs, &file->vnode, buf, off, count);
 }
 
 int vfs_statf(struct file *file, struct statbuf *statbuf)
 {
 	statbuf->size = file->vnode.size;
-
-	return 0;
-}
-
-int statfd(struct file_descriptor *fdesc, struct statbuf *statbuf)
-{
-	statbuf->size = fdesc->vnode.size;
 
 	return 0;
 }
@@ -132,47 +75,6 @@ struct file *vfs_open(const char *pathname, int *err)
 	}
 
 	return file;
-}
-
-struct file_descriptor *open(const char *pathname, int flags)
-{
-	/* allocate a file descriptor */
-	struct file_descriptor *fd = slab_alloc(fd_slab);
-	if (!fd) {
-		kprintf(LOG_ERROR "Failed to allocate file descriptor\n");
-		return NULL;
-	}
-
-	memset(fd, 0, sizeof(struct file_descriptor));
-
-	/* find the file */
-	int result = rootfs->ops->open(rootfs, &fd->vnode, pathname);
-
-	if (result < 0) {
-		fd->fd = result;
-		return fd;
-	} else if (result == VFSE_IS_BDEV) {
-		/* TODO: continue search into mounted filesystems */
-	}
-
-	/* add the file descriptor to the tree */
-	fd->fd = fd_counter;
-	fd->fs = rootfs;
-	fd_counter += 1;
-
-	struct rbnode *fdnode = rbt_insert(kfd, fd->fd);
-	fdnode->value = (uint64_t)fd;
-
-	return fd;
-}
-
-int close(struct file_descriptor *fdesc)
-{
-	struct rbnode *node = rbt_search(kfd, fdesc->fd);
-	rbt_delete(kfd, node);
-	slab_free(fd_slab, fdesc);
-
-	return 0;
 }
 
 int vfs_close(struct file *file)
@@ -214,24 +116,6 @@ DIR *opendir(const char *name)
 	dir->dirents = NULL;
 
 	return dir;
-}
-
-struct file_descriptor *fd_special()
-{
-	struct file_descriptor *fd = slab_alloc(fd_slab);
-	if (!fd) {
-		kprintf(LOG_ERROR "Failed to allocate file descriptor\n");
-		return NULL;
-	}
-
-	memset(fd, 0, sizeof(struct file_descriptor));
-
-	return fd;
-}
-
-void fd_special_free(struct file_descriptor *fd)
-{
-	slab_free(fd_slab, fd);
 }
 
 struct dirent *readdir(DIR *dir)
@@ -330,6 +214,5 @@ void vfs_init(const char *rootdev_name)
 	rootfs = fs;
 
 	/* init file descriptor slab */
-	fd_slab = slab_create(sizeof(struct file_descriptor), 16 * KB, 0);
 	file_slab = slab_create(sizeof(struct file), 16 * KB, 0);
 }

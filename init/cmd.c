@@ -73,22 +73,20 @@ int kcmd_cat(int argc, char **argv)
 		return 1;
 	}
 
-	struct file_descriptor *fd = open(argv[1], 0);
-	if (!fd) {
-		kprintf("Failed to open %s: fd is NULL\n", argv[1]);
-		return 1;
-	}
+	int err;
+	struct file *file = vfs_open(argv[1], &err);
 
-	if (fd->fd < 0) {
-		kprintf("Failed to open %s: %s\n", argv[1], strerror(-fd->fd));
+	if (!file) {
+		kprintf("Failed to open %s: %s\n", argv[1], strerror(-err));
 		return 1;
 	}
 
 	char buf[1024];
 	char lastchar = 0;
 
+	size_t off = 0;
 	while (true) {
-		int n = read(fd, buf, sizeof(buf));
+		ssize_t n = vfs_read(file, buf, off, sizeof(buf));
 		if (n < 0) {
 			kprintf("Failed to read %s: %s\n", argv[1], strerror(-n));
 			return 1;
@@ -98,6 +96,8 @@ int kcmd_cat(int argc, char **argv)
 			break;
 		}
 
+		off += n;
+
 		for (int i = 0; i < n; i++) {
 			console_putchar(buf[i]);
 		}
@@ -105,7 +105,7 @@ int kcmd_cat(int argc, char **argv)
 		lastchar = buf[n - 1];
 	}
 
-	close(fd);
+	vfs_close(file);
 
 	return 0;
 }
@@ -173,27 +173,16 @@ int kcmd_stat(int argc, char **argv)
 		return 1;
 	}
 
-	struct file_descriptor *fd = open(argv[1], 0);
+	int err;
+	struct file *file = vfs_open(argv[1], &err);
 
-	if (!fd) {
-		kprintf("Failed to open %s: fd is NULL\n", argv[1]);
-		return 1;
-	}
-
-	if (fd->fd < 0) {
-		kprintf("Failed to open %s: %s\n", argv[1], strerror(-fd->fd));
-		return 1;
-	}
-
-	struct statbuf st;
-	int ret = statfd(fd, &st);
-	if (ret < 0) {
-		kprintf("Failed to stat %s: %s\n", argv[1], strerror(-ret));
+	if (!file) {
+		kprintf("Failed to open %s: %s\n", argv[1], strerror(-err));
 		return 1;
 	}
 
 	kprintf("File: %s\n", argv[1]);
-	kprintf("Size: %d\n", st.size);
+	kprintf("Size: %d\n", file->vnode.size);
 
 	return 0;
 }
@@ -222,14 +211,10 @@ int kcmd_elf(int argc, char **argv)
 		return 1;
 	}
 
-	struct file_descriptor *fd = open(argv[1], 0);
-	if (fd == NULL) {
-		kprintf("Failed to open %s: fd is NULL\n", argv[1]);
-		return 1;
-	}
-
-	if (fd < 0) {
-		kprintf("Failed to open %s: %s\n", argv[1], strerror(-fd->fd));
+	int err;
+	struct file *file = vfs_open(argv[1], &err);
+	if (!file) {
+		kprintf("Failed to open %s: %s\n", argv[1], strerror(-err));
 		return 1;
 	}
 
@@ -237,17 +222,17 @@ int kcmd_elf(int argc, char **argv)
 	if (!buf)
 		return -ENOMEM;
 
-	int ret = read(fd, buf, 4096);
+	int ret = vfs_read(file, buf, 0, 4096);
 	if (ret < 0) {
 		kprintf("Failed to read %s: %s\n", argv[1], strerror(-ret));
-		close(fd);
+		vfs_close(file);
 		return 1;
 	}
 
 	char elf_magic[] = { 0x7F, 'E', 'L', 'F' };
 	if (strncmp(buf, elf_magic, 4)) {
 		kprintf("Not an ELF file\n");
-		close(fd);
+		vfs_close(file);
 		return 1;
 	}
 
@@ -271,7 +256,7 @@ int kcmd_elf(int argc, char **argv)
 	kprintf("  Section header count: %d\n", hdr->e_shnum);
 	kprintf("  Section header string table index: %d\n", hdr->e_shstrndx);
 
-	close(fd);
+	vfs_close(file);
 
 	return 0;
 }
