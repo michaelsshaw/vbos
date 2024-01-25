@@ -38,6 +38,8 @@
 #define O_TRUNC 0x0010
 #define O_APPEND 0x0020
 
+#define FS_TYPE_EXT2 0x0001
+
 #define FTYPE_CHARDEV 0x0001
 
 typedef uint32_t ino_t;

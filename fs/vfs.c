@@ -13,6 +13,39 @@ static struct fs *rootfs;
 
 typedef struct fs *(*vfs_init_t)(struct block_device *);
 
+struct file *vfs_open(const char *pathname, int *err)
+{
+	/* allocate a file */
+	struct file *file = slab_alloc(file_slab);
+	if (!file) {
+		kprintf(LOG_ERROR "Failed to allocate file struct\n");
+		return NULL;
+	}
+
+	memset(file, 0, sizeof(struct file));
+
+	/* terrible temporary hack */
+	if (pathname == NULL && (uintptr_t)err == 0x4)
+		return file;
+
+	/* find the file */
+	int result = rootfs->ops->open(rootfs, &file->vnode, pathname);
+
+	if (result < 0) {
+		*err = result;
+		slab_free(file_slab, file);
+		return NULL;
+	}
+
+	return file;
+}
+
+int vfs_close(struct file *file)
+{
+	slab_free(file_slab, file);
+	return 0;
+}
+
 ssize_t vfs_write(struct file *file, void *buf, off_t off, size_t count)
 {
 	/* TODO: implement */
@@ -48,39 +81,6 @@ int vfs_statf(struct file *file, struct statbuf *statbuf)
 {
 	statbuf->size = file->vnode.size;
 
-	return 0;
-}
-
-struct file *vfs_open(const char *pathname, int *err)
-{
-	/* allocate a file */
-	struct file *file = slab_alloc(file_slab);
-	if (!file) {
-		kprintf(LOG_ERROR "Failed to allocate file struct\n");
-		return NULL;
-	}
-
-	memset(file, 0, sizeof(struct file));
-
-	/* terrible temporary hack */
-	if (pathname == NULL && (uintptr_t)err == 0x4)
-		return file;
-
-	/* find the file */
-	int result = rootfs->ops->open(rootfs, &file->vnode, pathname);
-
-	if (result < 0) {
-		*err = result;
-		slab_free(file_slab, file);
-		return NULL;
-	}
-
-	return file;
-}
-
-int vfs_close(struct file *file)
-{
-	slab_free(file_slab, file);
 	return 0;
 }
 
@@ -180,25 +180,39 @@ char *dirname(char *path)
 	return path;
 }
 
-void vfs_init(const char *rootdev_name)
+struct fs *vfs_mount(const char *dev, const char *mount_point)
 {
-	kfd = kzalloc(sizeof(struct rbtree), ALLOC_DMA);
-
-	/* mount root */
-	struct block_device *rootdev = block_get_device(rootdev_name);
-	if (!rootdev) {
-		kprintf(LOG_ERROR "Failed to find root device %s\n", rootdev_name);
+	/* TODO: detect filesystem type */
+	/* for now, assume ext2 */
+	struct block_device *bdev = block_get_device(dev);
+	if (!dev) {
+		kprintf(LOG_ERROR "Failed to find device %s\n", dev);
 		kerror_print_blkdevs();
 		panic();
 	}
+	struct fs *fs = ext2_init_fs(bdev);
+
+	if (!fs)
+		goto out;
+
+	fs->type = FS_TYPE_EXT2;
+
+	fs->mount_point = kmalloc(strlen(mount_point) + 1, ALLOC_KERN);
+	strcpy(fs->mount_point, mount_point);
+
+out:
+	return fs;
+}
+
+void vfs_init(const char *rootdev_name)
+{
+	kfd = kzalloc(sizeof(struct rbtree), ALLOC_DMA);
 
 #ifdef KDEBUG
 	kprintf(LOG_DEBUG "Found root device %s\n", rootdev_name);
 #endif
 
-	/* TODO: detect filesystem type */
-	/* for now, assume ext2 */
-	struct fs *fs = ext2_init_fs(rootdev);
+	struct fs *fs = vfs_mount(rootdev_name, "/");
 	if (!fs) {
 		kprintf(LOG_ERROR "Failed to mount root device %s\n", rootdev_name);
 		kerror_print_blkdevs();
@@ -208,9 +222,6 @@ void vfs_init(const char *rootdev_name)
 		kprintf(LOG_DEBUG "Mounted root device %s\n", rootdev_name);
 #endif
 	}
-
-	fs->mount_point = kzalloc(2, ALLOC_KERN);
-	fs->mount_point[0] = '/';
 
 	rootfs = fs;
 
