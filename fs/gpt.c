@@ -42,9 +42,6 @@ void block_gpt_init(struct block_device *dev)
 
 	/* Parse the GPT entries and create block devices for each partition
 	 * that is found.
-	 *
-	 * After block device is registered, the system attempts to register a
-	 * filesystem on the device if it is detected
 	 */
 	size_t used_count = 0;
 	for (size_t i = 0; i < header->entry_count; i++) {
