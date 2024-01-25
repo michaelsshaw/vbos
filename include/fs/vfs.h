@@ -104,6 +104,7 @@ struct fs_ops {
 };
 
 struct fs {
+	struct vnode *root;
 	void *fs;
 	uint32_t type;
 	struct fs_ops *ops;
