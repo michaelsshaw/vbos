@@ -1278,5 +1278,35 @@ struct fs *ext2_init_fs(struct block_device *bdev)
 
 	ret->ops = ext2_ops;
 
+	struct ext2_inode *root_inode = kmalloc(sizeof(struct ext2_inode), ALLOC_DMA);
+	if (!root_inode) {
+		kfree(extfs->bgdt);
+		kfree(extfs);
+		kfree(ext2_ops);
+		kfree(ret);
+		return NULL;
+	}
+
+	ext2_read_inode(ret->fs, root_inode, EXT2_ROOT_INO);
+
+	ret->root = kmalloc(sizeof(struct vnode), ALLOC_KERN);
+	if (!ret->root) {
+		kfree(extfs->bgdt);
+		kfree(extfs);
+		kfree(ext2_ops);
+		kfree(ret);
+		kfree(root_inode);
+		return NULL;
+	}
+
+	memset(ret->root, 0, sizeof(struct vnode));
+	ret->root->fs = ret;
+	ret->root->size = root_inode->size;
+	ret->root->uid = root_inode->uid;
+	ret->root->gid = root_inode->gid;
+	ret->root->flags = root_inode->mode;
+	ret->root->ino_num = EXT2_ROOT_INO;
+	ret->root->name[0] = '/';
+
 	return ret;
 }

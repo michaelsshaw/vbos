@@ -18,6 +18,14 @@
 #define VFS_VNO_SOCK 0xC000
 #define VFS_VTYPE_MASK 0xF000
 
+#define FTYPE_CHARDEV VFS_VNO_CHARDEV
+#define FTYPE_DIR VFS_VNO_DIR
+#define FTYPE_BLKDEV VFS_VNO_BLKDEV
+#define FTYPE_REG VFS_VNO_REG
+#define FTYPE_SYMLINK VFS_VNO_SYMLINK
+#define FTYPE_SOCK VFS_VNO_SOCK
+#define FTYPE_FIFO VFS_VNO_FIFO
+
 #define VFS_DE_UNKNOWN 0
 #define VFS_DE_FILE 1
 #define VFS_DE_DIR 2
@@ -40,8 +48,6 @@
 
 #define FS_TYPE_EXT2 0x0001
 
-#define FTYPE_CHARDEV 0x0001
-
 typedef uint32_t ino_t;
 typedef uint8_t ftype_t;
 typedef size_t off_t;
@@ -56,6 +62,7 @@ struct vnode {
 
 	struct fs *fs;
 	struct vnode *ptr;
+	struct vnode *next;
 };
 
 struct dirent {
