@@ -73,9 +73,6 @@ struct file *vfs_open(const char *pathname, int *err)
 		*err = result;
 		slab_free(file_slab, file);
 		return NULL;
-	} else if (result == VFSE_IS_BDEV) {
-		/* TODO: continue search into mounted filesystems */
-	} else {
 	}
 
 	return file;

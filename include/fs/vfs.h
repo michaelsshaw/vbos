@@ -8,6 +8,7 @@
 
 #define VFS_TYPE_EXT2 0x0001
 
+/* same as EXT2_INO_* */
 #define VFS_VNO_FIFO 0x1000
 #define VFS_VNO_CHARDEV 0x2000
 #define VFS_VNO_DIR 0x4000
@@ -16,6 +17,15 @@
 #define VFS_VNO_SYMLINK 0xA000
 #define VFS_VNO_SOCK 0xC000
 #define VFS_VTYPE_MASK 0xF000
+
+#define VFS_DE_UNKNOWN 0
+#define VFS_DE_FILE 1
+#define VFS_DE_DIR 2
+#define VFS_DE_CHRDEV 3
+#define VFS_DE_BLKDEV 4
+#define VFS_DE_FIFO 5
+#define VFS_DE_SOCK 6
+#define VFS_DE_SYMLINK 7
 
 #define SEEK_SET 0
 #define SEEK_CUR 1
@@ -43,6 +53,7 @@ struct vnode {
 	uint32_t ino_num;
 
 	struct fs *fs;
+	struct vnode *ptr;
 };
 
 struct dirent {
