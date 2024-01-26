@@ -66,7 +66,7 @@ struct vnode {
 
 	struct dirent *dirents; /* for directories */
 
-	bool mount_point; /* is this vnode a fs root? */
+	bool mount_ptr; /* does this node point to a root of a mounted fs? */
 	bool no_free; /* permanently cached vnodes */
 };
 

@@ -1303,13 +1303,14 @@ struct fs *ext2_init_fs(struct block_device *bdev)
 	}
 
 	memset(ret->root, 0, sizeof(struct vnode));
+	ret->root->name[0] = '/';
 	ret->root->fs = ret;
 	ret->root->size = root_inode->size;
 	ret->root->uid = root_inode->uid;
 	ret->root->gid = root_inode->gid;
 	ret->root->flags = root_inode->mode;
 	ret->root->ino_num = EXT2_ROOT_INO;
-	ret->root->name[0] = '/';
+	ret->root->no_free = true;
 
 	return ret;
 }
