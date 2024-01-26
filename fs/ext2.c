@@ -675,13 +675,15 @@ static int ext2_open_file(struct fs *vfs, struct vnode *vnode, const char *path)
 	return 0;
 }
 
-static int ext2_readdir(struct fs *fs, uint32_t ino_num, struct dirent **out)
+static int ext2_readdir(struct vnode *vnode, struct dirent **out)
 {
+	struct fs *vfs = vnode->fs;
 	struct ext2_inode *inode = kmalloc(sizeof(struct ext2_inode), ALLOC_KERN);
 	if (!inode)
 		return -ENOMEM;
 
-	int ret = ext2_read_inode(fs->fs, inode, ino_num);
+	struct ext2fs *extfs = (struct ext2fs *)vfs->fs;
+	int ret = ext2_read_inode(extfs, inode, vnode->ino_num);
 	if (ret < 0) {
 		kfree(inode);
 		return ret;
@@ -692,7 +694,6 @@ static int ext2_readdir(struct fs *fs, uint32_t ino_num, struct dirent **out)
 		return -ENOTDIR;
 	}
 
-	struct ext2fs *extfs = (struct ext2fs *)fs->fs;
 	struct ext2_dir_entry *entry = kmalloc(extfs->block_size, ALLOC_DMA);
 	void *oentry = entry;
 	if (!entry) {
@@ -746,8 +747,9 @@ static int ext2_readdir(struct fs *fs, uint32_t ino_num, struct dirent **out)
 	return num_entries;
 }
 
-static int ext2_write_file(struct fs *vfs, struct vnode *vnode, void *buf, size_t offset, size_t count)
+static int ext2_write_file(struct vnode *vnode, void *buf, size_t offset, size_t count)
 {
+	struct fs *vfs = vnode->fs;
 	struct ext2fs *fs = vfs->fs;
 	struct ext2_inode inode;
 
@@ -1172,8 +1174,9 @@ static int ext2_unlink(struct fs *vfs, const char *path)
 	return -ENOENT;
 }
 
-static int ext2_read_file(struct fs *vfs, struct vnode *vnode, void *buf, size_t offset, size_t count)
+static int ext2_read_file(struct vnode *vnode, void *buf, size_t offset, size_t count)
 {
+	struct fs *vfs = vnode->fs;
 	struct ext2fs *fs = vfs->fs;
 	struct ext2_inode inode;
 

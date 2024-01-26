@@ -63,6 +63,11 @@ struct vnode {
 	struct fs *fs;
 	struct vnode *ptr;
 	struct vnode *next;
+
+	struct dirent *dirents; /* for directories */
+
+	bool mount_point; /* is this vnode a fs root? */
+	bool no_free; /* permanently cached vnodes */
 };
 
 struct dirent {
@@ -81,7 +86,7 @@ typedef struct _DIR {
 } DIR;
 
 struct file {
-	struct vnode vnode;
+	struct vnode *vnode;
 
 	ino_t inode_num; /* inode number */
 	uint32_t type; /* type of the file */
@@ -104,11 +109,11 @@ struct file_descriptor {
 };
 
 struct fs_ops {
-	int (*read)(struct fs *fs, struct vnode *vnode, void *buf, size_t offset, size_t size);
-	int (*write)(struct fs *fs, struct vnode *vnode, void *buf, size_t offset, size_t size);
+	int (*read)(struct vnode *vnode, void *buf, size_t offset, size_t size);
+	int (*write)(struct vnode *vnode, void *buf, size_t offset, size_t size);
 	int (*open)(struct fs *fs, struct vnode *vnode, const char *path);
-	int (*readdir)(struct fs *fs, uint32_t ino, struct dirent **dir);
-	int (*mkdir)(struct fs *fs, const char *path);
+	int (*readdir)(struct vnode *vnode, struct dirent **dir);
+	int (*mkdir)(struct fs *fs, const char *path); /* to be removed */
 	int (*unlink)(struct fs *fs, const char *path);
 };
 

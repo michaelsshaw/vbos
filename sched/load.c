@@ -44,7 +44,7 @@ pid_t elf_load_proc(char *fname)
 	if (!file)
 		return -ENOENT;
 
-	size_t size = file->vnode.size;
+	size_t size = file->vnode->size;
 
 	char *buf = kmalloc(size, ALLOC_KERN);
 	if (!buf)

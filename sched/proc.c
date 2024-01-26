@@ -147,15 +147,16 @@ static struct file_descriptor *proc_insert_charfd(struct proc *proc, int fdno, i
 {
 	struct file_descriptor *fd = fd_special();
 	fd->file = vfs_open(NULL, (void *)0x4); /* FIXME LATER */
-	fd->file->vnode = (struct vnode){ 0 };
 	fd->pos = 0;
 	fd->fd = fdno;
 	fd->flags = flags;
 	fd->file->type = FTYPE_CHARDEV;
-	fd->file->vnode.flags = VFS_VNO_CHARDEV;
+	fd->file->vnode->flags = VFS_VNO_CHARDEV;
 	fd->buf = NULL;
 	fd->buf_len = 0;
 	fd->fs = NULL;
+
+	memset(fd->file->vnode, 0, sizeof(struct vnode));
 
 	fd->buf_write = NULL;
 	fd->buf_read = NULL;

@@ -182,7 +182,7 @@ int kcmd_stat(int argc, char **argv)
 	}
 
 	kprintf("File: %s\n", argv[1]);
-	kprintf("Size: %d\n", file->vnode.size);
+	kprintf("Size: %d\n", file->vnode->size);
 
 	return 0;
 }
