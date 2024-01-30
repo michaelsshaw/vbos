@@ -114,7 +114,10 @@ struct fs_ops {
 	int (*open)(struct fs *fs, struct vnode *vnode, const char *path);
 	int (*readdir)(struct vnode *vnode, struct dirent **dir);
 	int (*mkdir)(struct fs *fs, const char *path); /* to be removed */
-	int (*unlink)(struct fs *fs, const char *path);
+	int (*unlink)(struct fs *fs, const char *path); /* change to vno, not path) */
+	int (*open_vno)(struct fs *vfs, struct vnode *out, ino_t ino_num);
+	int (*read_vno)(struct fs *vfs, struct vnode *vnode, void *buf, size_t blockno);
+	int (*open_dir)(struct fs *vfs, struct vnode *out);
 };
 
 struct fs {

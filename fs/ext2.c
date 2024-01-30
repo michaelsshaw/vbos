@@ -1264,7 +1264,7 @@ static int ext2_open_dir(struct fs *vfs, struct vnode *vnode)
 	return 0;
 }
 
-static int ext2_read_vno(struct fs *vfs, struct vnode *vnode, size_t blockno, void *buf)
+static int ext2_read_vno(struct fs *vfs, struct vnode *vnode, void *buf, size_t blockno)
 {
 	struct ext2fs *fs = (struct ext2fs *)vfs->fs;
 	struct ext2_inode inode;
@@ -1334,6 +1334,9 @@ struct fs *ext2_init_fs(struct block_device *bdev)
 	ext2_ops->readdir = ext2_readdir;
 	ext2_ops->mkdir = ext2_mkdir;
 	ext2_ops->unlink = ext2_unlink;
+	ext2_ops->open_vno = ext2_open_vno;
+	ext2_ops->open_dir = ext2_open_dir;
+	ext2_ops->read_vno = ext2_read_vno;
 
 	ret->ops = ext2_ops;
 
