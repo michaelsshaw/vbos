@@ -1,28 +1,12 @@
-# Nuke built-in rules and variables.
-override MAKEFLAGS += -rR
-override KERNEL := kernel.elf
+MAKEFLAGS += -rR
+KERNEL := kernel.elf
 
-override CC := x86_64-elf-gcc
-override LD := x86_64-elf-ld
+CC := x86_64-elf-gcc
+LD := x86_64-elf-ld
 
-# Convenience macro to reliably declare overridable command variables.
-define DEFAULT_VAR =
-	ifeq ($(origin $1),default)
-		override $(1) := $(2)
-	endif
-	ifeq ($(origin $1),undefined)
-		override $(1) := $(2)
-	endif
-endef
+CFLAGS := -g -O0 -pipe -Wall
 
-# User controllable CFLAGS.
-CFLAGS ?= -g -O0 -pipe -Wall
-
-# User controllable linker flags. We set none by default.
-LDFLAGS ?=
-
-# Internal C flags that should not be changed by the user.
-override CFLAGS +=	   		\
+CFLAGS +=		   		\
 	-std=gnu99			\
 	-ffreestanding	   		\
 	-fno-stack-protector 		\
@@ -43,45 +27,34 @@ override CFLAGS +=	   		\
 	-Iinclude 			\
 	-MMD 		
 
-# Internal linker flags that should not be changed by the user.
-override LDFLAGS +=		 	\
+LDFLAGS :=		 		\
 	-nostdlib			\
 	-static				\
 	-m elf_x86_64		   	\
 	-z max-page-size=0x1000 	\
-	-T linker.ld
-
-# Check if the linker supports -no-pie and enable it if it does.
-ifeq ($(shell $(LD) --help 2>&1 | grep 'no-pie' >/dev/null 2>&1; echo $$?),0)
-	override LDFLAGS += -no-pie
-endif
+	-T linker.ld			\
+	-no-pie				\
 
 KDIRS := dev/ fs/ lib/ mem/ sched/ init/
 
-# Use find to glob all *.c, *.S, and *.asm files in the directory and extract the object names.
-override CFILES := $(shell find $(KDIRS) -type f -name '*.c')
-override ASFILES := $(shell find $(KDIRS) -type f -name '*.S')
-override OBJ := $(CFILES:.c=.o) $(ASFILES:.S=.o)
-override HEADER_DEPS := $(CFILES:.c=.d) $(ASFILES:.S=.d)
+CFILES := $(shell find $(KDIRS) -type f -name '*.c')
+ASFILES := $(shell find $(KDIRS) -type f -name '*.S')
+OBJ := $(CFILES:.c=.o) $(ASFILES:.S=.o)
+HEADER_DEPS := $(CFILES:.c=.d) $(ASFILES:.S=.d)
 
-# Default target.
 .PHONY: all
 all: $(KERNEL) uprg
 
-# Link rules for the final kernel executable.
 $(KERNEL): $(OBJ) linker.ld
 	@$(LD) $(OBJ) $(LDFLAGS) -o $@
 	@echo "  LD      $@"
 
-# Include header dependencies.
 -include $(HEADER_DEPS)
 
-# Compilation rules for *.c files.
 %.o: %.c 
 	@$(CC) $(CFLAGS) -c $< -o $@
 	@echo "  CC      $@"
 
-# Compilation rules for *.S files.
 %.o: %.S 
 	@$(CC) $(CFLAGS) -c $< -o $@
 	@echo "  CC      $@"
@@ -90,7 +63,6 @@ $(KERNEL): $(OBJ) linker.ld
 uprg:
 	@$(MAKE) --no-print-directory -C usr.bin 
 
-# Remove object files and the final executable.
 .PHONY: clean
 clean:
 	@rm -rf $(KERNEL) $(OBJ) $(HEADER_DEPS) bin
