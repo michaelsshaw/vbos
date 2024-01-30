@@ -1223,6 +1223,62 @@ static int ext2_read_file(struct vnode *vnode, void *buf, size_t offset, size_t 
 	return ret;
 }
 
+static int ext2_open_vno(struct fs *vfs, struct vnode *out, ino_t ino_num)
+{
+	struct ext2fs *fs = (struct ext2fs *)vfs->fs;
+	struct ext2_inode inode;
+
+	int res = ext2_read_inode(fs, &inode, ino_num);
+	if (res < 0)
+		return res;
+
+	out->flags = inode.mode;
+	out->uid = inode.uid;
+	out->gid = inode.gid;
+	out->size = inode.size;
+	out->ino_num = ino_num;
+
+	out->fs = vfs;
+
+	/* Init to NULL, allow vfs to fill in */
+	out->ptr = NULL;
+	out->next = NULL;
+	out->dirents = NULL;
+
+	return res;
+}
+
+static int ext2_open_dir(struct fs *vfs, struct vnode *vnode)
+{
+	/* read dirents from the inode */
+	if ((vnode->flags & VFS_VTYPE_MASK) != VFS_VNO_DIR)
+		return -ENOTDIR;
+
+	struct dirent *dirents;
+	ssize_t num_entries = ext2_readdir(vnode, &dirents);
+	if (num_entries < 0)
+		return num_entries;
+
+	vnode->dirents = dirents;
+
+	return 0;
+}
+
+static int ext2_read_vno(struct fs *vfs, struct vnode *vnode, size_t blockno, void *buf)
+{
+	struct ext2fs *fs = (struct ext2fs *)vfs->fs;
+	struct ext2_inode inode;
+
+	int res = ext2_read_inode(fs, &inode, vnode->ino_num);
+	if (res < 0)
+		return res;
+
+	if ((inode.mode & 0xF000) != EXT2_INO_REG)
+		return -EISDIR;
+
+	return ext2_inode_read_block(fs, (struct ext2_inode *)&inode, buf, blockno);
+}
+
 struct fs *ext2_init_fs(struct block_device *bdev)
 {
 	struct ext2fs *extfs = kmalloc(sizeof(*extfs), ALLOC_KERN);
