@@ -4,7 +4,6 @@
 #include <kernel/rbtree.h>
 
 #include <fs/ext2.h>
-
 #include <fs/vfs.h>
 
 static struct rbtree *kfd;
@@ -26,8 +25,7 @@ struct file *vfs_open(const char *pathname, int *err)
 	struct vnode *vnode = slab_alloc(vnode_slab);
 	if (!vnode) {
 		kprintf(LOG_ERROR "Failed to allocate vnode struct\n");
-		slab_free(file_slab, file);
-		return NULL;
+		goto out;
 	}
 
 	memset(file, 0, sizeof(struct file));
@@ -43,12 +41,16 @@ struct file *vfs_open(const char *pathname, int *err)
 
 	if (result < 0) {
 		*err = result;
-		slab_free(file_slab, file);
-		slab_free(vnode_slab, vnode);
-		return NULL;
+		goto out_2;
 	}
 
 	return file;
+
+out_2:
+	slab_free(file_slab, file);
+out:
+	slab_free(vnode_slab, vnode);
+	return NULL;
 }
 
 int vfs_close(struct file *file)
@@ -197,6 +199,17 @@ char *dirname(char *path)
 	return path;
 }
 
+static void vfs_dealloc(struct fs *fs)
+{
+	ATTEMPT_FREE(fs->ops);
+	if (fs->root)
+		ATTEMPT_FREE(fs->root->dirents);
+	ATTEMPT_FREE(fs->root);
+
+	ATTEMPT_FREE(fs->mount_point);
+	ATTEMPT_FREE(fs);
+}
+
 struct fs *vfs_mount(const char *dev, const char *mount_point)
 {
 	/* TODO: detect filesystem type */
@@ -216,6 +229,20 @@ struct fs *vfs_mount(const char *dev, const char *mount_point)
 
 	fs->mount_point = kmalloc(strlen(mount_point) + 1, ALLOC_KERN);
 	strcpy(fs->mount_point, mount_point);
+
+	/* read dirents from fs root */
+	struct vnode *root = fs->root;
+	struct dirent *dirents = NULL;
+	int num_dirents = fs->ops->readdir(root, &dirents);
+	if (num_dirents < 0) {
+		kprintf(LOG_ERROR "Failed to read root directory\n");
+		vfs_dealloc(fs);
+		fs = NULL;
+		goto out;
+	}
+
+	root->dirents = dirents;
+	root->no_free = true;
 
 out:
 	return fs;

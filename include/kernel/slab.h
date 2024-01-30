@@ -12,6 +12,12 @@
 #define ALLOC_KERN 0x01
 #define ALLOC_DMA 0x02
 
+#define ATTEMPT_FREE(_x)   \
+	if (_x) {          \
+		kfree(_x); \
+		_x = NULL; \
+	}
+
 typedef struct _slab {
 	size_t size; /* size of each object */
 	size_t tsize; /* total size of this slab */

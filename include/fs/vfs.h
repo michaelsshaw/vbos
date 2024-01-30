@@ -65,15 +65,16 @@ struct vnode {
 	struct vnode *next;
 
 	struct dirent *dirents; /* for directories */
+	size_t num_dirents;
 
 	bool mount_ptr; /* does this node point to a root of a mounted fs? */
 	bool no_free; /* permanently cached vnodes */
 };
 
 struct dirent {
-	uint64_t inode;
-	uint16_t reclen;
-	ftype_t type;
+	uint64_t inode; /* fs-specific inode number */
+	uint16_t reclen; /* length of this record */
+	ftype_t type; /* type: file, dir, chrdev, blkdev, etc. */
 	char name[256];
 };
 

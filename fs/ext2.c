@@ -1279,6 +1279,11 @@ static int ext2_read_vno(struct fs *vfs, struct vnode *vnode, void *buf, size_t 
 	return ext2_inode_read_block(fs, (struct ext2_inode *)&inode, buf, blockno);
 }
 
+static int ext2_read_dirents(struct fs *vfs, struct vnode *vnode, struct dirent **out)
+{
+	return ext2_readdir(vnode, out);
+}
+
 struct fs *ext2_init_fs(struct block_device *bdev)
 {
 	struct ext2fs *extfs = kmalloc(sizeof(*extfs), ALLOC_KERN);
@@ -1322,11 +1327,8 @@ struct fs *ext2_init_fs(struct block_device *bdev)
 
 	ext2_ops = kmalloc(sizeof(struct fs_ops), ALLOC_KERN);
 
-	if (!ext2_ops) {
-		kfree(extfs->bgdt);
-		kfree(extfs);
-		return NULL;
-	}
+	if (!ext2_ops)
+		goto out;
 
 	ext2_ops->open = ext2_open_file;
 	ext2_ops->read = ext2_read_file;
@@ -1341,25 +1343,14 @@ struct fs *ext2_init_fs(struct block_device *bdev)
 	ret->ops = ext2_ops;
 
 	struct ext2_inode *root_inode = kmalloc(sizeof(struct ext2_inode), ALLOC_DMA);
-	if (!root_inode) {
-		kfree(extfs->bgdt);
-		kfree(extfs);
-		kfree(ext2_ops);
-		kfree(ret);
-		return NULL;
-	}
+	if (!root_inode)
+		goto out_2;
 
 	ext2_read_inode(ret->fs, root_inode, EXT2_ROOT_INO);
 
 	ret->root = kmalloc(sizeof(struct vnode), ALLOC_KERN);
-	if (!ret->root) {
-		kfree(extfs->bgdt);
-		kfree(extfs);
-		kfree(ext2_ops);
-		kfree(ret);
-		kfree(root_inode);
-		return NULL;
-	}
+	if (!ret->root)
+		goto out_3;
 
 	memset(ret->root, 0, sizeof(struct vnode));
 	ret->root->name[0] = '/';
@@ -1372,4 +1363,15 @@ struct fs *ext2_init_fs(struct block_device *bdev)
 	ret->root->no_free = true;
 
 	return ret;
+
+out_3:
+	kfree(ret);
+	kfree(root_inode);
+out_2:
+	kfree(ext2_ops);
+out:
+	kfree(extfs->bgdt);
+	kfree(extfs);
+
+	return NULL;
 }
