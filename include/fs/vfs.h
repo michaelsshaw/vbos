@@ -64,11 +64,16 @@ struct vnode {
 	struct vnode *ptr;
 	struct vnode *next;
 
+	struct vnode *parent;
+
 	struct dirent *dirents; /* for directories */
 	size_t num_dirents;
 
 	bool mount_ptr; /* does this node point to a root of a mounted fs? */
 	bool no_free; /* permanently cached vnodes */
+
+	size_t refcount;
+	spinlock_t lock;
 };
 
 struct dirent {
@@ -76,6 +81,8 @@ struct dirent {
 	uint16_t reclen; /* length of this record */
 	ftype_t type; /* type: file, dir, chrdev, blkdev, etc. */
 	char name[256];
+
+	struct vnode *vnode; /* we don't want duplicate vnodes */
 };
 
 typedef struct _DIR {
@@ -112,9 +119,7 @@ struct file_descriptor {
 struct fs_ops {
 	int (*read)(struct vnode *vnode, void *buf, size_t offset, size_t size);
 	int (*write)(struct vnode *vnode, void *buf, size_t offset, size_t size);
-	int (*open)(struct fs *fs, struct vnode *vnode, const char *path);
 	int (*readdir)(struct vnode *vnode, struct dirent **dir);
-	int (*mkdir)(struct fs *fs, const char *path); /* to be removed */
 	int (*unlink)(struct fs *fs, const char *path); /* change to vno, not path) */
 	int (*open_vno)(struct fs *vfs, struct vnode *out, ino_t ino_num);
 	int (*read_vno)(struct fs *vfs, struct vnode *vnode, void *buf, size_t blockno);
@@ -142,7 +147,6 @@ struct file *vfs_open(const char *pathname, int *err);
 int vfs_close(struct file *file);
 int unlink(const char *pathname);
 int statfd(struct file_descriptor *fdesc, struct statbuf *statbuf);
-int mkdir(const char *pathname);
 
 DIR *opendir(const char *name);
 struct dirent *readdir(DIR *dir);

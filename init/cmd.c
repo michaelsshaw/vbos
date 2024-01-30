@@ -16,7 +16,6 @@ int kcmd_cat(int argc, char **argv);
 int kcmd_stat(int argc, char **argv);
 int kcmd_basename(int argc, char **argv);
 int kcmd_dirname(int argc, char **argv);
-int kcmd_mkdir(int argc, char **argv);
 int kcmd_unlink(int argc, char **argv);
 int kcmd_elf(int argc, char **argv);
 int kcmd_exec(int argc, char **argv);
@@ -33,9 +32,8 @@ struct kcmd {
 	int (*func)(int argc, char **argv);
 };
 
-struct kcmd cmd_list[] = { KCMD_DECL(basename), KCMD_DECL(cat), KCMD_DECL(dirname), KCMD_DECL(clear),
-			   KCMD_DECL(help),	KCMD_DECL(ls),	KCMD_DECL(mkdir),   KCMD_DECL(stat),
-			   KCMD_DECL(unlink),	KCMD_DECL(elf), KCMD_DECL(exec) };
+struct kcmd cmd_list[] = { KCMD_DECL(basename), KCMD_DECL(cat),	 KCMD_DECL(dirname), KCMD_DECL(clear), KCMD_DECL(help),
+			   KCMD_DECL(ls),	KCMD_DECL(stat), KCMD_DECL(unlink),  KCMD_DECL(elf),   KCMD_DECL(exec) };
 
 int kcmd_basename(int argc, char **argv)
 {
@@ -145,22 +143,6 @@ int kcmd_ls(int argc, char **argv)
 			continue;
 
 		kprintf("%s\n", ent->name);
-	}
-
-	return 0;
-}
-
-int kcmd_mkdir(int argc, char **argv)
-{
-	if (!argv[1] || strempty(argv[1])) {
-		kprintf("Usage: mkdir <path>\n");
-		return 1;
-	}
-
-	int ret = mkdir(argv[1]);
-	if (ret < 0) {
-		kprintf("Failed to mkdir %s: %s\n", argv[1], strerror(-ret));
-		return 1;
 	}
 
 	return 0;

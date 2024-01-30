@@ -36,13 +36,78 @@ struct file *vfs_open(const char *pathname, int *err)
 	if (pathname == NULL && (uintptr_t)err == 0x4)
 		return file;
 
-	/* find the file */
-	int result = rootfs->ops->open(rootfs, vnode, pathname);
+	/* start at root */
+	struct fs *fs = rootfs;
+	struct vnode *cur_vnode = fs->root;
 
-	if (result < 0) {
-		*err = result;
-		goto out_2;
+	char *path_copy = kmalloc(strlen(pathname) + 1, ALLOC_KERN);
+	strcpy(path_copy, pathname);
+
+	char *tok_last = NULL;
+	char *tok = strtok(path_copy, "/", &tok_last);
+
+	struct dirent *entry = NULL;
+
+	while (!strempty(tok)) {
+		bool found = false;
+		for (int i = 0; i < cur_vnode->num_dirents; i++) {
+			entry = &cur_vnode->dirents[i];
+			if (strcmp(entry->name, tok) == 0) {
+				if (entry->vnode) {
+					/* go to next vnode */
+					cur_vnode = entry->vnode;
+					spinlock_acquire(&cur_vnode->lock);
+					cur_vnode->refcount++;
+					spinlock_release(&cur_vnode->lock);
+				} else {
+					/* try to open the vnode */
+					struct vnode *new_vnode = slab_alloc(vnode_slab);
+					if (!new_vnode) {
+						*err = -ENOMEM;
+						goto out_2;
+					}
+					memset(new_vnode, 0, sizeof(struct vnode));
+					new_vnode->refcount = 1;
+					new_vnode->parent = cur_vnode;
+
+					int res = fs->ops->open_vno(fs, new_vnode, entry->inode);
+					if (res < 0) {
+						*err = res;
+						slab_free(vnode_slab, new_vnode);
+						goto out_2;
+					}
+
+					if (new_vnode->flags & VFS_VNO_DIR) {
+						int res = fs->ops->open_dir(vnode->fs, new_vnode);
+						if (res < 0) {
+							*err = res;
+							slab_free(vnode_slab, new_vnode);
+							goto out_2;
+						}
+					}
+
+					cur_vnode = new_vnode;
+					entry->vnode = cur_vnode;
+				}
+
+				found = true;
+				break;
+			}
+		}
+
+		if (!found) {
+			*err = -ENOENT;
+			goto out_2;
+		}
+
+		/* get next token */
+		tok = strtok(NULL, "/", &tok_last);
 	}
+
+	file->vnode = cur_vnode;
+	file->type = cur_vnode->flags & VFS_VTYPE_MASK;
+	file->size = vnode->size;
+	file->inode_num = vnode->ino_num;
 
 	return file;
 
@@ -106,11 +171,6 @@ int vfs_statf(struct file *file, struct statbuf *statbuf)
 int unlink(const char *pathname)
 {
 	return rootfs->ops->unlink(rootfs, pathname);
-}
-
-int mkdir(const char *pathname)
-{
-	return rootfs->ops->mkdir(rootfs, pathname);
 }
 
 DIR *opendir(const char *name)
@@ -242,6 +302,7 @@ struct fs *vfs_mount(const char *dev, const char *mount_point)
 	}
 
 	root->dirents = dirents;
+	root->num_dirents = num_dirents;
 	root->no_free = true;
 
 out:

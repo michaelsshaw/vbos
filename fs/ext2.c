@@ -635,46 +635,6 @@ found:
 	return inode_no;
 }
 
-static int ext2_open_file(struct fs *vfs, struct vnode *vnode, const char *path)
-{
-	/* find the inode of the file */
-	struct ext2fs *fs = (struct ext2fs *)vfs->fs;
-	struct ext2_inode *inode = kmalloc(sizeof(struct ext2_inode), ALLOC_KERN);
-	if (!inode)
-		return -ENOMEM;
-
-	long ino_ret = ext2_inode_find_by_name(fs, path);
-	if (ino_ret < 0) {
-		kfree(inode);
-		return ino_ret;
-	}
-	ino_t inode_no = ino_ret;
-
-	int ret = ext2_read_inode(fs, inode, inode_no);
-	if (ret < 0) {
-		kfree(inode);
-		return ret;
-	}
-
-	vnode->fs = vfs;
-	vnode->size = inode->size;
-	vnode->uid = inode->uid;
-	vnode->gid = inode->gid;
-	vnode->flags = inode->mode;
-	vnode->ino_num = inode_no;
-
-	char *bn = basename((char *)path);
-	memcpy(vnode->name, bn, MIN(strlen(bn), 255));
-
-	/* check for long filesize */
-	if (fs->sb.feature_ro_compat & EXT2_FLAG_LONG_FILESIZE)
-		vnode->size |= ((uint64_t)inode->dir_acl << 32);
-
-	kfree(inode);
-
-	return 0;
-}
-
 static int ext2_readdir(struct vnode *vnode, struct dirent **out)
 {
 	struct fs *vfs = vnode->fs;
@@ -841,244 +801,6 @@ static int ino_type_to_dent(uint32_t ino_flags)
 	}
 
 	return -1;
-}
-
-static long ext2_creat(struct fs *vfs, const char *path, uint32_t type)
-{
-	struct ext2fs *fs = (struct ext2fs *)vfs->fs;
-
-	/* make sure the file doesn't already exist */
-	struct vnode vnode;
-	int ret = ext2_open_file(vfs, &vnode, path);
-
-	if (ret == 0)
-		return -EEXIST;
-
-	/* find the parent directory */
-	char *path_copy = kzalloc(strlen(path) + 1, ALLOC_KERN);
-	if (!path_copy)
-		return -ENOMEM;
-
-	strcpy(path_copy, path);
-
-	char *base = basename(path_copy);
-	char *dir = dirname(path_copy);
-
-	/* ensure the dir is a directory */
-	struct ext2_inode *dir_inode = kmalloc(sizeof(struct ext2_inode), ALLOC_DMA);
-
-	long parent_ino_num;
-	if (dir == NULL)
-		parent_ino_num = EXT2_ROOT_INO;
-	else
-		parent_ino_num = ext2_inode_find_by_name(fs, dir);
-
-	if (parent_ino_num < 0) {
-		kfree(path_copy);
-		return parent_ino_num;
-	}
-
-	ext2_read_inode(fs, dir_inode, parent_ino_num);
-
-	/* allocate an inode */
-	ino_t inode_no = ext2_alloc_inode(vfs, type);
-
-	/* allocate a block for the inode */
-	long block_no = ext2_alloc_block(fs);
-	if (block_no < 0) {
-		kfree(path_copy);
-		return block_no;
-	}
-
-	/* write the inode to disk */
-	struct ext2_inode *inode = kmalloc(sizeof(struct ext2_inode), ALLOC_KERN);
-	if (!inode) {
-		kfree(path_copy);
-		return -ENOMEM;
-	}
-
-	memset(inode, 0, sizeof(struct ext2_inode));
-	inode->mode = type;
-	inode->links_count = 1;
-	inode->size = 0;
-	inode->blocks = sizeof(struct ext2_inode) / fs->bdev->block_size;
-	inode->block[0] = block_no;
-	ext2_write_inode(fs, inode, inode_no);
-	kfree(inode);
-
-	/* write the directory entry to the parent directory */
-	struct ext2_dir_entry *entry = kmalloc(fs->block_size, ALLOC_DMA);
-	if (!entry) {
-		kfree(path_copy);
-		return -ENOMEM;
-	}
-
-	size_t insert_size = sizeof(struct ext2_dir_entry) + strlen(base);
-	size_t num_blocks = (dir_inode->blocks * fs->bdev->block_size) / fs->block_size;
-	for (size_t parent_block = 0; parent_block < num_blocks; parent_block++) {
-		ext2_inode_read_block(fs, dir_inode, entry, parent_block);
-
-		uint32_t rec_offset = 0;
-		uint32_t rem_len = 0;
-		while (rec_offset < fs->block_size) {
-			struct ext2_dir_entry *d_ent = (void *)entry + rec_offset;
-
-			size_t t_len = d_ent->name_len + sizeof(struct ext2_dir_entry);
-			if (d_ent->rec_len > sizeof(struct ext2_dir_entry) + 255) {
-				if (t_len + rec_offset + insert_size < fs->block_size) {
-					rem_len = d_ent->rec_len - t_len;
-					d_ent->rec_len = t_len;
-					rec_offset += t_len;
-
-					d_ent = (void *)entry + rec_offset;
-				}
-			}
-
-			/* find a free entry of the right size */
-			if (!d_ent->inode || !d_ent->rec_len || !d_ent->name_len) {
-				if (rec_offset + insert_size >= fs->block_size)
-					continue;
-
-				/* write the entry */
-				d_ent->inode = inode_no;
-				d_ent->rec_len = sizeof(struct ext2_dir_entry) + strlen(base);
-				d_ent->name_len = strlen(base);
-				d_ent->file_type = ino_type_to_dent(type);
-				memcpy(d_ent->name, base, strlen(base));
-
-				/* write the block back to disk */
-				ext2_inode_write_block(fs, dir_inode, entry, parent_block);
-
-				/* set the next rec_len to remaining space in the block */
-
-				if (rem_len)
-					d_ent->rec_len = rem_len;
-
-				kfree(path_copy);
-				kfree(entry);
-				kfree(dir_inode);
-
-				return inode_no;
-			} else {
-				rec_offset += d_ent->rec_len;
-			}
-		}
-	}
-
-	/* if we get here, we need to allocate a new block for the directory */
-	long dir_block = ext2_inode_alloc_block(fs, dir_inode, parent_ino_num);
-	if (dir_block < 0) {
-		kfree(path_copy);
-		kfree(entry);
-		kfree(dir_inode);
-		return dir_block;
-	}
-
-	/* write the entry */
-	entry->inode = inode_no;
-	entry->rec_len = fs->block_size;
-	entry->name_len = strlen(base);
-	entry->file_type = ino_type_to_dent(type);
-	memcpy(entry->name, base, strlen(base));
-
-	/* write the block back to disk */
-	ext2_write_block(fs, entry, dir_block);
-
-	/* write the parent inode back to disk */
-	ext2_write_inode(fs, dir_inode, parent_ino_num);
-
-	kfree(path_copy);
-	kfree(entry);
-	kfree(dir_inode);
-
-	return inode_no;
-}
-
-static int ext2_mkdir(struct fs *vfs, const char *path)
-{
-	long inode_no = ext2_creat(vfs, path, EXT2_INO_DIR);
-
-	if (inode_no < 0)
-		return inode_no;
-
-	/* allocate a block for the . and .. entries */
-	struct ext2fs *fs = (struct ext2fs *)vfs->fs;
-	struct ext2_inode *inode = kmalloc(sizeof(struct ext2_inode), ALLOC_KERN);
-	if (!inode)
-		return -ENOMEM;
-
-	long ret = ext2_read_inode(fs, inode, inode_no);
-	if (ret < 0) {
-		kfree(inode);
-		return ret;
-	}
-
-	long block_no = ext2_inode_alloc_block(fs, inode, inode_no);
-	if (block_no < 0) {
-		kfree(inode);
-		return block_no;
-	}
-
-	/* write the . and .. entries */
-
-	/* open the parent directory */
-	char *path_copy = kzalloc(strlen(path) + 1, ALLOC_KERN);
-	if (!path_copy) {
-		kfree(inode);
-		return -ENOMEM;
-	}
-
-	strcpy(path_copy, path);
-
-	char *dir = dirname(path_copy);
-	long parent_ino_num;
-	if (dir == NULL)
-		parent_ino_num = EXT2_ROOT_INO;
-	else
-		parent_ino_num = ext2_inode_find_by_name(vfs->fs, dir);
-
-	kfree(path_copy);
-
-	if (parent_ino_num < 0) {
-		kfree(inode);
-		return parent_ino_num;
-	}
-
-	/* create the entries */
-	struct ext2_dir_entry *entry = kmalloc(fs->block_size, ALLOC_DMA);
-	if (!entry) {
-		kfree(inode);
-		return -ENOMEM;
-	}
-
-	entry->inode = inode_no;
-	entry->rec_len = sizeof(struct ext2_dir_entry) + 1;
-	entry->name_len = 1;
-	entry->file_type = EXT2_DE_DIR;
-	entry->name[0] = '.';
-
-	struct ext2_dir_entry *entry2 = (void *)entry + entry->rec_len;
-	entry2->inode = parent_ino_num;
-	entry2->rec_len = fs->block_size - entry->rec_len;
-	entry2->name_len = 2;
-	entry2->file_type = EXT2_DE_DIR;
-	entry2->name[0] = '.';
-	entry2->name[1] = '.';
-
-	/* write the block back to disk */
-	ext2_write_block(fs, entry, block_no);
-
-	kfree(inode);
-	kfree(entry);
-
-	/* update block group descriptor used directories count */
-	uint32_t group = (inode_no - 1) / fs->sb.inodes_per_group;
-	struct ext2_group_desc *bg = &fs->bgdt[group];
-	bg->used_dirs_count++;
-
-	ext2_write_bgdt(fs);
-
-	return 0;
 }
 
 static int ext2_unlink(struct fs *vfs, const char *path)
@@ -1260,6 +982,7 @@ static int ext2_open_dir(struct fs *vfs, struct vnode *vnode)
 		return num_entries;
 
 	vnode->dirents = dirents;
+	vnode->num_dirents = num_entries;
 
 	return 0;
 }
@@ -1277,11 +1000,6 @@ static int ext2_read_vno(struct fs *vfs, struct vnode *vnode, void *buf, size_t 
 		return -EISDIR;
 
 	return ext2_inode_read_block(fs, (struct ext2_inode *)&inode, buf, blockno);
-}
-
-static int ext2_read_dirents(struct fs *vfs, struct vnode *vnode, struct dirent **out)
-{
-	return ext2_readdir(vnode, out);
 }
 
 struct fs *ext2_init_fs(struct block_device *bdev)
@@ -1330,11 +1048,9 @@ struct fs *ext2_init_fs(struct block_device *bdev)
 	if (!ext2_ops)
 		goto out;
 
-	ext2_ops->open = ext2_open_file;
 	ext2_ops->read = ext2_read_file;
 	ext2_ops->write = ext2_write_file;
 	ext2_ops->readdir = ext2_readdir;
-	ext2_ops->mkdir = ext2_mkdir;
 	ext2_ops->unlink = ext2_unlink;
 	ext2_ops->open_vno = ext2_open_vno;
 	ext2_ops->open_dir = ext2_open_dir;
