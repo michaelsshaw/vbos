@@ -16,6 +16,8 @@
 #include <dev/ahci.h>
 #include <dev/apic.h>
 
+#include <lib/stack.h>
+
 #include <fs/vfs.h>
 
 #define LIMINE_INTERNAL_MODULE_REQUIRED (1 << 0)
@@ -124,6 +126,7 @@ void kmain()
 	char kmem[one_gb] ALIGN(0x1000);
 	mem_early_init(kmem, one_gb);
 
+	stack_init();
 	gdt_init();
 	idt_init();
 
