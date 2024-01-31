@@ -154,8 +154,6 @@ int closedir(DIR *dir);
 
 char *basename(char *path);
 char *dirname(char *path);
-struct file_descriptor *fd_special();
-void fd_special_free(struct file_descriptor *fd);
 
 int stdout_write(struct file_descriptor *fdesc, void *buf, size_t len);
 

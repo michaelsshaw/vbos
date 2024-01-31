@@ -143,30 +143,6 @@ void schedule()
 	}
 }
 
-static struct file_descriptor *proc_insert_charfd(struct proc *proc, int fdno, int flags)
-{
-	struct file_descriptor *fd = fd_special();
-	fd->file = vfs_open(NULL, (void *)0x4); /* FIXME LATER */
-	fd->pos = 0;
-	fd->fd = fdno;
-	fd->flags = flags;
-	fd->file->type = FTYPE_CHARDEV;
-	fd->file->vnode->flags = VFS_VNO_CHARDEV;
-	fd->buf = NULL;
-	fd->buf_len = 0;
-	fd->fs = NULL;
-
-	memset(fd->file->vnode, 0, sizeof(struct vnode));
-
-	fd->buf_write = NULL;
-	fd->buf_read = NULL;
-
-	struct rbnode *fd_node = rbt_insert(&proc->fd_map, fdno);
-	fd_node->value = (uintptr_t)fd;
-
-	return fd;
-}
-
 struct proc *proc_create()
 {
 	struct proc *proc = slab_alloc(proc_slab);
@@ -179,14 +155,6 @@ struct proc *proc_create()
 
 	struct rbnode *proc_node = rbt_insert(proc_tree, proc->pid);
 	proc_node->value = (uintptr_t)proc;
-
-	/* insert stdin, stdout, stderr */
-	struct file_descriptor *fd;
-	fd = proc_insert_charfd(proc, STDIN_FILENO, O_RDONLY);
-	fd = proc_insert_charfd(proc, STDOUT_FILENO, O_WRONLY);
-	fd->buf_write = stdout_write;
-	fd = proc_insert_charfd(proc, STDERR_FILENO, O_WRONLY);
-	fd->buf_write = stdout_write;
 
 	spinlock_release(&proc->lock);
 

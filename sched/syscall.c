@@ -14,25 +14,6 @@ typedef void (*syscall_t)(uint64_t arg1, uint64_t arg2, uint64_t arg3, uint64_t 
 syscall_t syscall_table[SYSCALL_MAX];
 slab_t *fd_slab;
 
-struct file_descriptor *fd_special()
-{
-	struct file_descriptor *fd = slab_alloc(fd_slab);
-	if (!fd) {
-		kprintf(LOG_ERROR "Failed to allocate file descriptor\n");
-		return NULL;
-	}
-
-	memset(fd, 0, sizeof(struct file_descriptor));
-
-	return fd;
-}
-
-void fd_special_free(struct file_descriptor *fd)
-{
-	slab_free(fd_slab, fd);
-}
-
-
 void syscall(uint64_t syscall_no, uint64_t arg1, uint64_t arg2, uint64_t arg3, uint64_t arg4, uint64_t arg5)
 {
 	syscall_t syscall = (void *)syscall_table[syscall_no];
