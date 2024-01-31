@@ -58,10 +58,6 @@ struct file *vfs_open(const char *pathname, int *err)
 	}
 	memset(file, 0, sizeof(struct file));
 
-	/* terrible temporary hack */
-	if (pathname == NULL && (uintptr_t)err == 0x4)
-		return file;
-
 	/* start at root */
 	struct fs *fs = rootfs;
 	struct vnode *cur_vnode = fs->root;
