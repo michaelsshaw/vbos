@@ -19,8 +19,18 @@ static void vfs_vnode_dealloc(struct vnode *vnode)
 {
 	if (!vnode)
 		return;
+	
 	if (vnode->no_free)
 		return;
+
+	if (vnode->parent) {
+		spinlock_acquire(&vnode->parent->lock);
+		vnode->parent->refcount--;
+		spinlock_release(&vnode->parent->lock);
+
+		if (vnode->parent->refcount == 0)
+			vfs_vnode_dealloc(vnode->parent);
+	}
 
 	ATTEMPT_FREE(vnode->dirents);
 
@@ -113,17 +123,16 @@ struct file *vfs_open(const char *pathname, int *err)
 
 		if (!found) {
 			*err = -ENOENT;
+
 			/* clean up */
-			while (cur_vnode) {
-				spinlock_acquire(&cur_vnode->lock);
-				cur_vnode->refcount--;
-				spinlock_release(&cur_vnode->lock);
+			spinlock_acquire(&cur_vnode->lock);
+			cur_vnode->refcount--;
+			spinlock_release(&cur_vnode->lock);
 
-				if (cur_vnode->refcount == 0)
-					vfs_vnode_dealloc(cur_vnode);
+			/* will recursively free all vnodes */
+			if (cur_vnode->refcount == 0)
+				vfs_vnode_dealloc(cur_vnode);
 
-				cur_vnode = cur_vnode->parent;
-			}
 			goto out_2;
 		}
 
@@ -148,8 +157,14 @@ int vfs_close(struct file *file)
 	if (!file)
 		return -EBADF;
 
-	if (!file->vnode->no_free)
-		slab_free(vnode_slab, file->vnode);
+	if (!file->vnode->no_free) {
+		spinlock_acquire(&file->vnode->lock);
+		file->vnode->refcount--;
+		spinlock_release(&file->vnode->lock);
+
+		if (file->vnode->refcount == 0)
+			vfs_vnode_dealloc(file->vnode);
+	}
 
 	slab_free(file_slab, file);
 	return 0;
