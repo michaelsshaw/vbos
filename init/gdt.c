@@ -3,8 +3,6 @@
 #include <kernel/common.h>
 #include <kernel/slab.h>
 
-#include <stdio.h>
-
 void gdt_load();
 
 static int gdt_index = 0;

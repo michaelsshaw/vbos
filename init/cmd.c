@@ -7,8 +7,6 @@
 
 #include <fs/vfs.h>
 
-#include <string.h>
-
 int kcmd_help(int argc, char **argv);
 int kcmd_ls(int argc, char **argv);
 int kcmd_clear(int argc, char **argv);

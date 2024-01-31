@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 #include <kernel/common.h>
-#include <math.h>
+#include <lib/math.h>
 
 size_t npow2(size_t n)
 {

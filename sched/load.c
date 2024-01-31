@@ -6,7 +6,6 @@
 #include <kernel/gdt.h>
 
 #include <fs/vfs.h>
-#include <string.h>
 
 static const char elf_magic[] = { 0x7F, 'E', 'L', 'F' };
 

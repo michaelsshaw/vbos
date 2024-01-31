@@ -18,8 +18,6 @@
 
 #include <fs/vfs.h>
 
-#include <string.h>
-
 #define LIMINE_INTERNAL_MODULE_REQUIRED (1 << 0)
 #include <limine/limine.h>
 

@@ -5,7 +5,6 @@
 #include <kernel/irq.h>
 #include <dev/pic.h>
 #include <dev/serial.h>
-#include <stdio.h>
 
 #define exception(_i) _exception_##_i
 #define exception_decl(_j) void exception(_j)()

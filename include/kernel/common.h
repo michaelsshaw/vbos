@@ -7,11 +7,11 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
-#include <stdio.h>
-#include <string.h>
-#include <errno.h>
-#include <math.h>
-#include <assert.h>
+#include <lib/stdio.h>
+#include <lib/string.h>
+#include <lib/errno.h>
+#include <lib/math.h>
+#include <lib/assert.h>
 
 #include <kernel/bitwise.h>
 

@@ -6,8 +6,6 @@
 #include <dev/apic.h>
 #include <dev/console.h>
 
-#include <stdio.h>
-
 int serial_init()
 {
 	outb(COM1 | 1, 0x00);

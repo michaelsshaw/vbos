@@ -96,7 +96,7 @@ typedef struct _DIR {
 struct file {
 	struct vnode *vnode;
 
-	ino_t inode_num; /* inode number */
+	ino_t ino_num; /* inode number */
 	uint32_t type; /* type of the file */
 	uint64_t size; /* size of the file */
 };

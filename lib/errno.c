@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
-#include <errno.h>
 #include <kernel/common.h>
+#include <lib/errno.h>
 
 static const char *errno_str[] = {
 	[0] = "Success",

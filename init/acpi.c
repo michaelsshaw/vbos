@@ -5,9 +5,6 @@
 
 #include <limine/limine.h>
 
-#include <stdio.h>
-#include <string.h>
-
 struct limine_rsdp_request rsdp_req = { .id = LIMINE_RSDP_REQUEST, .revision = 0 };
 
 static struct rsdp *rsdp = NULL;

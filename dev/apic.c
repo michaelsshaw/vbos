@@ -4,7 +4,6 @@
 #include <dev/apic.h>
 
 #include <stdint.h>
-#include <stdio.h>
 
 static uintptr_t ioapic_addr = 0xFEC00000;
 static uintptr_t lapic_addr = 0;

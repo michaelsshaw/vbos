@@ -107,7 +107,7 @@ struct file *vfs_open(const char *pathname, int *err)
 	file->vnode = cur_vnode;
 	file->type = cur_vnode->flags & VFS_VTYPE_MASK;
 	file->size = vnode->size;
-	file->inode_num = vnode->ino_num;
+	file->ino_num = vnode->ino_num;
 
 	return file;
 
