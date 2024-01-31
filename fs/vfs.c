@@ -6,12 +6,37 @@
 #include <fs/ext2.h>
 #include <fs/vfs.h>
 
+#include <lib/stack.h>
+
 static struct rbtree *kfd;
 static struct fs *rootfs;
 static slab_t *file_slab;
 static slab_t *vnode_slab;
 
 typedef struct fs *(*vfs_init_t)(struct block_device *);
+
+static void vfs_vnode_dealloc(struct vnode *vnode)
+{
+	if (!vnode)
+		return;
+	if (vnode->no_free)
+		return;
+
+	ATTEMPT_FREE(vnode->dirents);
+
+	slab_free(vnode_slab, vnode);
+}
+
+static void vfs_dealloc(struct fs *fs)
+{
+	ATTEMPT_FREE(fs->ops);
+	if (fs->root)
+		ATTEMPT_FREE(fs->root->dirents);
+	ATTEMPT_FREE(fs->root);
+
+	ATTEMPT_FREE(fs->mount_point);
+	ATTEMPT_FREE(fs);
+}
 
 struct file *vfs_open(const char *pathname, int *err)
 {
@@ -21,16 +46,7 @@ struct file *vfs_open(const char *pathname, int *err)
 		kprintf(LOG_ERROR "Failed to allocate file struct\n");
 		return NULL;
 	}
-
-	struct vnode *vnode = slab_alloc(vnode_slab);
-	if (!vnode) {
-		kprintf(LOG_ERROR "Failed to allocate vnode struct\n");
-		goto out;
-	}
-
 	memset(file, 0, sizeof(struct file));
-
-	file->vnode = vnode;
 
 	/* terrible temporary hack */
 	if (pathname == NULL && (uintptr_t)err == 0x4)
@@ -78,7 +94,7 @@ struct file *vfs_open(const char *pathname, int *err)
 					}
 
 					if (new_vnode->flags & VFS_VNO_DIR) {
-						int res = fs->ops->open_dir(vnode->fs, new_vnode);
+						int res = fs->ops->open_dir(new_vnode->fs, new_vnode);
 						if (res < 0) {
 							*err = res;
 							slab_free(vnode_slab, new_vnode);
@@ -97,6 +113,17 @@ struct file *vfs_open(const char *pathname, int *err)
 
 		if (!found) {
 			*err = -ENOENT;
+			/* clean up */
+			while (cur_vnode) {
+				spinlock_acquire(&cur_vnode->lock);
+				cur_vnode->refcount--;
+				spinlock_release(&cur_vnode->lock);
+
+				if (cur_vnode->refcount == 0)
+					vfs_vnode_dealloc(cur_vnode);
+
+				cur_vnode = cur_vnode->parent;
+			}
 			goto out_2;
 		}
 
@@ -106,15 +133,13 @@ struct file *vfs_open(const char *pathname, int *err)
 
 	file->vnode = cur_vnode;
 	file->type = cur_vnode->flags & VFS_VTYPE_MASK;
-	file->size = vnode->size;
-	file->ino_num = vnode->ino_num;
+	file->size = cur_vnode->size;
+	file->ino_num = cur_vnode->ino_num;
 
 	return file;
 
 out_2:
 	slab_free(file_slab, file);
-out:
-	slab_free(vnode_slab, vnode);
 	return NULL;
 }
 
@@ -259,17 +284,6 @@ char *dirname(char *path)
 	return path;
 }
 
-static void vfs_dealloc(struct fs *fs)
-{
-	ATTEMPT_FREE(fs->ops);
-	if (fs->root)
-		ATTEMPT_FREE(fs->root->dirents);
-	ATTEMPT_FREE(fs->root);
-
-	ATTEMPT_FREE(fs->mount_point);
-	ATTEMPT_FREE(fs);
-}
-
 struct fs *vfs_mount(const char *dev, const char *mount_point)
 {
 	/* TODO: detect filesystem type */
@@ -291,6 +305,10 @@ struct fs *vfs_mount(const char *dev, const char *mount_point)
 	strcpy(fs->mount_point, mount_point);
 
 	/* read dirents from fs root */
+
+	/* root vnode is allocated by the FS driver with kmalloc
+	 * all other vnodes are allocated by the VFS with slab_alloc 
+	 */
 	struct vnode *root = fs->root;
 	struct dirent *dirents = NULL;
 	int num_dirents = fs->ops->readdir(root, &dirents);
