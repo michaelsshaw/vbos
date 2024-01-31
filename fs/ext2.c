@@ -1048,13 +1048,12 @@ struct fs *ext2_init_fs(struct block_device *bdev)
 	if (!ext2_ops)
 		goto out;
 
+	ext2_ops->open_vno = ext2_open_vno;
+	ext2_ops->open_dir = ext2_open_dir;
 	ext2_ops->read = ext2_read_file;
 	ext2_ops->write = ext2_write_file;
 	ext2_ops->readdir = ext2_readdir;
 	ext2_ops->unlink = ext2_unlink;
-	ext2_ops->open_vno = ext2_open_vno;
-	ext2_ops->open_dir = ext2_open_dir;
-	ext2_ops->read_vno = ext2_read_vno;
 
 	ret->ops = ext2_ops;
 

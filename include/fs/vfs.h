@@ -122,7 +122,6 @@ struct fs_ops {
 	int (*readdir)(struct vnode *vnode, struct dirent **dir);
 	int (*unlink)(struct fs *fs, const char *path); /* change to vno, not path) */
 	int (*open_vno)(struct fs *vfs, struct vnode *out, ino_t ino_num);
-	int (*read_vno)(struct fs *vfs, struct vnode *vnode, void *buf, size_t blockno);
 	int (*open_dir)(struct fs *vfs, struct vnode *out);
 };
 

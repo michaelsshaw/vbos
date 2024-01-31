@@ -19,7 +19,7 @@ static void vfs_vnode_dealloc(struct vnode *vnode)
 {
 	if (!vnode)
 		return;
-	
+
 	if (vnode->no_free)
 		return;
 
