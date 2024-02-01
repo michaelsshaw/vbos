@@ -28,6 +28,13 @@ static void vfs_vnode_dealloc(struct vnode *vnode)
 		vnode->parent->refcount--;
 		spinlock_release(&vnode->parent->lock);
 
+		for (size_t i = 0; i < vnode->parent->num_dirents; i++) {
+			if (vnode->parent->dirents[i].vnode == vnode) {
+				vnode->parent->dirents[i].vnode = NULL;
+				break;
+			}
+		}
+
 		if (vnode->parent->refcount == 0)
 			vfs_vnode_dealloc(vnode->parent);
 	}
