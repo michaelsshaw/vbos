@@ -15,6 +15,9 @@ static slab_t *vnode_slab;
 
 typedef struct fs *(*vfs_init_t)(struct block_device *);
 
+static void vfs_vnode_dec_ref(struct vnode *vnode);
+static void vfs_vnode_dealloc(struct vnode *vnode);
+
 static void vfs_vnode_dealloc(struct vnode *vnode)
 {
 	if (!vnode)
@@ -25,23 +28,37 @@ static void vfs_vnode_dealloc(struct vnode *vnode)
 
 	if (vnode->parent) {
 		spinlock_acquire(&vnode->parent->lock);
-		vnode->parent->refcount--;
-		spinlock_release(&vnode->parent->lock);
-
 		for (size_t i = 0; i < vnode->parent->num_dirents; i++) {
 			if (vnode->parent->dirents[i].vnode == vnode) {
 				vnode->parent->dirents[i].vnode = NULL;
 				break;
 			}
 		}
+		spinlock_release(&vnode->parent->lock);
 
-		if (vnode->parent->refcount == 0)
-			vfs_vnode_dealloc(vnode->parent);
+		vfs_vnode_dec_ref(vnode->parent);
 	}
 
 	ATTEMPT_FREE(vnode->dirents);
 
 	slab_free(vnode_slab, vnode);
+}
+
+static void vfs_vnode_dec_ref(struct vnode *vnode)
+{
+	if (!vnode)
+		return;
+
+	if (vnode->no_free)
+		return;
+
+	spinlock_acquire(&vnode->lock);
+	vnode->refcount--;
+	spinlock_release(&vnode->lock);
+
+	/* will recursively free all vnodes */
+	if (vnode->refcount == 0)
+		vfs_vnode_dealloc(vnode);
 }
 
 static void vfs_dealloc(struct fs *fs)
@@ -128,14 +145,7 @@ struct file *vfs_open(const char *pathname, int *err)
 			*err = -ENOENT;
 
 			/* clean up */
-			spinlock_acquire(&cur_vnode->lock);
-			cur_vnode->refcount--;
-			spinlock_release(&cur_vnode->lock);
-
-			/* will recursively free all vnodes */
-			if (cur_vnode->refcount == 0)
-				vfs_vnode_dealloc(cur_vnode);
-
+			vfs_vnode_dec_ref(cur_vnode);
 			goto out_2;
 		}
 
@@ -160,14 +170,7 @@ int vfs_close(struct file *file)
 	if (!file)
 		return -EBADF;
 
-	if (!file->vnode->no_free) {
-		spinlock_acquire(&file->vnode->lock);
-		file->vnode->refcount--;
-		spinlock_release(&file->vnode->lock);
-
-		if (file->vnode->refcount == 0)
-			vfs_vnode_dealloc(file->vnode);
-	}
+	vfs_vnode_dec_ref(file->vnode);
 
 	slab_free(file_slab, file);
 	return 0;
@@ -221,7 +224,7 @@ DIR *opendir(const char *name)
 	int err;
 	struct file *file = vfs_open(name, &err);
 	if (!file) {
-		kprintf(LOG_ERROR "Failed to open directory %s: %s\n", name, strerror(err));
+		kprintf(LOG_ERROR "Failed to open directory %s: %s\n", name, strerror(-err));
 		return NULL;
 	}
 
