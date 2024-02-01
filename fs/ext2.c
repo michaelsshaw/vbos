@@ -461,7 +461,6 @@ static long ext2_alloc_inode(struct fs *vfs, uint32_t mode)
 
 		/* iterate over the inode bitmap to find a free inode */
 		uint32_t byte = 0;
-		uint32_t bit = 0;
 		uint8_t *byte_ptr = inode_bitmap + byte;
 
 		while (*byte_ptr == 0xFF) {
@@ -469,10 +468,7 @@ static long ext2_alloc_inode(struct fs *vfs, uint32_t mode)
 			byte_ptr = inode_bitmap + byte;
 		}
 
-		while (*byte_ptr & (1 << bit)) {
-			bit++;
-		}
-
+		uint32_t bit = __builtin_ffs(~byte) - 1;
 		*byte_ptr |= (1 << bit);
 
 		ino_t inode_no = (i * fs->sb.inodes_per_group) + (byte * 8) + bit + 1;
@@ -702,7 +698,7 @@ static int ext2_readdir(struct vnode *vnode, struct dirent **out)
 
 	/* copy to a fixed-size array */
 	struct dirent *dirents = kmalloc(num_entries * sizeof(struct dirent), ALLOC_KERN);
-	for(int i = 0; i < num_entries; i++) {
+	for (int i = 0; i < num_entries; i++) {
 		dirents[i] = dir_arr[i];
 	}
 	kfree(dir_arr);
