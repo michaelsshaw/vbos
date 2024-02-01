@@ -700,10 +700,17 @@ static int ext2_readdir(struct vnode *vnode, struct dirent **out)
 		}
 	}
 
+	/* copy to a fixed-size array */
+	struct dirent *dirents = kmalloc(num_entries * sizeof(struct dirent), ALLOC_KERN);
+	for(int i = 0; i < num_entries; i++) {
+		dirents[i] = dir_arr[i];
+	}
+	kfree(dir_arr);
+
 	kfree(inode);
 	kfree(oentry);
 
-	*out = dir_arr;
+	*out = dirents;
 	return num_entries;
 }
 
