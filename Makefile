@@ -43,9 +43,10 @@ OBJ := $(CFILES:.c=.o) $(ASFILES:.S=.o)
 HEADER_DEPS := $(CFILES:.c=.d) $(ASFILES:.S=.d)
 
 .PHONY: all
-all: $(KERNEL) uprg
+all: $(KERNEL)
 
 $(KERNEL): $(OBJ) linker.ld
+	@$(MAKE) --no-print-directory -C usr.bin -j1
 	@$(LD) $(OBJ) $(LDFLAGS) -o $@
 	@echo "  LD      $@"
 
@@ -59,15 +60,11 @@ $(KERNEL): $(OBJ) linker.ld
 	@$(CC) $(CFLAGS) -c $< -o $@
 	@echo "  CC      $@"
 
-.PHONY: uprg
-uprg:
-	@$(MAKE) --no-print-directory -C usr.bin 
-
 .PHONY: clean
 clean:
 	@rm -rf $(KERNEL) $(OBJ) $(HEADER_DEPS) bin
 	@echo "  CLEAN   kernel"
-	@make --no-print-directory -C usr.bin clean
+	@$(MAKE) --no-print-directory -C usr.bin clean
 
 .PHONY: distclean
 distclean: clean

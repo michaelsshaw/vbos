@@ -12,7 +12,7 @@ UPRGINSTALL := $(addsuffix install,$(UPRG))
 all: $(UPRGBUILD) $(UPRGINSTALL)
 
 %build: %
-	@$(MAKE) --no-print-directory -C $< 
+	@$(MAKE) --no-print-directory -C $< &
 
 clean: $(UPRGCLEAN)
 %clean: %
