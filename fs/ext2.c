@@ -1027,7 +1027,7 @@ struct fs *ext2_init_fs(struct block_device *bdev)
 
 	kfree(buf);
 
-	struct fs *ret = kmalloc(sizeof(struct fs), ALLOC_KERN);
+	struct fs *ret = vfs_create();
 	ret->fs = extfs;
 	ret->type = VFS_TYPE_EXT2;
 
@@ -1051,11 +1051,10 @@ struct fs *ext2_init_fs(struct block_device *bdev)
 
 	ext2_read_inode(ret->fs, root_inode, EXT2_ROOT_INO);
 
-	ret->root = kmalloc(sizeof(struct vnode), ALLOC_KERN);
+	ret->root = vfs_create_vno();
 	if (!ret->root)
 		goto out_3;
 
-	memset(ret->root, 0, sizeof(struct vnode));
 	ret->root->name[0] = '/';
 	ret->root->fs = ret;
 	ret->root->size = root_inode->size;

@@ -47,6 +47,7 @@
 #define O_APPEND 0x0020
 
 #define FS_TYPE_EXT2 0x0001
+#define FS_TYPE_PFS 0x0002 /* pseudo fs */
 
 typedef uint32_t ino_t;
 typedef uint8_t ftype_t;
@@ -153,6 +154,10 @@ int closedir(DIR *dir);
 
 char *basename(char *path);
 char *dirname(char *path);
+
+struct fs *vfs_create();
+struct vnode *vfs_create_vno();
+void vfs_dealloc(struct fs *fs);
 
 int stdout_write(struct file_descriptor *fdesc, void *buf, size_t len);
 

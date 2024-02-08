@@ -8,7 +8,6 @@
 
 #include <lib/stack.h>
 
-static struct rbtree *kfd;
 static struct fs *rootfs;
 static slab_t *file_slab;
 static slab_t *vnode_slab;
@@ -59,17 +58,6 @@ static void vfs_vnode_dec_ref(struct vnode *vnode)
 	/* will recursively free all vnodes */
 	if (vnode->refcount == 0)
 		vfs_vnode_dealloc(vnode);
-}
-
-static void vfs_dealloc(struct fs *fs)
-{
-	ATTEMPT_FREE(fs->ops);
-	if (fs->root)
-		ATTEMPT_FREE(fs->root->dirents);
-	ATTEMPT_FREE(fs->root);
-
-	ATTEMPT_FREE(fs->mount_point);
-	ATTEMPT_FREE(fs);
 }
 
 struct file *vfs_open(const char *pathname, int *err)
@@ -305,6 +293,51 @@ char *dirname(char *path)
 	return path;
 }
 
+struct vnode *vfs_create_vno()
+{
+	struct vnode *vnode = slab_alloc(vnode_slab);
+	if (!vnode)
+		return NULL;
+
+	memset(vnode, 0, sizeof(struct vnode));
+
+	return vnode;
+}
+
+struct fs *vfs_create()
+{
+	struct fs *fs = kzalloc(sizeof(struct fs), ALLOC_KERN);
+	if (!fs)
+		return NULL;
+
+	fs->root = vfs_create_vno();
+	if (!fs->root)
+		goto out_root;
+
+	fs->ops = kzalloc(sizeof(struct fs_ops), ALLOC_KERN);
+	if (!fs->ops)
+		goto out_ops;
+
+	return fs;
+
+out_ops:
+	kfree(fs->root);
+out_root:
+	kfree(fs);
+	return NULL;
+}
+
+void vfs_dealloc(struct fs *fs)
+{
+	ATTEMPT_FREE(fs->ops);
+	if (fs->root)
+		ATTEMPT_FREE(fs->root->dirents);
+	slab_free(vnode_slab, fs->root);
+
+	ATTEMPT_FREE(fs->mount_point);
+	ATTEMPT_FREE(fs);
+}
+
 struct fs *vfs_mount(const char *dev, const char *mount_point)
 {
 	/* TODO: detect filesystem type */
@@ -325,11 +358,6 @@ struct fs *vfs_mount(const char *dev, const char *mount_point)
 	fs->mount_point = kmalloc(strlen(mount_point) + 1, ALLOC_KERN);
 	strcpy(fs->mount_point, mount_point);
 
-	/* read dirents from fs root */
-
-	/* root vnode is allocated by the FS driver with kmalloc
-	 * all other vnodes are allocated by the VFS with slab_alloc 
-	 */
 	struct vnode *root = fs->root;
 	struct dirent *dirents = NULL;
 	int num_dirents = fs->ops->readdir(root, &dirents);
@@ -350,7 +378,8 @@ out:
 
 void vfs_init(const char *rootdev_name)
 {
-	kfd = kzalloc(sizeof(struct rbtree), ALLOC_DMA);
+	file_slab = slab_create(sizeof(struct file), 16 * KB, 0);
+	vnode_slab = slab_create(sizeof(struct vnode), 16 * KB, 0);
 
 #ifdef KDEBUG
 	kprintf(LOG_DEBUG "Found root device %s\n", rootdev_name);
@@ -368,8 +397,4 @@ void vfs_init(const char *rootdev_name)
 	}
 
 	rootfs = fs;
-
-	/* init file descriptor slab */
-	file_slab = slab_create(sizeof(struct file), 16 * KB, 0);
-	vnode_slab = slab_create(sizeof(struct vnode), 16 * KB, 0);
 }
