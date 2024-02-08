@@ -46,6 +46,7 @@ void slab_free(slab_t *slab, void *ptr);
 void kmalloc_init();
 void *kmalloc(size_t size, uint64_t flags);
 void *kzalloc(size_t size, uint64_t flags);
+void *krealloc(void *ptr, size_t size, uint64_t flags);
 void kfree(void *ptr);
 
 void slabtypes_init();

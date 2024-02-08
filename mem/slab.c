@@ -236,6 +236,41 @@ void *kzalloc(size_t size, uint64_t flags)
 	return ret;
 }
 
+void *krealloc(void *ptr, size_t size, uint64_t flags)
+{
+	/* invalid case 1: ptr is NULL */
+	if (ptr == NULL)
+		return kmalloc(size, flags);
+
+	/* invalid case 2: size is 0 */
+	if (size == 0) {
+		kfree(ptr);
+		return NULL;
+	}
+
+	/* invalid case 3: ptr is not allocated by kmalloc */
+	struct rbnode *n = rbt_search(&kmalloc_tree, (uint64_t)ptr);
+	if (n == NULL) {
+		kprintf(LOG_ERROR "kmalloc: invalid realloc: %X\n", ptr);
+		return NULL;
+	}
+
+	/* invalid case 4: size is smaller than the original size */
+	size_t old_size = n->value2;
+	if (size <= old_size)
+		return ptr;
+
+	/* valid case */
+	void *ret = kmalloc(size, flags);
+	if (ret == NULL)
+		return NULL;
+
+	memcpy(ret, ptr, old_size);
+	kfree(ptr);
+
+	return ret;
+}
+
 void kfree(void *ptr)
 {
 	if (ptr == NULL)
