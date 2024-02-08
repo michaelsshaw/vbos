@@ -12,6 +12,10 @@ You will need to deploy limine onto a filesystem image, the limine barebones
 project will suffice for creating this. In addition, you must also have an
 ext2 filesystem image.
 
+NOTE: For versions of limine >=5.x, multiple images must be used. Limine will
+no longer accept ext2 filesystems for booting kernel images, and this OS as of
+yet only supports ext2.
+
 Be sure to set `SERIAL=yes` at the top of your limine.cfg as well as the
 `KERNEL_CMDLINE=` parameter `root=` as your root filesystem (not necessarily
 the boot filesystem). Booting without the `root=` parameter will cause a panic
