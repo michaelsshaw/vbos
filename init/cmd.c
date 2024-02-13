@@ -133,11 +133,13 @@ int kcmd_ls(int argc, char **argv)
 	struct file *dir = vfs_open(path, &err);
 	if (!dir) {
 		kprintf("Failed to open %s: %s\n", path, strerror(-err));
+		vfs_close(dir);
 		return 1;
 	}
 
 	if (!(dir->vnode->flags & VFS_VNO_DIR)) {
 		kprintf("%s\n", path);
+		vfs_close(dir);
 		return 0;
 	}
 
@@ -149,6 +151,7 @@ int kcmd_ls(int argc, char **argv)
 		kprintf("%s\n", ent->name);
 	}
 
+	vfs_close(dir);
 	return 0;
 }
 
