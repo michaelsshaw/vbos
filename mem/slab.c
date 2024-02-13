@@ -193,6 +193,7 @@ static void *kmalloc_table(size_t size, size_t *sizes, size_t nsizes, slab_t **c
 		return NULL;
 	}
 	n->value = (uint64_t)slab;
+	n->value2 = size;
 
 	return ret;
 }
