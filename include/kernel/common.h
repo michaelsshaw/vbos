@@ -18,6 +18,11 @@
 #define PACKED __attribute__((packed))
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 
+#define ATTEMPT_WRITE(_x, _y) \
+	if (_x) {             \
+		*(_x) = _y;      \
+	}
+
 #define KB (1024ull)
 #define MB (KB * KB)
 #define GB (KB * MB)

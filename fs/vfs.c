@@ -115,7 +115,7 @@ struct file *vfs_open(const char *pathname, int *err)
 					/* try to open the vnode */
 					struct vnode *new_vnode = slab_alloc(vnode_slab);
 					if (!new_vnode) {
-						*err = -ENOMEM;
+						ATTEMPT_WRITE(err, -ENOMEM);
 						goto out_2;
 					}
 					memset(new_vnode, 0, sizeof(struct vnode));
@@ -124,7 +124,7 @@ struct file *vfs_open(const char *pathname, int *err)
 
 					int res = fs->ops->open_vno(fs, new_vnode, entry->inode);
 					if (res < 0) {
-						*err = res;
+						ATTEMPT_WRITE(err, res);
 						slab_free(vnode_slab, new_vnode);
 						goto out_2;
 					}
@@ -132,7 +132,7 @@ struct file *vfs_open(const char *pathname, int *err)
 					if (new_vnode->flags & VFS_VNO_DIR) {
 						int res = fs->ops->open_dir(new_vnode->fs, new_vnode);
 						if (res < 0) {
-							*err = res;
+							ATTEMPT_WRITE(err, res);
 							slab_free(vnode_slab, new_vnode);
 							goto out_2;
 						}
@@ -148,7 +148,7 @@ struct file *vfs_open(const char *pathname, int *err)
 		}
 
 		if (!found) {
-			*err = -ENOENT;
+			ATTEMPT_WRITE(err, -ENOENT);
 
 			/* clean up */
 			vfs_vnode_dec_ref(cur_vnode);
