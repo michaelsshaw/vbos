@@ -6,6 +6,12 @@
 #include <dev/console.h>
 #include <dev/serial.h>
 
+#include <fs/vfs.h>
+#include <fs/devfs.h>
+
+ssize_t console_write_dev(void *dev, void *buf, size_t offset, size_t count);
+ssize_t console_read_dev(void *dev, void *buf, size_t offset, size_t count);
+
 static struct {
 	int rows;
 	int cols;
@@ -20,6 +26,11 @@ static struct {
 	size_t l_resize_cols;
 } console;
 
+static struct devfs_dev_ops console_dev_ops = {
+	.read = (devfs_dev_ops_read)console_read_dev,
+	.write = (devfs_dev_ops_write)console_write_dev,
+};
+
 static bool is_printable(char c)
 {
 	return (c >= 0x20 && c <= 0x7E);
@@ -30,6 +41,9 @@ void console_init()
 	memset(console.line, 0, 512);
 	console.resizemode = 0;
 	console.l_line = 0;
+
+	devfs_insert(NULL, "tty", VFS_VNO_CHARDEV, &console_dev_ops);
+
 	kprintf(LOG_SUCCESS "Console ready\n");
 }
 
@@ -149,8 +163,18 @@ ssize_t console_write(const char *buf, size_t count)
 
 ssize_t console_read(char *buf, size_t count)
 {
-	if(console.l_line == 0)
+	if (console.l_line == 0)
 		return -EAGAIN;
 
 	return 0;
+}
+
+ssize_t console_write_dev(void *dev, void *buf, size_t offset, size_t count)
+{
+	return console_write(buf, count);
+}
+
+size_t console_read_dev(void *dev, void *buf, size_t offset, size_t count)
+{
+	return console_read(buf, count);
 }

@@ -53,7 +53,6 @@ void prompt()
 	kprintf(COL_YELLOW_BLACK "vbos # " COL_RESET);
 }
 
-
 void panic()
 {
 	kprintf(LOG_ERROR "KERNEL PANIC\n");
@@ -186,8 +185,6 @@ void kmain()
 	_pic_init();
 	apic_init();
 
-	console_init();
-
 	for (unsigned i = 0; i < smp_resp->cpu_count; i++) {
 		struct limine_smp_info *info = smp_resp->cpus[i];
 
@@ -200,6 +197,8 @@ void kmain()
 	/* wait for the application processors to finish their initialization */
 	for (unsigned i = 0; i < 100000; i++)
 		;
+
+	console_init();
 
 	kprintf("\n");
 	prompt();

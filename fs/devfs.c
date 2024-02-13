@@ -3,17 +3,28 @@
 #include <kernel/slab.h>
 #include <kernel/block.h>
 #include <fs/vfs.h>
+#include <fs/devfs.h>
 
-struct fs *devfs;
+static struct fs *devfs;
+static struct devfs_dev_ops block_dev_ops = {
+	.read = (devfs_dev_ops_read)block_read,
+	.write = (devfs_dev_ops_write)block_write,
+};
 
 static int devfs_read(struct vnode *vnode, void *buf, size_t offset, size_t size)
 {
-	return 0;
+	if (!vnode->priv_data)
+		return -EINVAL;
+	struct devfs_dev_ops *ops = vnode->priv_data;
+	return ops->read(vnode->priv_data, buf, offset, size);
 }
 
 static int devfs_write(struct vnode *vnode, void *buf, size_t offset, size_t size)
 {
-	return 0;
+	if (!vnode->priv_data)
+		return -EINVAL;
+	struct devfs_dev_ops *ops = vnode->priv_data;
+	return ops->write(vnode->priv_data, buf, offset, size);
 }
 
 /* devfs does not support unlink */
@@ -38,10 +49,13 @@ static int devfs_open_dir(struct fs *fs, struct vnode *out)
 	return -EINVAL;
 }
 
-int devfs_insert(struct vnode *dir, const char *name, uint32_t flags)
+int devfs_insert(struct vnode *dir, const char *name, uint32_t flags, struct devfs_dev_ops *ops)
 {
-	if (!dir || !name)
+	if (!name || !ops)
 		return -EINVAL;
+
+	if (!dir)
+		dir = devfs->root;
 
 	struct vnode *dev_vnode = vfs_create_vno();
 	if (!dev_vnode)
@@ -50,6 +64,7 @@ int devfs_insert(struct vnode *dir, const char *name, uint32_t flags)
 	dev_vnode->fs = dir->fs;
 	dev_vnode->flags = flags;
 	dev_vnode->no_free = true;
+	dev_vnode->priv_data = ops;
 
 	spinlock_acquire(&dir->lock);
 
@@ -86,7 +101,7 @@ struct fs *devfs_init()
 
 	int res = vfs_mount(devfs, "dev");
 
-	if(res < 0) {
+	if (res < 0) {
 		kprintf(LOG_ERROR "devfs: failed to mount devfs: %s\n", strerror(-res));
 		goto out;
 	}
@@ -99,7 +114,7 @@ struct fs *devfs_init()
 
 	if (n > 0) {
 		for (int i = 0; i < n; i++) {
-			devfs_insert(devfs->root, bdevs[i]->name, VFS_VNO_BLKDEV);
+			devfs_insert(devfs->root, bdevs[i]->name, VFS_VNO_BLKDEV, &block_dev_ops);
 		}
 	}
 
