@@ -70,6 +70,18 @@ struct file *vfs_open(const char *pathname, int *err)
 	}
 	memset(file, 0, sizeof(struct file));
 
+	int len = strlen(pathname);
+	int inc = 0;
+	for (int i = 0; i < len; i++) {
+		if (pathname[i] == '/')
+			inc++;
+		else
+			break;
+	}
+
+	if (inc < len)
+		pathname += inc;
+
 	/* start at root */
 	struct fs *fs = rootfs;
 	struct vnode *cur_vnode = fs->root;
