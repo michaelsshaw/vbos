@@ -58,8 +58,8 @@ int devfs_insert(struct vnode *dir, const char *name, uint32_t flags)
 
 	struct dirent *dirent = &dir->dirents[dir->num_dirents - 1];
 
-	memcpy(dirent, name, MIN(255, strlen(name) + 1));
-	dirent->name[MIN(255, strlen(name))] = '\0';
+	memcpy(dirent->name, name, MIN(sizeof(dirent->name) - 1, strlen(name) + 1));
+	dirent->name[MIN(sizeof(dirent->name) - 1, strlen(name))] = '\0';
 	dirent->vnode = dev_vnode;
 	dirent->reclen = sizeof(struct dirent);
 	dirent->inode = 0;
@@ -81,6 +81,8 @@ struct fs *devfs_init()
 	devfs->ops->open_vno = devfs_open_vno;
 	devfs->ops->readdir = devfs_readdir;
 	devfs->ops->open_dir = devfs_open_dir;
+
+	devfs->root->flags = VFS_VNO_DIR;
 
 	int res = vfs_mount(devfs, "dev");
 
