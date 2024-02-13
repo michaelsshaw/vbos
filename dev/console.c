@@ -26,9 +26,10 @@ static struct {
 	size_t l_resize_cols;
 } console;
 
-static struct devfs_dev_ops console_dev_ops = {
-	.read = (devfs_dev_ops_read)console_read_dev,
-	.write = (devfs_dev_ops_write)console_write_dev,
+static struct devfs_dev_info console_dev_ops = {
+	.dev = NULL,
+	.read = console_read_dev,
+	.write = console_write_dev,
 };
 
 static bool is_printable(char c)
@@ -174,7 +175,7 @@ ssize_t console_write_dev(void *dev, void *buf, size_t offset, size_t count)
 	return console_write(buf, count);
 }
 
-size_t console_read_dev(void *dev, void *buf, size_t offset, size_t count)
+ssize_t console_read_dev(void *dev, void *buf, size_t offset, size_t count)
 {
 	return console_read(buf, count);
 }

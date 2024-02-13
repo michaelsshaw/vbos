@@ -4,16 +4,14 @@
 
 #include <kernel/common.h>
 
-typedef ssize_t (*devfs_dev_ops_write)(void *dev, void *buf, size_t offset, size_t size);
-typedef ssize_t (*devfs_dev_ops_read)(void *dev, void *buf, size_t offset, size_t size);
-
 struct vnode;
-struct devfs_dev_ops {
-	devfs_dev_ops_write write;
-	devfs_dev_ops_read read;
+struct devfs_dev_info {
+	void *dev;
+	ssize_t (*read)(void *dev, void *buf, size_t offset, size_t size);
+	ssize_t (*write)(void *dev, void *buf, size_t offset, size_t size);
 };
 
 struct fs *devfs_init();
-int devfs_insert(struct vnode *dir, const char *name, uint32_t flags, struct devfs_dev_ops *ops);
+int devfs_insert(struct vnode *dir, const char *name, uint32_t flags, struct devfs_dev_info *ops);
 
 #endif /* _DEVFS_H_ */
