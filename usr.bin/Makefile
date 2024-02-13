@@ -4,7 +4,7 @@
 #
 # Compile all user programs.
 
-UPRG := test1 ftest
+UPRG := test1 ftest vfs
 UPRGCLEAN := $(addsuffix clean,$(UPRG))
 UPRGBUILD := $(addsuffix build,$(UPRG))
 UPRGINSTALL := $(addsuffix install,$(UPRG))
