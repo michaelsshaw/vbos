@@ -13,6 +13,7 @@
 #define ENOEXEC 9
 #define EFAULT 10
 #define EAGAIN 11
+#define EBUSY 12
 
 const char *strerror(int errnum);
 

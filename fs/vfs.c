@@ -90,6 +90,12 @@ struct file *vfs_open(const char *pathname, int *err)
 				if (entry->vnode) {
 					/* go to next vnode */
 					cur_vnode = entry->vnode;
+
+					if (cur_vnode->mount_ptr) {
+						fs = cur_vnode->ptr->fs;
+						cur_vnode = cur_vnode->ptr;
+					}
+
 					spinlock_acquire(&cur_vnode->lock);
 					cur_vnode->refcount++;
 					spinlock_release(&cur_vnode->lock);
@@ -318,6 +324,9 @@ struct fs *vfs_create()
 	if (!fs->ops)
 		goto out_ops;
 
+	fs->root->no_free = true;
+	fs->root->refcount = 1;
+
 	return fs;
 
 out_ops:
@@ -338,7 +347,60 @@ void vfs_dealloc(struct fs *fs)
 	ATTEMPT_FREE(fs);
 }
 
-struct fs *vfs_mount(const char *dev, const char *mount_point)
+void vfs_no_free_r(struct vnode *vnode)
+{
+	if (!vnode)
+		return;
+
+	while (vnode && !vnode->no_free) {
+		vnode->no_free = true;
+		vnode = vnode->parent;
+	}
+}
+
+int vfs_mount(struct fs *fs, const char *mount_point)
+{
+	struct vnode *vnode = fs->root;
+
+	/* find vnode of mount_point */
+	int err;
+	struct file *file = vfs_open(mount_point, &err);
+	if (!file)
+		return err;
+
+	struct vnode *mp_vnode = file->vnode;
+
+	/* mount point is a directory */
+	if ((mp_vnode->flags & VFS_VTYPE_MASK) != VFS_VNO_DIR) {
+		vfs_close(file);
+		return -ENOTDIR;
+	}
+
+	/* mount point is empty */
+	for (int i = 0; i < mp_vnode->num_dirents; i++) {
+		struct dirent *dirent = &mp_vnode->dirents[i];
+		if (strcmp(".", dirent->name) == 0 || strcmp("..", dirent->name) == 0)
+			continue;
+		kprintf("dirent: %s\n", dirent->name);
+	}
+
+	/* mount */
+	spinlock_acquire(&mp_vnode->lock);
+	spinlock_acquire(&vnode->lock);
+
+	mp_vnode->ptr = vnode;
+	mp_vnode->mount_ptr = true;
+
+	vnode->parent = mp_vnode;
+	vfs_no_free_r(vnode);
+
+	spinlock_release(&vnode->lock);
+	spinlock_release(&mp_vnode->lock);
+
+	return 0;
+}
+
+struct fs *vfs_mount_root(const char *dev, const char *mount_point)
 {
 	/* TODO: detect filesystem type */
 	/* for now, assume ext2 */
@@ -356,24 +418,26 @@ struct fs *vfs_mount(const char *dev, const char *mount_point)
 	fs->type = FS_TYPE_EXT2;
 
 	fs->mount_point = kmalloc(strlen(mount_point) + 1, ALLOC_KERN);
+	if (!fs->mount_point)
+		goto out_dealloc_fs;
+
 	strcpy(fs->mount_point, mount_point);
 
 	struct vnode *root = fs->root;
 	struct dirent *dirents = NULL;
 	int num_dirents = fs->ops->readdir(root, &dirents);
-	if (num_dirents < 0) {
-		kprintf(LOG_ERROR "Failed to read root directory\n");
-		vfs_dealloc(fs);
-		fs = NULL;
-		goto out;
-	}
+	if (num_dirents < 0)
+		goto out_dealloc_fs;
 
 	root->dirents = dirents;
 	root->num_dirents = num_dirents;
 	root->no_free = true;
-
-out:
 	return fs;
+
+out_dealloc_fs:
+	vfs_dealloc(fs);
+out:
+	return NULL;
 }
 
 void vfs_init(const char *rootdev_name)
@@ -385,7 +449,7 @@ void vfs_init(const char *rootdev_name)
 	kprintf(LOG_DEBUG "Found root device %s\n", rootdev_name);
 #endif
 
-	struct fs *fs = vfs_mount(rootdev_name, "/");
+	struct fs *fs = vfs_mount_root(rootdev_name, "/");
 	if (!fs) {
 		kprintf(LOG_ERROR "Failed to mount root device %s\n", rootdev_name);
 		kerror_print_blkdevs();

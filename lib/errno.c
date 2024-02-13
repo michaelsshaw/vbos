@@ -15,6 +15,7 @@ static const char *errno_str[] = {
 	[ENOEXEC] = "Exec format error",
 	[EFAULT] = "Bad address",
 	[EAGAIN] = "Try again",
+	[EBUSY] = "Device or resource busy",
 };
 
 inline const char *strerror(int errnum)

@@ -73,6 +73,8 @@ struct vnode {
 	bool mount_ptr; /* does this node point to a root of a mounted fs? */
 	bool no_free; /* permanently cached vnodes */
 
+	void *priv_data;
+
 	size_t refcount;
 	spinlock_t lock;
 };
@@ -111,8 +113,6 @@ struct file_descriptor {
 
 	char *buf;
 	size_t buf_len;
-	int (*buf_write)(struct file_descriptor *fdesc, void *buf, size_t count);
-	int (*buf_read)(struct file_descriptor *fdesc, void *buf, size_t count);
 
 	struct fs *fs;
 };
@@ -158,6 +158,7 @@ char *dirname(char *path);
 struct fs *vfs_create();
 struct vnode *vfs_create_vno();
 void vfs_dealloc(struct fs *fs);
+int vfs_mount(struct fs *fs, const char *mount_point);
 
 int stdout_write(struct file_descriptor *fdesc, void *buf, size_t len);
 

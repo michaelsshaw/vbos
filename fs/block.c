@@ -35,6 +35,12 @@ struct block_device *block_register(char *name, struct block_device_ops *ops, vo
 	return bdev;
 }
 
+struct block_device **block_get_all_devices(int *n)
+{
+	*n = block_devices_count;
+	return block_devices;
+}
+
 struct block_device *block_get_device(const char *name)
 {
 	for (size_t i = 0; i < block_devices_count; i++) {

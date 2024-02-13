@@ -19,6 +19,7 @@
 #include <lib/stack.h>
 
 #include <fs/vfs.h>
+#include <fs/devfs.h>
 
 #define LIMINE_INTERNAL_MODULE_REQUIRED (1 << 0)
 #include <limine/limine.h>
@@ -179,6 +180,8 @@ void kmain()
 	} else {
 		vfs_init(root_path);
 	}
+
+	devfs_init();
 
 	_pic_init();
 	apic_init();
