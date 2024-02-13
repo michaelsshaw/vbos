@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0-only
+
 
 CC := x86_64-elf-gcc
 LD := x86_64-elf-ld

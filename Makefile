@@ -46,7 +46,7 @@ HEADER_DEPS := $(CFILES:.c=.d) $(ASFILES:.S=.d)
 all: $(KERNEL)
 
 $(KERNEL): $(OBJ) linker.ld
-	@$(MAKE) --no-print-directory -C usr.bin -j1
+	@cd usr.bin && ./make.sh install
 	@$(LD) $(OBJ) $(LDFLAGS) -o $@
 	@echo "  LD      $@"
 
@@ -64,7 +64,8 @@ $(KERNEL): $(OBJ) linker.ld
 clean:
 	@rm -rf $(KERNEL) $(OBJ) $(HEADER_DEPS) bin
 	@echo "  CLEAN   kernel"
-	@$(MAKE) --no-print-directory -C usr.bin clean
+	@cd usr.bin && ./make.sh clean
+	@echo "  CLEAN   usr.bin"
 
 .PHONY: distclean
 distclean: clean
