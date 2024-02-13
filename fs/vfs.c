@@ -213,65 +213,6 @@ int unlink(const char *pathname)
 	return rootfs->ops->unlink(rootfs, pathname);
 }
 
-DIR *opendir(const char *name)
-{
-	int err;
-	struct file *file = vfs_open(name, &err);
-	if (!file) {
-		kprintf(LOG_ERROR "Failed to open directory %s: %s\n", name, strerror(-err));
-		return NULL;
-	}
-
-	struct fs *fs = file->vnode->fs;
-
-	if ((file->vnode->flags & VFS_VTYPE_MASK) != VFS_VNO_DIR) {
-		vfs_close(file);
-		return NULL;
-	}
-
-	DIR *dir = kzalloc(sizeof(DIR), ALLOC_KERN);
-	dir->file = file;
-	dir->fs = fs;
-	dir->pos = 0;
-	dir->dirents = NULL;
-
-	return dir;
-}
-
-struct dirent *readdir(DIR *dir)
-{
-	if (!dir)
-		return NULL;
-
-	struct fs *fs = dir->fs;
-
-	if ((dir->file->vnode->flags & VFS_VTYPE_MASK) != VFS_VNO_DIR)
-		return NULL;
-
-	if (dir->dirents == NULL)
-		dir->num_dirents = fs->ops->readdir(dir->file->vnode, &dir->dirents);
-
-	if (dir->dirents == NULL)
-		return NULL;
-
-	if (dir->pos >= dir->num_dirents)
-		return NULL;
-
-	return &dir->dirents[dir->pos++];
-}
-
-int closedir(DIR *dir)
-{
-	if (!dir)
-		return -EBADF;
-
-	int ret = vfs_close(dir->file);
-	kfree(dir->dirents);
-	kfree(dir);
-
-	return ret;
-}
-
 char *basename(char *path)
 {
 	char *ret = path;

@@ -129,17 +129,17 @@ int kcmd_ls(int argc, char **argv)
 	else
 		path = argv[1];
 
-	DIR *dir = opendir(path);
+	struct file *dir = vfs_open(path, NULL);
 	if (!dir) {
 		kprintf("Failed to open directory %s\n", path);
 		return 1;
 	}
 
 	struct dirent *ent;
-	while ((ent = readdir(dir))) {
+	for (size_t i = 0; i < dir->vnode->num_dirents; i++) {
+		ent = &dir->vnode->dirents[i];
 		if (ent->name[0] == '.')
 			continue;
-
 		kprintf("%s\n", ent->name);
 	}
 

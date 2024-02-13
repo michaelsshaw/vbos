@@ -88,14 +88,6 @@ struct dirent {
 	struct vnode *vnode; /* we don't want duplicate vnodes */
 };
 
-typedef struct _DIR {
-	struct fs *fs;
-	struct dirent *dirents;
-	size_t num_dirents;
-	struct file *file;
-	uint64_t pos;
-} DIR;
-
 struct file {
 	struct vnode *vnode;
 
@@ -147,10 +139,6 @@ struct file *vfs_open(const char *pathname, int *err);
 int vfs_close(struct file *file);
 int unlink(const char *pathname);
 int statfd(struct file_descriptor *fdesc, struct statbuf *statbuf);
-
-DIR *opendir(const char *name);
-struct dirent *readdir(DIR *dir);
-int closedir(DIR *dir);
 
 char *basename(char *path);
 char *dirname(char *path);
