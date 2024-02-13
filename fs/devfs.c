@@ -94,6 +94,7 @@ struct fs *devfs_init()
 	devfs->ops->open_dir = devfs_open_dir;
 
 	devfs->root->flags = VFS_VNO_DIR;
+	devfs->root->fs = devfs;
 
 	int res = vfs_mount(devfs, "dev");
 

@@ -184,11 +184,7 @@ int vfs_close(struct file *file)
 
 ssize_t vfs_write(struct file *file, void *buf, off_t off, size_t count)
 {
-	/* TODO: implement */
-	if (file->type == FTYPE_CHARDEV)
-		return -EBADF;
-
-	if ((file->vnode->flags & VFS_VTYPE_MASK) != VFS_VNO_REG)
+	if ((file->vnode->flags & VFS_VTYPE_MASK) == VFS_VNO_DIR)
 		return -EISDIR;
 
 	return file->vnode->fs->ops->write(file->vnode, buf, off, count);
@@ -196,12 +192,7 @@ ssize_t vfs_write(struct file *file, void *buf, off_t off, size_t count)
 
 ssize_t vfs_read(struct file *file, void *buf, off_t off, size_t count)
 {
-	/* TODO: implement */
-	if (file->type == FTYPE_CHARDEV)
-		return -EBADF;
-
-	/* TODO: implement */
-	if ((file->vnode->flags & VFS_VTYPE_MASK) != VFS_VNO_REG)
+	if ((file->vnode->flags & VFS_VTYPE_MASK) == VFS_VNO_DIR)
 		return -EISDIR;
 
 	if (off >= file->vnode->size)
