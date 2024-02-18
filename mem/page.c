@@ -122,10 +122,6 @@ void mmap(uintptr_t pml4, struct rbtree *tree, paddr_t paddr, uintptr_t vaddr, s
 		pt = pagemap_traverse(pdt, ptn, attr);
 		pt[pn] = paddr | attr;
 	}
-
-	/* flush TLB */
-	uint64_t cr3 = cr3_read();
-	cr3_write(cr3);
 }
 
 void *proc_mmap(struct proc *proc, paddr_t paddr, uintptr_t vaddr, size_t len, uint64_t attr)
@@ -163,6 +159,10 @@ void kmap(paddr_t paddr, uintptr_t vaddr, size_t len, uint64_t attr)
 	spinlock_acquire(&kmap_lock);
 	mmap((uintptr_t)pml4, kmap_tree, paddr, vaddr, len, attr);
 	spinlock_release(&kmap_lock);
+
+	/* flush TLB */
+	uint64_t cr3 = cr3_read();
+	cr3_write(cr3);
 }
 
 void *kmap_device(void *dev_paddr, size_t len)
