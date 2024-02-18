@@ -27,8 +27,8 @@ block device should (probably) work fine.
 
 ## License
 
-This project is licensed under GPL-2.0-only, a copy of which can be found in the
-COPYING file. All source files, except for `limine.h` are released under this
-license. 
+This project is licensed under `SPDX-License-Identifier: GPL-2.0-only`, a copy
+of which can be found in the COPYING file. All source files, except for
+`limine.h` are released under this license. 
 
-Copyright 2023 Michael Shaw. 
+Copyright 2023-2024 Michael Shaw. 
