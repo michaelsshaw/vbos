@@ -3,6 +3,7 @@
 #include <kernel/proc.h>
 #include <kernel/rbtree.h>
 #include <kernel/slab.h>
+#include <kernel/gdt.h>
 
 #include <dev/apic.h>
 
@@ -140,6 +141,40 @@ void schedule()
 			spinlock_release(&proc->lock);
 			break;
 		}
+	}
+}
+
+void proc_block(pid_t pid, bool in_kernel)
+{
+	struct proc *proc = proc_find(pid);
+
+	if (proc) {
+		spinlock_acquire(&proc->lock);
+		proc->state = PROC_BLOCKED;
+
+		if (in_kernel) {
+			proc->blocked_in_kernel = true;
+			proc->regs.ss = GDT_SEGMENT_DATA_RING0;
+			proc->regs.cs = GDT_SEGMENT_CODE_RING0;
+		}
+
+		spinlock_release(&proc->lock);
+	}
+}
+
+void proc_unblock(pid_t pid)
+{
+	struct proc *proc = proc_find(pid);
+
+	if (proc) {
+		spinlock_acquire(&proc->lock);
+		proc->state = PROC_BLOCKED;
+
+		proc->blocked_in_kernel = true;
+		proc->regs.ss = GDT_SEGMENT_DATA_RING3 | 3;
+		proc->regs.cs = GDT_SEGMENT_CODE_RING3 | 3;
+
+		spinlock_release(&proc->lock);
 	}
 }
 

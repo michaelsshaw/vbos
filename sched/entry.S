@@ -209,6 +209,12 @@ gate_syscall:
 	movq %rax, 0(%rdi)
 	call schedule
 
+.global syscall_block
+syscall_block:
+	cli
+	save_context
+	call schedule
+
 /* void return_from_irq(struct procregs *regs, paddr_t cr3); */
 .global _return_to_user
 _return_to_user:

@@ -51,6 +51,7 @@ struct proc {
 	spinlock_t lock;
 
 	bool is_kernel;
+	bool blocked_in_kernel;
 	uint8_t state;
 
 	struct rbtree page_map;
@@ -71,6 +72,8 @@ struct proc {
 };
 
 struct procregs *proc_current_regs();
+void proc_block(pid_t pid, bool in_kernel);
+void proc_unblock(pid_t pid);
 struct proc *proc_create();
 struct proc *proc_get(pid_t pid);
 pid_t getpid();
