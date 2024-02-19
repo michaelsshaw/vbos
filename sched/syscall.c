@@ -41,7 +41,17 @@ ssize_t sys_read(int fd, void *buf, size_t count)
 	if (tmp_buf == NULL)
 		return -ENOMEM;
 
-	ssize_t ret = vfs_read(file, tmp_buf, fdesc->pos, count);
+	ssize_t ret;
+	bool blocked = false;
+	while ((ret = vfs_read(file, tmp_buf, fdesc->pos, count)) == -EAGAIN) {
+		blocked = true;
+		proc_block(getpid(), true);
+		yield();
+	}
+
+	if (blocked)
+		proc_unblock(getpid());
+
 	if (ret > 0)
 		memcpy(buf, tmp_buf, count);
 	else
