@@ -22,8 +22,6 @@ void _start()
 	if (fd < 0)
 		exit(1);
 
-	write(fd, "shtest: simple userland shell test\n", 35);
-
 	promptfd(fd);
 
 	char c;
