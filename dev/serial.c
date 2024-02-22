@@ -29,7 +29,7 @@ int serial_init()
 	return 0;
 }
 
-void serial_write(char c)
+inline void serial_write(char c)
 {
 	/* Wait for line to be clear */
 	while ((inb(COM1 | 5) & 0x20) == 0)
