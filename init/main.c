@@ -16,6 +16,7 @@
 #include <dev/ahci.h>
 #include <dev/apic.h>
 
+#include <lib/stack.h>
 #include <lib/sem.h>
 
 #include <fs/vfs.h>
