@@ -16,7 +16,7 @@
 #include <dev/ahci.h>
 #include <dev/apic.h>
 
-#include <lib/stack.h>
+#include <lib/sem.h>
 
 #include <fs/vfs.h>
 #include <fs/devfs.h>
@@ -185,8 +185,11 @@ void kmain()
 	_pic_init();
 	apic_init();
 
+	sem_t *init_sem = sem_create(0);
+
 	for (unsigned i = 0; i < smp_resp->cpu_count; i++) {
 		struct limine_smp_info *info = smp_resp->cpus[i];
+		info->extra_argument = (uint64_t)init_sem;
 
 		if (info->lapic_id == smp_resp->bsp_lapic_id)
 			continue;
@@ -195,8 +198,10 @@ void kmain()
 	}
 
 	/* wait for the application processors to finish their initialization */
-	for (unsigned i = 0; i < 100000; i++)
-		;
+	for (unsigned i = 0; i < smp_resp->cpu_count - 1; i++) {
+		while (sem_trywait(init_sem))
+			(void)0;
+	}
 
 	console_init();
 
@@ -230,6 +235,9 @@ void ap_kmain(struct limine_smp_info *info)
 #endif
 	uint16_t tss = gdt_insert_tss(ptr);
 	ltr(tss);
+
+	sem_t *init_sem = (sem_t *)info->extra_argument;
+	sem_post(init_sem);
 
 	load_stack_and_park(ptr, ptr);
 }
