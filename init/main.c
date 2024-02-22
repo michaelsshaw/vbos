@@ -203,6 +203,8 @@ void kmain()
 			(void)0;
 	}
 
+	sem_destroy(init_sem);
+
 	console_init();
 
 	kprintf("\n");
