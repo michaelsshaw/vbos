@@ -45,8 +45,11 @@ HEADER_DEPS := $(CFILES:.c=.d) $(ASFILES:.S=.d)
 .PHONY: all
 all: $(KERNEL)
 
-$(KERNEL): $(OBJ) linker.ld
+.PHONY: _usr
+_usr:
 	@cd usr.bin && ./make.sh install
+
+$(KERNEL): $(OBJ) _usr linker.ld
 	@$(LD) $(OBJ) $(LDFLAGS) -o $@
 	@echo "  LD      $@"
 
