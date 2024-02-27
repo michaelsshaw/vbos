@@ -196,6 +196,7 @@ irq 0x0F
 .global gate_syscall
 gate_syscall:
 	cli
+	movq %r10, %rcx
 	save_context
 	pushq %rax
 	movq 0(%rax), %rdi
