@@ -245,7 +245,7 @@ static void rbt_delete_fixup(struct rbtree *tree, struct rbnode *node)
 
 struct rbnode *rbt_minimum(struct rbnode *node)
 {
-	if(node == NULL)
+	if (node == NULL)
 		return NULL;
 	/* find the leftmost node */
 	while (node->left != NULL)
@@ -257,23 +257,22 @@ struct rbnode *rbt_minimum(struct rbnode *node)
 void rbt_delete(struct rbtree *tree, struct rbnode *del)
 {
 	spinlock_acquire(&tree->lock);
-	/* case 0: left is NULL */
 	if (!del->left) {
+		/* case 0: left is NULL */
+
 		rbt_transplant(tree, del, del->right);
 		rbt_delete_fixup(tree, del->right);
 		slab_free(rbt_slab, del);
 
-	}
+	} else if (!del->right) {
+		/* case 1: right is NULL */
 
-	/* case 1: right is NULL */
-	else if (!del->right) {
 		rbt_transplant(tree, del, del->left);
 		rbt_delete_fixup(tree, del->left);
 		slab_free(rbt_slab, del);
-	}
+	} else {
+		/* case 2: neither is NULL */
 
-	/* case 2: neither is NULL */
-	else {
 		struct rbnode *y = rbt_minimum(del->right);
 		struct rbnode *x = y->right;
 		int orig_color = y->color;
