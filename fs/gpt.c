@@ -44,6 +44,7 @@ void block_gpt_init(struct block_device *dev)
 	 * that is found.
 	 */
 	size_t used_count = 0;
+	struct block_device **list = &dev->next_part;
 	for (size_t i = 0; i < header->entry_count; i++) {
 		struct gpt_entry *entry = &entries[i];
 
@@ -70,6 +71,9 @@ void block_gpt_init(struct block_device *dev)
 
 		bdev->lba_start = entry->lba_first;
 		bdev->block_count = entry->lba_last - entry->lba_first + 1;
+		bdev->parent = dev;
+		*list = bdev;
+		list = &bdev->next_part;
 	}
 	dev->partition_count = used_count;
 
