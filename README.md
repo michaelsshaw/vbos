@@ -6,6 +6,12 @@
 
 For-fun operating system created by me!
 
+## Compilation
+
+You will need to acquire a copy of `x86_64-elf-gcc`. This can be done by either
+compiling it yourself, or through your distribution's package manager. A version
+of `x86_64-elf-gcc` is available in the AUR (currently GCC version 12.2)
+
 ## Installation
 
 You will need to deploy limine onto a filesystem image, the limine barebones
