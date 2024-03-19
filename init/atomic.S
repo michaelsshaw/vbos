@@ -9,10 +9,9 @@ atomic_cmpxchg:
 	lock cmpxchg %edx, (%rdi)
 	
 	/* if ZF is set, the exchange was successful */
-	pushfq
-	popq %rax
-	andl $0x40, %eax
-	shrl $6, %eax
-	xorl $1, %eax
-
+	jnz nz
+	movq $0, %rax
+	ret
+nz:
+	movq $1, %rax
 	ret
