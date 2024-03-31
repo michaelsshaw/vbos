@@ -245,8 +245,7 @@ void *krealloc(void *ptr, size_t size, uint64_t flags)
 
 	/* invalid case 2: size is 0 */
 	if (size == 0) {
-		kfree(ptr);
-		return NULL;
+		return ptr;
 	}
 
 	/* invalid case 3: ptr is not allocated by kmalloc */
