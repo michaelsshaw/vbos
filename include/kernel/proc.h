@@ -4,8 +4,11 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+
 #include <kernel/lock.h>
 #include <kernel/rbtree.h>
+
+#include <lib/sem.h>
 
 #define PROC_RUNNING 0
 #define PROC_STOPPED 1
@@ -69,6 +72,8 @@ struct proc {
 		void *arg4;
 	} unblock_args;
 	ssize_t block_retval;
+
+	sem_t block_sem;
 };
 
 struct procregs *proc_current_regs();
