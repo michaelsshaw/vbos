@@ -5,6 +5,8 @@
 #include <kernel/slab.h>
 #include <kernel/gdt.h>
 
+#include <lib/sem.h>
+
 #include <dev/apic.h>
 
 #include <fs/vfs.h>
@@ -144,20 +146,13 @@ void schedule()
 	}
 }
 
-void proc_block(pid_t pid, bool in_kernel)
+void proc_block(pid_t pid)
 {
 	struct proc *proc = proc_find(pid);
 
 	if (proc) {
 		spinlock_acquire(&proc->lock);
 		proc->state = PROC_BLOCKED;
-
-		if (in_kernel) {
-			proc->blocked_in_kernel = true;
-			proc->regs.ss = GDT_SEGMENT_DATA_RING0;
-			proc->regs.cs = GDT_SEGMENT_CODE_RING0;
-		}
-
 		spinlock_release(&proc->lock);
 	}
 }
@@ -169,11 +164,6 @@ void proc_unblock(pid_t pid)
 	if (proc) {
 		spinlock_acquire(&proc->lock);
 		proc->state = PROC_BLOCKED;
-
-		proc->blocked_in_kernel = true;
-		proc->regs.ss = GDT_SEGMENT_DATA_RING3 | 3;
-		proc->regs.cs = GDT_SEGMENT_CODE_RING3 | 3;
-
 		spinlock_release(&proc->lock);
 	}
 }

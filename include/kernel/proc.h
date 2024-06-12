@@ -54,7 +54,6 @@ struct proc {
 	spinlock_t lock;
 
 	bool is_kernel;
-	bool blocked_in_kernel;
 	uint8_t state;
 
 	struct rbtree page_map;
@@ -63,21 +62,11 @@ struct proc {
 	struct rbtree fd_map;
 	spinlock_t fd_map_lock;
 
-	ssize_t (*unblock)(void *, void *, void *, void *, void *);
-	struct {
-		void *arg0;
-		void *arg1;
-		void *arg2;
-		void *arg3;
-		void *arg4;
-	} unblock_args;
-	ssize_t block_retval;
-
 	sem_t block_sem;
 };
 
 struct procregs *proc_current_regs();
-void proc_block(pid_t pid, bool in_kernel);
+void proc_block(pid_t pid);
 void proc_unblock(pid_t pid);
 struct proc *proc_create();
 struct proc *proc_get(pid_t pid);
