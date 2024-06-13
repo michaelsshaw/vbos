@@ -132,6 +132,7 @@ void schedule()
 		spinlock_acquire(&proc->lock);
 
 		switch (proc->state) {
+		case PROC_BLOCKED_SYSCALL:
 		case PROC_STOPPED:
 			proc->state = PROC_RUNNING;
 			spinlock_release(&proc->lock);
