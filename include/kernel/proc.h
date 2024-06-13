@@ -76,5 +76,6 @@ struct proc *proc_find(pid_t pid);
 void proc_set_current(pid_t pid);
 void proc_init(unsigned num_cpus);
 void schedule();
+void syscall_block();
 
 #endif /* _PROC_H_ */

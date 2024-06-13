@@ -163,7 +163,7 @@ void proc_unblock(pid_t pid)
 
 	if (proc) {
 		spinlock_acquire(&proc->lock);
-		proc->state = PROC_BLOCKED;
+		proc->state = PROC_STOPPED;
 		spinlock_release(&proc->lock);
 	}
 }

@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
+#include "kernel/lock.h"
 #include <kernel/common.h>
 #include <kernel/proc.h>
 #include <kernel/slab.h>
@@ -42,15 +43,7 @@ ssize_t sys_read(int fd, void *buf, size_t count)
 		return -ENOMEM;
 
 	ssize_t ret;
-	bool blocked = false;
-	while ((ret = vfs_read(file, tmp_buf, fdesc->pos, count)) == -EAGAIN) {
-		blocked = true;
-		proc_block(getpid(), true);
-		yield();
-	}
-
-	if (blocked)
-		proc_unblock(getpid());
+	ret = vfs_read(file, tmp_buf, fdesc->pos, count);
 
 	if (ret > 0)
 		memcpy(buf, tmp_buf, count);
@@ -127,7 +120,9 @@ void sys_exit(int status)
 	if (proc == NULL)
 		return;
 
+	spinlock_acquire(&proc->lock);
 	proc->state = PROC_STOPPED;
+	spinlock_release(&proc->lock);
 
 	proc_term(getpid());
 
