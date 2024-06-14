@@ -10,16 +10,19 @@
 
 #define SYSCALL_MAX 0x100
 
-typedef void (*syscall_t)(uint64_t arg1, uint64_t arg2, uint64_t arg3, uint64_t arg4, uint64_t arg5);
+typedef void *(*syscall_t)(uint64_t arg1, uint64_t arg2, uint64_t arg3, uint64_t arg4, uint64_t arg5);
 
 syscall_t syscall_table[SYSCALL_MAX];
 slab_t *fd_slab;
 
-void syscall(uint64_t syscall_no, uint64_t arg1, uint64_t arg2, uint64_t arg3, uint64_t arg4, uint64_t arg5)
+uint64_t syscall(uint64_t syscall_no, uint64_t arg1, uint64_t arg2, uint64_t arg3, uint64_t arg4, uint64_t arg5)
 {
 	syscall_t syscall = (void *)syscall_table[syscall_no];
 
-	syscall(arg1, arg2, arg3, arg4, arg5);
+	if (syscall == NULL)
+		return -ENOSYS;
+
+	return (uint64_t)syscall(arg1, arg2, arg3, arg4, arg5);
 }
 
 ssize_t sys_read(int fd, void *buf, size_t count)

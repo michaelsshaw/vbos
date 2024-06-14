@@ -14,6 +14,7 @@
 #define EFAULT 10
 #define EAGAIN 11
 #define EBUSY 12
+#define ENOSYS 13
 
 const char *strerror(int errnum);
 

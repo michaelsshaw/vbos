@@ -16,6 +16,7 @@ static const char *errno_str[] = {
 	[EFAULT] = "Bad address",
 	[EAGAIN] = "Try again",
 	[EBUSY] = "Device or resource busy",
+	[ENOSYS] = "Function not implemented",
 };
 
 inline const char *strerror(int errnum)
