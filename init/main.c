@@ -8,6 +8,7 @@
 #include <kernel/pio.h>
 #include <kernel/block.h>
 #include <kernel/proc.h>
+#include <kernel/trap.h>
 
 #include <dev/pic.h>
 #include <dev/console.h>
@@ -205,6 +206,8 @@ void kmain()
 	}
 
 	sem_destroy(init_sem);
+
+	exception_init();
 
 	console_init();
 
