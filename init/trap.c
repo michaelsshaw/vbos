@@ -3,6 +3,9 @@
 #include <kernel/slab.h>
 #include <kernel/proc.h>
 
+/* explicit handle list */
+void (*exception_handlers[32])(int error) = { NULL };
+
 static const char *exception_names[] = {
 	"Divide-by-zero Error",
 	"Debug",
@@ -37,6 +40,13 @@ static const char *exception_names[] = {
 	"Triple Fault",
 };
 
+static void exception_page_fault(int err)
+{
+	uint64_t cr2 = cr2_read();
+
+	kprintf(LOG_ERROR "Page fault at %xh, error code %xh\n", cr2, err);
+}
+
 void exception(int vector, int error)
 {
 	pid_t pid = getpid();
@@ -49,8 +59,17 @@ void exception(int vector, int error)
 	} else {
 		proc_term(pid);
 		kprintf("Process %d terminated: %s(%xh)\n", pid, exception_names[vector], error);
+
+		if (exception_handlers[vector])
+			exception_handlers[vector](error);
+
 		proc_set_current(0);
 
 		schedule();
 	}
+}
+
+void exception_init()
+{
+	exception_handlers[0x0E] = exception_page_fault;
 }

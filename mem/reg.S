@@ -22,6 +22,7 @@ reg##_write:			\
 
 genrw(rsp)
 genrw(rbp)
+genrw(cr2)
 genrw(cr3)
 genrww(ds)
 

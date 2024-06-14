@@ -27,6 +27,7 @@
 
 genrw(rsp);
 genrw(rbp);
+genrw(cr2);
 genrw(cr3);
 genrw(ds);
 
