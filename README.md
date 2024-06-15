@@ -10,7 +10,7 @@ For-fun operating system created by me!
 
 You will need to acquire a copy of `x86_64-elf-gcc`. This can be done by either
 compiling it yourself, or through your distribution's package manager. A version
-of `x86_64-elf-gcc` is available in the AUR (currently GCC version 12.2)
+of `x86_64-elf-gcc` is available in the AUR that I maintain.
 
 ## Installation
 
