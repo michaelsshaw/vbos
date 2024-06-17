@@ -214,6 +214,8 @@ void kmain()
 
 	irq_map(0, trap_sched);
 
+	apic_enable_timer();
+
 	kprintf("\n");
 	prompt();
 	load_stack_and_park(ptr, ptr);

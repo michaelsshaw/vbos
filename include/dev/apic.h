@@ -133,6 +133,7 @@ void apic_init();
 void lapic_eoi();
 int madt_parse_next_entry(int offset);
 void lapic_enable();
+void apic_enable_timer();
 uint8_t lapic_idno();
 
 #endif /* __ASM__ */

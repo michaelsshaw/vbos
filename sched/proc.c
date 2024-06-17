@@ -130,7 +130,8 @@ void proc_term(pid_t pid)
 
 void trap_sched()
 {
-	kprintf("trap_sched\n");
+	lapic_eoi();
+	schedule();
 }
 
 void schedule()
@@ -146,7 +147,7 @@ void schedule()
 	}
 
 	size_t counter = 0;
-	size_t limit = 256;
+	size_t limit = 1000000;
 	while (counter++ < limit) {
 		/* next process */
 		proc = proc_next(proc);
@@ -168,7 +169,6 @@ void schedule()
 		}
 	}
 
-	kprintf(LOG_ERROR "schedule: no runnable processes\n");
 	sti();
 	yield();
 }
