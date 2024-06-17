@@ -13,7 +13,6 @@
 #define PROC_RUNNING 0
 #define PROC_STOPPED 1
 #define PROC_BLOCKED 2
-#define PROC_BLOCKED_SYSCALL 3
 
 #define STDIN_FILENO 0
 #define STDOUT_FILENO 1

@@ -46,9 +46,9 @@ ssize_t sys_read(int fd, void *buf, size_t count)
 		return -ENOMEM;
 
 	ssize_t ret;
+
 	while ((ret = vfs_read(file, tmp_buf, fdesc->pos, count)) == -EAGAIN) {
-		proc->state = PROC_BLOCKED_SYSCALL;
-		schedule();
+		proc->state = PROC_BLOCKED;
 	}
 
 	proc->state = PROC_RUNNING;
