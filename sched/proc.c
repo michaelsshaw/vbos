@@ -128,6 +128,11 @@ void proc_term(pid_t pid)
 	}
 }
 
+void trap_sched()
+{
+	kprintf("trap_sched\n");
+}
+
 void schedule()
 {
 	uint8_t id = lapic_idno();

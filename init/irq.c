@@ -89,7 +89,6 @@ int irq_map(uint8_t irq, void *func)
 
 	irq_mapped[irq] = true;
 	irq_handlers[irq] = func;
-	pic_mask(irq, 0);
 
 	return 0;
 }
@@ -99,7 +98,6 @@ void irq_unmap(uint8_t irq)
 	irq_mapped[irq] = false;
 	irq_handlers[irq] = NULL;
 	idt_insert(irq + 0x20, GATE_INTR, 0, GDT_SEGMENT_CODE_RING0, NULL);
-	pic_mask(irq, 1);
 }
 
 int irq_highest_free()

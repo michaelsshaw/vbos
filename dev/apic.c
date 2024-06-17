@@ -74,7 +74,7 @@ void apic_eoi()
 	lapic_write(lapic_addr, 0xB0, 0);
 }
 
-void  lapic_eoi()
+void lapic_eoi()
 {
 	lapic_write(lapic_addr, LAPIC_EOI, 0);
 }
@@ -126,4 +126,19 @@ void apic_init()
 	lapic_eoi();
 
 	kprintf(LOG_SUCCESS "APIC initialized\n");
+}
+
+void apic_enable_timer()
+{
+	/* set TPR to ensure interrupts are accepted */
+	lapic_write(lapic_addr, LAPIC_TPR, 0);
+
+	/* set timer divisor */
+	lapic_write(lapic_addr, LAPIC_TIMER_DIV, 0x3);
+
+	/* set timer initial count */
+	lapic_write(lapic_addr, LAPIC_TIMER_INIT_COUNT, 0xFFFFFFFF);
+
+	/* set timer vector and enable */
+	lapic_write(lapic_addr, LAPIC_TIMER, 0x20 | 0x20000);
 }

@@ -92,6 +92,7 @@ struct proc *proc_find(pid_t pid);
 void proc_save_state();
 void proc_set_current(pid_t pid);
 void proc_init(unsigned num_cpus);
+void trap_sched();
 void schedule();
 void syscall_block();
 

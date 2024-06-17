@@ -3,6 +3,7 @@
 #include <kernel/acpi.h>
 #include <kernel/gdt.h>
 #include <kernel/idt.h>
+#include <kernel/irq.h>
 #include <kernel/mem.h>
 #include <kernel/slab.h>
 #include <kernel/pio.h>
@@ -210,6 +211,8 @@ void kmain()
 	exception_init();
 
 	console_init();
+
+	irq_map(0, trap_sched);
 
 	kprintf("\n");
 	prompt();
