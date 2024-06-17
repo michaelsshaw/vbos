@@ -132,13 +132,18 @@ void schedule()
 		spinlock_acquire(&proc->lock);
 
 		switch (proc->state) {
+		case PROC_BLOCKED:
+			if (sem_trywait(&proc->block_sem)) {
+				spinlock_release(&proc->lock);
+				break;
+			}
+		/* fallthrough */
 		case PROC_STOPPED:
 			proc->state = PROC_RUNNING;
 			spinlock_release(&proc->lock);
 			_return_to_user(&proc->regs, proc->cr3);
 
 			break;
-		case PROC_BLOCKED:
 		case PROC_RUNNING:
 			spinlock_release(&proc->lock);
 			break;

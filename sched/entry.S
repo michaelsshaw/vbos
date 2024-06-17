@@ -44,7 +44,9 @@
 	movq %r13, 96(%rax)
 	movq %r14, 104(%rax)
 	movq %r15, 112(%rax)
+.endm
 
+.macro save_iretq_frame
 	/* save IRETQ frame */
 	popq %rdi
 	movq %rdi, 120(%rax) 
@@ -126,6 +128,7 @@
 	_irq_\nr: 						
 		cli
 		save_context
+		save_iretq_frame
 		/* call irq handler */
 		movq $\nr, %rdi
 		call irq
@@ -198,6 +201,7 @@ gate_syscall:
 	cli
 	movq %r10, %rcx
 	save_context
+	save_iretq_frame
 	pushq %rax
 	movq 0(%rax), %rdi
 	movq 40(%rax), %rsi
@@ -214,6 +218,7 @@ gate_syscall:
 syscall_block:
 	cli
 	save_context
+	save_iretq_frame
 	call schedule
 
 /* void return_from_irq(struct procregs *regs, paddr_t cr3); */
