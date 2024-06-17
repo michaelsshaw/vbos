@@ -4,6 +4,7 @@
 #include <kernel/rbtree.h>
 
 #include <fs/ext2.h>
+#include <fs/devfs.h>
 #include <fs/vfs.h>
 
 #include <lib/stack.h>
@@ -241,6 +242,16 @@ char *dirname(char *path)
 	*ret = 0;
 
 	return path;
+}
+
+inline uint64_t vfs_file_type(struct file *file)
+{
+	return file->vnode->flags & VFS_VTYPE_MASK;
+}
+
+inline void *vfs_file_dev(struct file *file)
+{
+	return ((struct devfs_dev_info *)file->vnode->priv_data)->dev;
 }
 
 struct vnode *vfs_create_vno()

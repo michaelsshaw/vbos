@@ -209,6 +209,8 @@ gate_syscall:
 	movq 24(%rax), %rcx
 	movq 16(%rax), %r8
 	movq 56(%rax), %r9
+	sti
+
 	call syscall
 	popq %rdi
 	movq %rax, 0(%rdi)

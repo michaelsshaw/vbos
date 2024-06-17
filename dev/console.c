@@ -1,7 +1,10 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
+#include "kernel/syscall.h"
 #include <kernel/common.h>
 #include <kernel/pio.h>
 #include <kernel/cmd.h>
+#include <kernel/proc.h>
+#include <kernel/umem.h>
 
 #include <dev/console.h>
 #include <dev/serial.h>
@@ -27,7 +30,7 @@ static struct {
 } console;
 
 static struct devfs_dev_info console_dev_ops = {
-	.dev = NULL,
+	.dev = &console,
 	.read = console_read_dev,
 	.write = console_write_dev,
 };
@@ -80,6 +83,16 @@ void console_resize()
 
 void console_input(char c)
 {
+	struct proc_block_node *node = proc_block_find(&console);
+	if (node) {
+		pid_t pid = node->proc->pid;
+		copy_to_user(node->proc, node->buf, &c, 1);
+		sys_set_return(node->proc, 1);
+		proc_block_remove(node);
+		proc_unblock(pid);
+		return;
+	}
+
 	if (!console.resizemode) {
 		if (is_printable(c)) {
 			console_putchar(c);

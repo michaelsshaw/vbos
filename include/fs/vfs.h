@@ -148,6 +148,9 @@ struct vnode *vfs_create_vno();
 void vfs_dealloc(struct fs *fs);
 int vfs_mount(struct fs *fs, const char *mount_point);
 
+uint64_t vfs_file_type(struct file *file);
+void *vfs_file_dev(struct file *file);
+
 int stdout_write(struct file_descriptor *fdesc, void *buf, size_t len);
 
 #endif /* _VFS_H_ */

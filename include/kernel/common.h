@@ -31,6 +31,8 @@
 
 void yield();
 void panic();
+void cli();
+void sti();
 
 typedef uintptr_t paddr_t;
 typedef uint32_t paddr32_t;

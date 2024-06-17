@@ -17,6 +17,8 @@ static pid_t *proc_current;
 
 static struct proc kernel_procs[256] = { 0 };
 
+static struct proc_block_queue *proc_block_queue;
+
 void _return_to_user(struct procregs *regs, paddr_t cr3);
 extern uintptr_t kstacks[256];
 extern slab_t *fd_slab;
@@ -82,6 +84,18 @@ void proc_term(pid_t pid)
 {
 	struct rbnode *proc_node = rbt_search(proc_tree, pid);
 
+	struct proc_block_node *cur = proc_block_queue->head;
+	while (cur) {
+		if (cur->proc->pid == pid) {
+			proc_block_remove(cur);
+			cur = cur->next;
+			kfree(cur);
+			continue;
+		}
+
+		cur = cur->next;
+	}
+
 	if (proc_node) {
 		struct proc *proc = (void *)proc_node->value;
 		spinlock_acquire(&proc->lock);
@@ -126,17 +140,15 @@ void schedule()
 		spinlock_release(&proc->lock);
 	}
 
-	while (1) {
+	size_t counter = 0;
+	size_t limit = 256;
+	while (counter++ < limit) {
 		/* next process */
 		proc = proc_next(proc);
+
 		spinlock_acquire(&proc->lock);
 
 		switch (proc->state) {
-		case PROC_BLOCKED:
-			if (sem_trywait(&proc->block_sem)) {
-				spinlock_release(&proc->lock);
-				break;
-			}
 		/* fallthrough */
 		case PROC_STOPPED:
 			proc->state = PROC_RUNNING;
@@ -144,22 +156,83 @@ void schedule()
 			_return_to_user(&proc->regs, proc->cr3);
 
 			break;
+		case PROC_BLOCKED:
 		case PROC_RUNNING:
 			spinlock_release(&proc->lock);
 			break;
 		}
 	}
+
+	kprintf(LOG_ERROR "schedule: no runnable processes\n");
+	sti();
+	yield();
 }
 
-void proc_block(pid_t pid)
+void proc_block(struct proc *proc, void *dev, void *buf, bool read, size_t size)
 {
-	struct proc *proc = proc_find(pid);
+	struct proc_block_node *insert = kmalloc(sizeof(struct proc_block_node), ALLOC_KERN);
+	insert->proc = proc;
+	insert->dev = dev;
+	insert->buf = buf;
+	insert->read = read;
+	insert->size = size;
 
-	if (proc) {
-		spinlock_acquire(&proc->lock);
-		proc->state = PROC_BLOCKED;
-		spinlock_release(&proc->lock);
+	/* insert into the queue */
+	struct proc_block_node *cur = proc_block_queue->head;
+
+	spinlock_acquire(&proc_block_queue->lock);
+	if (cur == NULL) {
+		proc_block_queue->head = insert;
+	} else {
+		while (cur->next)
+			cur = cur->next;
+
+		cur->next = insert;
 	}
+	spinlock_release(&proc_block_queue->lock);
+
+	proc->state = PROC_BLOCKED;
+}
+
+struct proc_block_node *proc_block_find(void *dev)
+{
+	void *ret = NULL;
+	struct proc_block_node *cur = proc_block_queue->head;
+
+	spinlock_acquire(&proc_block_queue->lock);
+	while (cur) {
+		if (cur->dev == dev) {
+			ret = cur;
+			break;
+		}
+
+		cur = cur->next;
+	}
+	spinlock_release(&proc_block_queue->lock);
+
+	return ret;
+}
+
+void proc_block_remove(struct proc_block_node *node)
+{
+	struct proc_block_node *cur = proc_block_queue->head;
+
+	spinlock_acquire(&proc_block_queue->lock);
+	if (cur == node) {
+		proc_block_queue->head = node->next;
+		kfree(node);
+	} else {
+		while (cur) {
+			if (cur->next == node) {
+				cur->next = node->next;
+				kfree(node);
+				break;
+			}
+
+			cur = cur->next;
+		}
+	}
+	spinlock_release(&proc_block_queue->lock);
 }
 
 void proc_unblock(pid_t pid)
@@ -207,6 +280,8 @@ void proc_init(unsigned num_cpus)
 	proc_current = kzalloc(num_cpus * sizeof(pid_t), ALLOC_KERN);
 	proc_tree = kzalloc(sizeof(struct rbtree), ALLOC_KERN);
 	proc_slab = slab_create(sizeof(struct proc), 32 * KB, 0);
+
+	proc_block_queue = kzalloc(sizeof(struct proc_block_queue), ALLOC_KERN);
 
 	for (unsigned i = 0; i < num_cpus; i++) {
 		proc_current[i] = -1;

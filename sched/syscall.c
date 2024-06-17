@@ -25,6 +25,14 @@ uint64_t syscall(uint64_t syscall_no, uint64_t arg1, uint64_t arg2, uint64_t arg
 	return (uint64_t)syscall(arg1, arg2, arg3, arg4, arg5);
 }
 
+void sys_set_return(struct proc *proc, uint64_t ret)
+{
+	if (proc == NULL)
+		return;
+
+	proc->regs.rax = ret;
+}
+
 ssize_t sys_read(int fd, void *buf, size_t count)
 {
 	if ((uintptr_t)buf >= hhdm_start)
@@ -47,8 +55,13 @@ ssize_t sys_read(int fd, void *buf, size_t count)
 
 	ssize_t ret;
 
-	while ((ret = vfs_read(file, tmp_buf, fdesc->pos, count)) == -EAGAIN) {
-		proc->state = PROC_BLOCKED;
+	uint64_t file_type = vfs_file_type(file);
+
+	ret = vfs_read(file, tmp_buf, fdesc->pos, count);
+
+	if (file_type == VFS_VNO_CHARDEV && ret == -EAGAIN) {
+		struct char_device *dev = vfs_file_dev(file);
+		proc_block(proc, dev, buf, true, count);
 		schedule();
 	}
 
