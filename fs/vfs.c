@@ -195,7 +195,7 @@ ssize_t vfs_read(struct file *file, void *buf, off_t off, size_t count)
 	if ((file->vnode->flags & VFS_VTYPE_MASK) == VFS_VNO_DIR)
 		return -EISDIR;
 
-	if (off >= file->vnode->size)
+	if (off >= file->vnode->size && file->type == VFS_VNO_REG)
 		return 0;
 
 	if (off + count > file->vnode->size)
