@@ -80,13 +80,6 @@ void panic()
 	yield();
 }
 
-static inline void _pic_init()
-{
-	cli();
-	pic_init();
-	sti();
-}
-
 char *kcmdline_get_symbol(const char *sym)
 {
 	/* symbol=value */
@@ -196,7 +189,7 @@ void kmain()
 
 	devfs_init();
 
-	_pic_init();
+	pic_init();
 	apic_init();
 
 	sem_t *init_sem = sem_create(0);
