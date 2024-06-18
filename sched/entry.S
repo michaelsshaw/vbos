@@ -2,6 +2,7 @@
 
 #define __ASM__
 #include <dev/serial.h>
+#include <lib/errno.h>
 
 .macro save_context
 	pushq %rax
@@ -202,25 +203,14 @@ gate_syscall:
 	movq %r10, %rcx
 	save_context
 	save_iretq_frame
-	pushq %rax
 	movq 0(%rax), %rdi
 	movq 40(%rax), %rsi
 	movq 32(%rax), %rdx
 	movq 24(%rax), %rcx
 	movq 16(%rax), %r8
 	movq 56(%rax), %r9
-	sti
 
 	call syscall
-	popq %rdi
-	movq %rax, 0(%rdi)
-	call schedule
-
-.global syscall_block
-syscall_block:
-	cli
-	save_context
-	save_iretq_frame
 	call schedule
 
 /* void return_from_irq(struct procregs *regs, paddr_t cr3); */

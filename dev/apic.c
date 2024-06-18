@@ -137,7 +137,7 @@ void apic_enable_timer()
 	lapic_write(lapic_addr, LAPIC_TIMER_DIV, 0x3);
 
 	/* set timer initial count */
-	lapic_write(lapic_addr, LAPIC_TIMER_INIT_COUNT, 0xFFFFFF);
+	lapic_write(lapic_addr, LAPIC_TIMER_INIT_COUNT, 0xFFF);
 
 	/* set timer vector and enable */
 	lapic_write(lapic_addr, LAPIC_TIMER, 0x20 | 0x20000);

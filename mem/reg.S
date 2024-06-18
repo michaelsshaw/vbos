@@ -26,11 +26,9 @@ genrw(cr2)
 genrw(cr3)
 genrww(ds)
 
-.global load_stack_and_park
-load_stack_and_park:
+.global load_stack_and_jump
+load_stack_and_jump:
 	movq %rdi, %rsp
 	movq %rsi, %rbp
-
-__load_stack_and_park_no_escape:
-	call yield
-	jmp __load_stack_and_park_no_escape
+	movq %rcx, %rdi
+	jmp *%rdx

@@ -146,8 +146,9 @@ void schedule()
 		spinlock_release(&proc->lock);
 	}
 
+	size_t num_procs = proc_tree->num_nodes;
 	size_t counter = 0;
-	size_t limit = 1000000;
+	size_t limit = num_procs * 2;
 	while (counter++ < limit) {
 		/* next process */
 		proc = proc_next(proc);
@@ -158,6 +159,7 @@ void schedule()
 		/* fallthrough */
 		case PROC_STOPPED:
 			proc->state = PROC_RUNNING;
+			proc_set_current(proc->pid);
 			spinlock_release(&proc->lock);
 			_return_to_user(&proc->regs, proc->cr3);
 
@@ -169,6 +171,7 @@ void schedule()
 		}
 	}
 
+	proc_set_current(0);
 	sti();
 	yield();
 }

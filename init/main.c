@@ -10,6 +10,7 @@
 #include <kernel/block.h>
 #include <kernel/proc.h>
 #include <kernel/trap.h>
+#include <kernel/elf.h>
 
 #include <dev/pic.h>
 #include <dev/serial.h>
@@ -46,13 +47,30 @@ void gdt_load();
 void idt_load();
 void yield();
 void ap_kmain(struct limine_smp_info *info);
-void load_stack_and_park(uintptr_t rsp, uintptr_t rbp);
+void load_stack_and_jump(uintptr_t rsp, uintptr_t rbp, void *func, void *arg);
 
 uintptr_t kstacks[256] = { 0 };
 
-void prompt()
+static inline void kexec(char *cmd)
 {
-	kprintf(COL_YELLOW_BLACK "vbos # " COL_RESET);
+	pid_t pid = elf_load_proc(cmd);
+
+	if (pid < 0) {
+		kprintf("Failed to load %s: %s\n", cmd, strerror(-pid));
+		return;
+	}
+
+	kprintf("Loaded %s as PID %d\n", cmd, pid);
+
+	struct proc *proc = proc_get(pid);
+	if (!proc) {
+		kprintf("Failed to get proc %d\n", pid);
+		return;
+	}
+
+	void _return_to_user(struct procregs * regs, paddr_t cr3);
+	proc_set_current(pid);
+	_return_to_user(&proc->regs, proc->cr3);
 }
 
 void panic()
@@ -65,7 +83,6 @@ void panic()
 static inline void _pic_init()
 {
 	cli();
-	pic_mask(4, 0);
 	pic_init();
 	sti();
 }
@@ -201,18 +218,12 @@ void kmain()
 	}
 
 	sem_destroy(init_sem);
-
 	exception_init();
-
 	serial_init();
-
 	irq_map(0, trap_sched);
-
 	apic_enable_timer();
 
-	kprintf("\n");
-	prompt();
-	load_stack_and_park(ptr, ptr);
+	load_stack_and_jump(ptr, ptr, kexec, "/bin/shtest.elf");
 }
 
 /* kmain for application processors
@@ -244,5 +255,5 @@ void ap_kmain(struct limine_smp_info *info)
 	sem_t *init_sem = (sem_t *)info->extra_argument;
 	sem_post(init_sem);
 
-	load_stack_and_park(ptr, ptr);
+	load_stack_and_jump(ptr, ptr, yield, NULL);
 }

@@ -1,7 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /* shtest: simple userland shell test */
 #include <stdint.h>
-#include <stddef.h>
 
 typedef int64_t ssize_t;
 
@@ -18,21 +17,18 @@ void promptfd(int fd)
 
 void _start()
 {
-	int fd = open("/dev/tty", 0);
+	int fd = open("/dev/tty0", 0);
 	if (fd < 0)
 		exit(1);
 
 	promptfd(fd);
 
-	char c;
-	while (read(fd, &c, 1) == 1) {
-		write(fd, &c, 1);
+	char c[2];
 
-		if (c == '\n') {
-			promptfd(fd);
-		}
+	ssize_t ret;
+	while ((ret = read(fd, c, 1)) > 0) {
+		write(fd, c, 1);
 	}
 
-	close(fd);
-	exit(0);
+	exit(0x1234);
 }

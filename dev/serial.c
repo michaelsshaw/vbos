@@ -1,4 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
+#include "fs/devfs.h"
+#include "fs/vfs.h"
 #include <kernel/common.h>
 #include <kernel/pio.h>
 #include <kernel/proc.h>
@@ -11,6 +13,13 @@
 #include <dev/apic.h>
 
 struct char_device *tty0;
+ssize_t serial_write_dev(void *dev, void *buf, size_t offset, size_t count);
+ssize_t serial_read_dev(void *dev, void *buf, size_t offset, size_t count);
+
+struct devfs_dev_info serial_dev_ops = {
+	.read = serial_read_dev,
+	.write = serial_write_dev,
+};
 
 int serial_init()
 {
@@ -34,6 +43,9 @@ int serial_init()
 	kprintf(LOG_SUCCESS "Serial COM1 initialized\n");
 
 	tty0 = char_device_create("tty0", ringbuf_create(1024));
+	serial_dev_ops.dev = tty0;
+
+	devfs_insert(NULL, "tty0", VFS_VNO_CHARDEV, &serial_dev_ops);
 
 	/* register char device */
 	return 0;
@@ -58,7 +70,7 @@ void serial_trap()
 
 	/* attempt to unblock and waiting process */
 	struct proc_block_node *node = proc_block_find(tty0);
-	if (node) {
+	if (node && node->read) {
 		ringbuf_read(tty0->data, &c, 1);
 		pid_t pid = node->proc->pid;
 		copy_to_user(node->proc, node->buf, &c, 1);
@@ -69,20 +81,19 @@ void serial_trap()
 	lapic_eoi();
 }
 
-ssize_t serial_read(char *buf, size_t count)
+ssize_t serial_read(char *buf)
 {
-	if (count == 0)
-		return 0;
+	ssize_t ret;
 
 	char c;
-	count = ringbuf_read(tty0->data, &c, count);
+	ret = ringbuf_read(tty0->data, &c, 1);
 
-	if (count > 0)
+	if (ret > 0)
 		*buf = c;
 	else
-		count = -EAGAIN;
+		ret = -EAGAIN;
 
-	return count;
+	return ret;
 }
 
 ssize_t serial_write(const char *buf, size_t count)
@@ -99,5 +110,5 @@ ssize_t serial_write_dev(void *dev, void *buf, size_t offset, size_t count)
 
 ssize_t serial_read_dev(void *dev, void *buf, size_t offset, size_t count)
 {
-	return serial_read(buf, count);
+	return serial_read(buf);
 }
