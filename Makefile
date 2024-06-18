@@ -50,25 +50,25 @@ _usr:
 	@cd usr.bin && ./make.sh install
 
 $(KERNEL): $(OBJ) _usr linker.ld
-	@$(LD) $(OBJ) $(LDFLAGS) -o $@
 	@echo "  LD      $@"
+	@$(LD) $(OBJ) $(LDFLAGS) -o $@
 
 -include $(HEADER_DEPS)
 
 %.o: %.c 
-	@$(CC) $(CFLAGS) -c $< -o $@
 	@echo "  CC      $@"
+	@$(CC) $(CFLAGS) -c $< -o $@
 
 %.o: %.S 
-	@$(CC) $(CFLAGS) -c $< -o $@
 	@echo "  CC      $@"
+	@$(CC) $(CFLAGS) -c $< -o $@
 
 .PHONY: clean
 clean:
-	@rm -rf $(KERNEL) $(OBJ) $(HEADER_DEPS) bin
 	@echo "  CLEAN   kernel"
-	@cd usr.bin && ./make.sh clean
+	@rm -rf $(KERNEL) $(OBJ) $(HEADER_DEPS) bin
 	@echo "  CLEAN   usr.bin"
+	@cd usr.bin && ./make.sh clean
 
 .PHONY: distclean
 distclean: clean
