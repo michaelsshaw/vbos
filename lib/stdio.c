@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 #include <kernel/common.h>
-#include <dev/console.h>
+
+#include <dev/serial.h>
 
 #include <stdarg.h>
 
@@ -8,7 +9,7 @@ spinlock_t printf_lock = 0;
 
 static inline void printf_out(char c)
 {
-	console_putchar(c);
+	serial_putchar(c);
 }
 
 static int printf_write(const char *restrict s)

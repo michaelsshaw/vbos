@@ -12,7 +12,6 @@
 #include <kernel/trap.h>
 
 #include <dev/pic.h>
-#include <dev/console.h>
 #include <dev/serial.h>
 #include <dev/pci.h>
 #include <dev/ahci.h>
@@ -68,11 +67,7 @@ static inline void _pic_init()
 	cli();
 	pic_mask(4, 0);
 	pic_init();
-	/*	console_resize(); */
 	sti();
-
-	while (!console_ready())
-		;
 }
 
 char *kcmdline_get_symbol(const char *sym)
@@ -123,7 +118,6 @@ void kmain()
 	bss_start = (uintptr_t)(&__bss_start);
 	bss_end = (uintptr_t)(&__bss_end);
 
-	serial_init();
 	/* Initialize early kernel memory array */
 	const uintptr_t one_gb = 0x40000000;
 	char kmem[one_gb] ALIGN(0x1000);
@@ -210,7 +204,7 @@ void kmain()
 
 	exception_init();
 
-	console_init();
+	serial_init();
 
 	irq_map(0, trap_sched);
 

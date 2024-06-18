@@ -1,6 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 #include <kernel/slab.h>
-#include <dev/console.h>
 
 #include <fs/ext2.h>
 #include <fs/vfs.h>

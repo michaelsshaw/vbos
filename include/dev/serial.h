@@ -6,9 +6,12 @@
 
 #ifndef __ASM__
 
+#include <kernel/common.h>
+
 void isr_serial_input();
 void isr_serial_input_1();
-void serial_write(char c);
+ssize_t serial_write(const char *buf, size_t count);
+void serial_putchar(char c);
 void serial_trap();
 int serial_init();
 
