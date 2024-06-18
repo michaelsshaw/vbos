@@ -118,6 +118,7 @@ void proc_term(pid_t pid)
 			node = next;
 		}
 
+		buddy_free((void *)((paddr_t)proc->cr3 | hhdm_start));
 		rbt_destroy(&proc->page_map);
 		rbt_destroy(&proc->fd_map);
 
@@ -268,6 +269,48 @@ struct proc *proc_create()
 	proc_node->value = (uintptr_t)proc;
 
 	spinlock_release(&proc->lock);
+
+	return proc;
+}
+
+struct proc *proc_fork(struct proc *parent)
+{
+	struct proc *proc = proc_create();
+
+	proc_clone_mmap(parent, proc);
+
+	/* copy file descriptors */
+	struct rbnode *node = rbt_minimum(parent->fd_map.root);
+	while (node) {
+		struct file_descriptor *fdesc = (void *)node->value;
+		struct file *file = fdesc->file;
+
+		struct file_descriptor *new_fdesc = slab_alloc(fd_slab);
+		new_fdesc->fd = fdesc->fd;
+		new_fdesc->file = file;
+		new_fdesc->pos = fdesc->pos;
+		new_fdesc->flags = fdesc->flags;
+
+		struct rbnode *new_node = rbt_insert(&proc->fd_map, fdesc->fd);
+		new_node->value = (uintptr_t)new_fdesc;
+
+		node = rbt_successor(node);
+	}
+
+	/* copy parent */
+	proc->parent = parent;
+
+	/* copy children */
+	node = rbt_minimum(parent->children.root);
+	while (node) {
+		struct proc *child = (void *)node->value;
+		struct proc *new_child = proc_fork(child);
+
+		struct rbnode *new_node = rbt_insert(&proc->children, child->pid);
+		new_node->value = (uintptr_t)new_child;
+
+		node = rbt_successor(node);
+	}
 
 	return proc;
 }

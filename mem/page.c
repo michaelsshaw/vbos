@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
+#include "kernel/lock.h"
 #include <kernel/common.h>
 #include <kernel/mem.h>
 #include <kernel/slab.h>
@@ -241,6 +242,41 @@ void proc_munmap(struct proc *proc, uintptr_t vaddr)
 	spinlock_acquire(&proc->page_map_lock);
 	munmap(&proc->page_map, vaddr, proc->cr3 | hhdm_start);
 	spinlock_release(&proc->page_map_lock);
+}
+
+paddr_t proc_clone_mmap(struct proc *in, struct proc *out)
+{
+	/* allocate a new page table */
+	out->cr3 = (uintptr_t)buddy_alloc(0x1000);
+	if (!out->cr3) {
+		kprintf(LOG_ERROR "proc_clone_mmap: failed to allocate new page table\n");
+		return 0;
+	}
+	memcpy((void *)out->cr3, (void *)(in->cr3 | hhdm_start), 0x1000);
+
+	out->cr3 &= ~hhdm_start;
+
+	/* copy all mappings */
+	spinlock_acquire(&in->page_map_lock);
+	spinlock_acquire(&out->page_map_lock);
+
+	struct rbnode *node = rbt_minimum(in->page_map.root);
+
+	while (node) {
+		uintptr_t vaddr = node->key;
+		paddr_t paddr = node->value;
+		size_t len = node->value2;
+		uint64_t attr = PAGE_PRESENT | PAGE_RW;
+
+		proc_mmap(out, paddr, vaddr, len, attr);
+
+		node = rbt_successor(node);
+	}
+
+	spinlock_release(&in->page_map_lock);
+	spinlock_release(&out->page_map_lock);
+
+	return out->cr3;
 }
 
 void page_init(paddr_t kpaddr, uintptr_t kvaddr, size_t kernel_size, struct mem_region *regions, size_t num_regions)

@@ -62,6 +62,9 @@ struct proc {
 	struct rbtree fd_map;
 	spinlock_t fd_map_lock;
 
+	struct proc *parent;
+	struct rbtree children;
+
 	sem_t block_sem;
 };
 
@@ -85,6 +88,7 @@ void proc_unblock(pid_t pid);
 struct proc_block_node *proc_block_find(void *dev);
 void proc_block_remove(struct proc_block_node *node);
 struct proc *proc_create();
+struct proc *proc_fork(struct proc *parent);
 struct proc *proc_get(pid_t pid);
 pid_t getpid();
 void proc_term(pid_t pid);

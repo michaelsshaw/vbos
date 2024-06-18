@@ -160,6 +160,21 @@ void sys_exit(int status)
 	schedule();
 }
 
+pid_t sys_fork()
+{
+	struct proc *proc = proc_find(getpid());
+	if (proc == NULL)
+		return -1;
+
+	struct proc *new_proc = proc_fork(proc);
+	if (new_proc == NULL)
+		return -1;
+
+	sys_set_return(new_proc, 0);
+
+	return new_proc->pid;
+}
+
 static void syscall_insert(uint64_t syscall_no, syscall_t syscall)
 {
 	syscall_table[syscall_no] = syscall;
@@ -173,5 +188,6 @@ void syscall_init()
 	syscall_insert(SYS_READ, (syscall_t)sys_read);
 	syscall_insert(SYS_WRITE, (syscall_t)sys_write);
 	syscall_insert(SYS_OPEN, (syscall_t)sys_open);
+	syscall_insert(SYS_FORK, (syscall_t)sys_fork);
 	syscall_insert(SYS_EXIT, (syscall_t)sys_exit);
 }

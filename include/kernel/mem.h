@@ -111,6 +111,7 @@ void kmap(paddr_t paddr, uintptr_t vaddr, size_t len, uint64_t attr);
 void *proc_mmap(struct proc *proc, paddr_t paddr, uintptr_t vaddr, size_t len, uint64_t attr);
 void *kmap_device(void *dev_paddr, size_t len);
 void proc_munmap(struct proc *proc, uintptr_t vaddr);
+paddr_t proc_clone_mmap(struct proc *in, struct proc *out);
 
 void mem_early_init(char *mem, size_t len);
 
