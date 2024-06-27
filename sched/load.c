@@ -100,9 +100,9 @@ pid_t elf_load_proc(char *fname)
 	proc->regs.rflags = 0x242;
 
 	/* descriptor #7 is the user code segment */
-	proc->regs.cs = 0x38 | 3;
-	proc->regs.ss = 0x40 | 3;
-	ds_write(0x40 | 3);
+	proc->regs.cs = GDT_SEGMENT_CODE_RING3 | 3;
+	proc->regs.ss = GDT_SEGMENT_DATA_RING3 | 3;
+	ds_write(GDT_SEGMENT_DATA_RING3 | 3);
 
 	/* allocate user stack */
 	uintptr_t stack_buf = (uintptr_t)buddy_alloc(0x1000);
