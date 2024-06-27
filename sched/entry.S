@@ -201,17 +201,29 @@ irq 0x0F
 gate_syscall:
 	cli
 	movq %r10, %rcx
-	save_context
-	save_iretq_frame
-	movq 0(%rax), %rdi
-	movq 40(%rax), %rsi
-	movq 32(%rax), %rdx
-	movq 24(%rax), %rcx
-	movq 16(%rax), %r8
-	movq 56(%rax), %r9
+	movq %rax, %r9
 
 	call syscall
+	iretq
+
+.global sswtch
+sswtch:
+	call proc_current_regs
+	save_context
+	movw %ss, %di
+
+	movq %rdi, 152(%rax)
+	pushfq /* save flags */
+	popq %rdi
+	movq %rsp, 144(%rax)
+	movq %rdi, 136(%rax)
+	movw %cs, %di
+	movq %rdi, 128(%rax)
+	movq $_sswtch_ret, 120(%rax)
+
 	call schedule
+_sswtch_ret:
+	ret
 
 /* void return_from_irq(struct procregs *regs, paddr_t cr3); */
 .global _return_to_user

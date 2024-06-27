@@ -71,12 +71,10 @@ void serial_trap()
 	/* attempt to unblock and waiting process */
 	struct proc_block_node *node = proc_block_find(tty0);
 	if (node && node->read) {
-		ringbuf_read(tty0->data, &c, 1);
 		pid_t pid = node->proc->pid;
-		copy_to_user(node->proc, node->buf, &c, 1);
-		sys_set_return(node->proc, 1);
-		proc_block_remove(node);
-		proc_unblock(pid);
+		struct proc *proc = proc_find(pid);
+
+		sem_post(&proc->block_sem);
 	}
 	lapic_eoi();
 }
@@ -88,10 +86,11 @@ ssize_t serial_read(char *buf)
 	char c;
 	ret = ringbuf_read(tty0->data, &c, 1);
 
-	if (ret > 0)
-		*buf = c;
-	else
-		ret = -EAGAIN;
+	while ((ret = ringbuf_read(tty0->data, &c, 1)) <= 0) {
+		struct proc *proc = proc_find(getpid());
+		proc_block(proc, tty0, buf, true, 1);
+		sswtch();
+	}
 
 	return ret;
 }

@@ -16,19 +16,16 @@ typedef void *(*syscall_t)(uint64_t arg1, uint64_t arg2, uint64_t arg3, uint64_t
 syscall_t syscall_table[SYSCALL_MAX];
 slab_t *fd_slab;
 
-void syscall(uint64_t syscall_no, uint64_t arg1, uint64_t arg2, uint64_t arg3, uint64_t arg4, uint64_t arg5)
+uint64_t syscall(uint64_t arg1, uint64_t arg2, uint64_t arg3, uint64_t arg4, uint64_t arg5, uint64_t syscall_no)
 {
 	syscall_t syscall = (void *)syscall_table[syscall_no];
 
 	if (syscall == NULL)
-		sys_set_return(proc_find(getpid()), ENOSYS);
+		return -ENOSYS;
 
 	ssize_t ret = (ssize_t)syscall(arg1, arg2, arg3, arg4, arg5);
 
-	if (ret >= 0)
-		sys_set_return(proc_find(getpid()), ret);
-
-	schedule();
+	return ret;
 }
 
 void sys_set_return(struct proc *proc, uint64_t ret)
@@ -59,17 +56,8 @@ ssize_t sys_read(int fd, void *buf, size_t count)
 	if (tmp_buf == NULL)
 		return -ENOMEM;
 
-	ssize_t ret;
 
-	uint64_t file_type = vfs_file_type(file);
-
-	ret = vfs_read(file, tmp_buf, fdesc->pos, count);
-
-	if (file_type == VFS_VNO_CHARDEV && ret == -EAGAIN) {
-		struct char_device *dev = vfs_file_dev(file);
-		proc_block(proc, dev, buf, true, count);
-		return -ESYSCALLBLK;
-	}
+	ssize_t ret = vfs_read(file, tmp_buf, fdesc->pos, count);
 
 	proc->state = PROC_RUNNING;
 

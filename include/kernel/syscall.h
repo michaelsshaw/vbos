@@ -12,5 +12,6 @@
 #include <kernel/proc.h>
 
 void sys_set_return(struct proc *proc, uint64_t ret);
+void sswtch(); /* save and switch */
 
 #endif /* _SYSCALL_H_ */
