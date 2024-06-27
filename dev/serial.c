@@ -84,7 +84,6 @@ ssize_t serial_read(char *buf)
 	ssize_t ret;
 
 	char c;
-	ret = ringbuf_read(tty0->data, &c, 1);
 
 	struct proc *proc = proc_find(getpid());
 	while ((ret = ringbuf_read(tty0->data, &c, 1)) <= 0) {
