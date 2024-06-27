@@ -6,6 +6,10 @@
 
 #define MSR_APIC_BASE 0x1B
 
+#define MSR_IA32_EFER 0xC0000080
+#define MSR_IA32_STAR 0xC0000081
+#define MSR_IA32_LSTAR 0xC0000082
+
 #ifndef __ASM__
 
 uint64_t rdmsr(uint32_t msr);

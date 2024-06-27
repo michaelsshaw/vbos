@@ -200,6 +200,20 @@ irq 0x0F
 .global gate_syscall
 gate_syscall:
 	cli
+	pushq %r11
+	pushq %rcx
+	movq %r10, %rcx
+	movq %rax, %r9
+
+	call syscall
+
+	popq %rcx
+	popq %r11
+	sysretq
+
+.global gate_syscall_int80
+gate_syscall_int80:
+	cli
 	movq %r10, %rcx
 	movq %rax, %r9
 

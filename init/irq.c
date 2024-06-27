@@ -15,7 +15,7 @@
 static bool irq_mapped[16] = { false };
 static void *irq_handlers[16] = { NULL };
 
-void gate_syscall();
+void gate_syscall_int80();
 
 exception_decl(0x00);
 exception_decl(0x01);
@@ -170,7 +170,7 @@ void idt_init()
 	idt_insert(0x2E, GATE_INTR, 0, GDT_SEGMENT_CODE_RING0, __irq(0x0E));
 	idt_insert(0x2F, GATE_INTR, 0, GDT_SEGMENT_CODE_RING0, __irq(0x0F));
 
-	idt_insert(0x80, GATE_INTR_DPL3, 0, GDT_SEGMENT_CODE_RING0, gate_syscall);
+	idt_insert(0x80, GATE_INTR_DPL3, 0, GDT_SEGMENT_CODE_RING0, gate_syscall_int80);
 
 	irq_map(4, serial_trap);
 

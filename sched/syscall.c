@@ -1,11 +1,12 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
-#include "lib/errno.h"
 #include <kernel/lock.h>
 #include <kernel/common.h>
 #include <kernel/proc.h>
 #include <kernel/slab.h>
 #include <kernel/rbtree.h>
 #include <kernel/syscall.h>
+#include <kernel/msr.h>
+#include <kernel/gdt.h>
 
 #include <fs/vfs.h>
 
@@ -15,6 +16,8 @@ typedef void *(*syscall_t)(uint64_t arg1, uint64_t arg2, uint64_t arg3, uint64_t
 
 syscall_t syscall_table[SYSCALL_MAX];
 slab_t *fd_slab;
+
+void gate_syscall();
 
 uint64_t syscall(uint64_t arg1, uint64_t arg2, uint64_t arg3, uint64_t arg4, uint64_t arg5, uint64_t syscall_no)
 {
@@ -178,4 +181,15 @@ void syscall_init()
 	syscall_insert(SYS_OPEN, (syscall_t)sys_open);
 	syscall_insert(SYS_FORK, (syscall_t)sys_fork);
 	syscall_insert(SYS_EXIT, (syscall_t)sys_exit);
+
+	/* init syscall instruction */
+	uint64_t star = rdmsr(MSR_IA32_STAR);
+	star |= ((uint64_t)GDT_SEGMENT_CODE_RING0 << 32);
+	star |= ((uint64_t)(GDT_SEGMENT_CODE_RING3 - 16) << 48);
+	wrmsr(MSR_IA32_STAR, star);
+
+	wrmsr(MSR_IA32_LSTAR, (uint64_t)gate_syscall);
+
+	uint64_t efer = rdmsr(MSR_IA32_EFER);
+	wrmsr(MSR_IA32_EFER, efer | 0x1);
 }
