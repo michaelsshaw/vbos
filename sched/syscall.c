@@ -192,4 +192,6 @@ void syscall_init()
 
 	uint64_t efer = rdmsr(MSR_IA32_EFER);
 	wrmsr(MSR_IA32_EFER, efer | 0x1);
+
+	wrmsr(MSR_IA32_FMASK, 0x200); /* disable interrupts */
 }

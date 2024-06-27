@@ -199,7 +199,6 @@ irq 0x0F
 
 .global gate_syscall
 gate_syscall:
-	cli
 	pushq %r11
 	pushq %rcx
 	movq %r10, %rcx
