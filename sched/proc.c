@@ -167,8 +167,9 @@ void schedule()
 			break;
 		case PROC_BLOCKED:
 			if (!sem_trywait(&proc->block_sem))
-				proc_unblock(proc->pid);
+				proc->state = PROC_STOPPED;
 			spinlock_release(&proc->lock);
+			break;
 		case PROC_RUNNING:
 			spinlock_release(&proc->lock);
 			break;

@@ -86,11 +86,13 @@ ssize_t serial_read(char *buf)
 	char c;
 	ret = ringbuf_read(tty0->data, &c, 1);
 
+	struct proc *proc = proc_find(getpid());
 	while ((ret = ringbuf_read(tty0->data, &c, 1)) <= 0) {
-		struct proc *proc = proc_find(getpid());
 		proc_block(proc, tty0, buf, true, 1);
 		sswtch();
 	}
+
+	copy_to_user(proc, buf, &c, 1);
 
 	return ret;
 }
