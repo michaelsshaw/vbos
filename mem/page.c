@@ -257,8 +257,8 @@ paddr_t proc_clone_mmap(struct proc *in, struct proc *out)
 	out->cr3 &= ~hhdm_start;
 
 	/* copy all mappings */
-	spinlock_acquire(&in->page_map_lock);
-	spinlock_acquire(&out->page_map_lock);
+	spinlock_acquire(&in->lock);
+	spinlock_acquire(&out->lock);
 
 	struct rbnode *node = rbt_minimum(in->page_map.root);
 
@@ -273,8 +273,8 @@ paddr_t proc_clone_mmap(struct proc *in, struct proc *out)
 		node = rbt_successor(node);
 	}
 
-	spinlock_release(&in->page_map_lock);
-	spinlock_release(&out->page_map_lock);
+	spinlock_release(&in->lock);
+	spinlock_release(&out->lock);
 
 	return out->cr3;
 }

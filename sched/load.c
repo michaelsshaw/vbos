@@ -65,6 +65,7 @@ pid_t elf_load_proc(char *fname)
 
 	struct proc *proc = proc_create();
 	/* allocate page tables */
+	spinlock_acquire(&proc->lock);
 	proc->cr3 = (uintptr_t)buddy_alloc(0x1000);
 
 	/* map kernel pages */
@@ -113,6 +114,8 @@ pid_t elf_load_proc(char *fname)
 	proc->regs.rsp = u_stack_addr + 0xFF0;
 
 	kfree(buf);
+
+	spinlock_release(&proc->lock);
 
 	return proc->pid;
 }
