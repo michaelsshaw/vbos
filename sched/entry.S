@@ -221,7 +221,6 @@ gate_syscall_int80:
 
 .global sswtch
 sswtch:
-	call proc_current_regs
 	save_context
 	movw %ss, %di
 
