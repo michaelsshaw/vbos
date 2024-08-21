@@ -249,14 +249,9 @@ paddr_t proc_clone_mmap(struct proc *in, struct proc *out)
 {
 	/* allocate a new page table */
 	out->cr3 = (uintptr_t)buddy_alloc(0x1000);
-	if (!out->cr3) {
-		kprintf(LOG_ERROR "proc_clone_mmap: failed to allocate new page table\n");
-		return 0;
-	}
-	memcpy((void *)out->cr3, (void *)(in->cr3 | hhdm_start), 0x1000);
-
 	out->cr3 &= ~hhdm_start;
 
+	/* copy the kernel mappings */
 	/* copy all mappings */
 	spinlock_acquire(&in->lock);
 	spinlock_acquire(&out->lock);
@@ -288,6 +283,12 @@ inline uint64_t phys_read(paddr_t paddr)
 inline void phys_write(paddr_t paddr, uint64_t data)
 {
 	*(uint64_t *)(paddr | hhdm_start) = data;
+}
+
+inline void *phys_memcpy(void *dest, paddr_t src, size_t num)
+{
+	memcpy(dest, (void *)(src | hhdm_start), num);
+	return dest;
 }
 
 paddr_t virtual_to_physical(uintptr_t vaddr, paddr_t page_base)
