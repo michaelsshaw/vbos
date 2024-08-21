@@ -280,6 +280,16 @@ paddr_t proc_clone_mmap(struct proc *in, struct proc *out)
 	return out->cr3;
 }
 
+inline uint64_t phys_read(paddr_t paddr)
+{
+	return *(uint64_t *)(paddr | hhdm_start);
+}
+
+inline void phys_write(paddr_t paddr, uint64_t data)
+{
+	*(uint64_t *)(paddr | hhdm_start) = data;
+}
+
 paddr_t virtual_to_physical(uintptr_t vaddr, paddr_t page_base)
 {
 	size_t pn = (vaddr >> 12) & 0x1FF;

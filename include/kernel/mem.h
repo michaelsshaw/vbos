@@ -114,6 +114,8 @@ void proc_munmap(struct proc *proc, uintptr_t vaddr);
 paddr_t proc_clone_mmap(struct proc *in, struct proc *out);
 paddr_t virtual_to_physical(uintptr_t vaddr, paddr_t page_base);
 void mem_early_init(char *mem, size_t len);
+uint64_t phys_read(paddr_t paddr);
+void phys_write(paddr_t paddr, uint64_t data);
 
 #endif /* __ASM__ */
 #endif /* _MEM_H_ */
