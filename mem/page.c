@@ -110,6 +110,7 @@ void mmap(uintptr_t pml4, struct rbtree *tree, paddr_t paddr, uintptr_t vaddr, s
 
 		node->value = paddr;
 		node->value2 = len;
+		node->value3 = attr;
 	}
 
 	for (; len; len -= 4096, vaddr += 4096, paddr += 4096) {
@@ -264,9 +265,9 @@ paddr_t proc_clone_mmap(struct proc *in, struct proc *out)
 
 	while (node) {
 		uintptr_t vaddr = node->key;
-		paddr_t paddr = node->value;
 		size_t len = node->value2;
-		uint64_t attr = PAGE_PRESENT | PAGE_RW;
+		paddr_t paddr = (paddr_t)buddy_alloc(len);
+		uint64_t attr = node->value3;
 
 		proc_mmap(out, paddr, vaddr, len, attr);
 
