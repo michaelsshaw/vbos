@@ -280,6 +280,21 @@ paddr_t proc_clone_mmap(struct proc *in, struct proc *out)
 	return out->cr3;
 }
 
+paddr_t virtual_to_physical(uintptr_t vaddr, paddr_t page_base)
+{
+	size_t pn = (vaddr >> 12) & 0x1FF;
+	size_t ptn = (vaddr >> 21) & 0x1FF;
+	size_t pdn = (vaddr >> 30) & 0x1FF;
+	size_t pdpn = (vaddr >> 39) & 0x1FF;
+
+	uint64_t *cur = (uint64_t *)(page_base | hhdm_start);
+	cur = (uint64_t *)((cur[pdpn] & -4096ull) | hhdm_start);
+	cur = (uint64_t *)((cur[pdn] & -4096ull) | hhdm_start);
+	cur = (uint64_t *)((cur[ptn] & -4096ull) | hhdm_start);
+
+	return cur[pn] & -4096ull;
+}
+
 void page_init(paddr_t kpaddr, uintptr_t kvaddr, size_t kernel_size, struct mem_region *regions, size_t num_regions)
 {
 	page_slab = slab_create(0x1000, 4 * MB, SLAB_PAGE_ALIGN);

@@ -112,7 +112,7 @@ void *proc_mmap(struct proc *proc, paddr_t paddr, uintptr_t vaddr, size_t len, u
 void *kmap_device(void *dev_paddr, size_t len);
 void proc_munmap(struct proc *proc, uintptr_t vaddr);
 paddr_t proc_clone_mmap(struct proc *in, struct proc *out);
-
+paddr_t virtual_to_physical(uintptr_t vaddr, paddr_t page_base);
 void mem_early_init(char *mem, size_t len);
 
 #endif /* __ASM__ */
