@@ -283,8 +283,6 @@ gate_syscall_int80:
 	addq $88, %rsp
 	popq %rbp
 
-
-
 	movq %r10, %rcx
 	movq %rax, %r9
 
