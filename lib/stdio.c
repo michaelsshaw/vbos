@@ -9,6 +9,8 @@ spinlock_t printf_lock = 0;
 
 static inline void printf_out(char c)
 {
+	if(c == '\n')
+		serial_putchar('\r');
 	serial_putchar(c);
 }
 
