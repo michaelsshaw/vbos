@@ -39,6 +39,8 @@ void _start()
 			if (fork() == 0) {
 				write(fd, "child\n", 6);
 				exit(0);
+			} else {
+				write(fd, "parent\n", 7);
 			}
 		}
 	}

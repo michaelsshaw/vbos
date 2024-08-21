@@ -249,9 +249,9 @@ paddr_t proc_clone_mmap(struct proc *in, struct proc *out)
 {
 	/* allocate a new page table */
 	out->cr3 = (uintptr_t)buddy_alloc(0x1000);
-	out->cr3 &= ~hhdm_start;
+	phys_memcpy((void *)out->cr3, kcr3, 0x1000);
+	out->cr3 = virt_to_phys(out->cr3, kcr3);
 
-	/* copy the kernel mappings */
 	/* copy all mappings */
 	spinlock_acquire(&in->lock);
 	spinlock_acquire(&out->lock);
@@ -261,7 +261,12 @@ paddr_t proc_clone_mmap(struct proc *in, struct proc *out)
 	while (node) {
 		uintptr_t vaddr = node->key;
 		size_t len = node->value2;
+
+		paddr_t o_paddr = (paddr_t)node->value;
 		paddr_t paddr = (paddr_t)buddy_alloc(len);
+		phys_memcpy((void *)paddr, o_paddr, len);
+		paddr = virt_to_phys(paddr, kcr3);
+
 		uint64_t attr = node->value3;
 
 		proc_mmap(out, paddr, vaddr, len, attr);
@@ -291,7 +296,7 @@ inline void *phys_memcpy(void *dest, paddr_t src, size_t num)
 	return dest;
 }
 
-paddr_t virtual_to_physical(uintptr_t vaddr, paddr_t page_base)
+paddr_t virt_to_phys(uintptr_t vaddr, paddr_t page_base)
 {
 	size_t pn = (vaddr >> 12) & 0x1FF;
 	size_t ptn = (vaddr >> 21) & 0x1FF;
@@ -302,8 +307,9 @@ paddr_t virtual_to_physical(uintptr_t vaddr, paddr_t page_base)
 	cur = (uint64_t *)((cur[pdpn] & -4096ull) | hhdm_start);
 	cur = (uint64_t *)((cur[pdn] & -4096ull) | hhdm_start);
 	cur = (uint64_t *)((cur[ptn] & -4096ull) | hhdm_start);
+	cur = (uint64_t *)((cur[pn] & -4096ull));
 
-	return cur[pn] & -4096ull;
+	return (paddr_t)cur & (~hhdm_start);
 }
 
 void page_init(paddr_t kpaddr, uintptr_t kvaddr, size_t kernel_size, struct mem_region *regions, size_t num_regions)

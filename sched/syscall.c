@@ -152,7 +152,37 @@ void sys_exit(int status)
 
 pid_t sys_fork()
 {
-	return 23;
+	struct proc *parent = proc_find(getpid());
+	struct proc *proc = proc_create();
+
+	proc_clone_mmap(parent, proc);
+
+	/* copy file descriptors */
+	struct rbnode *node = rbt_minimum(parent->fd_map.root);
+	while (node) {
+		struct file_descriptor *fdesc = (void *)node->value;
+		struct file *file = fdesc->file;
+
+		struct file_descriptor *new_fdesc = slab_alloc(fd_slab);
+		new_fdesc->fd = fdesc->fd;
+		new_fdesc->file = file;
+		new_fdesc->pos = fdesc->pos;
+		new_fdesc->flags = fdesc->flags;
+
+		struct rbnode *new_node = rbt_insert(&proc->fd_map, fdesc->fd);
+		new_node->value = (uintptr_t)new_fdesc;
+
+		node = rbt_successor(node);
+	}
+
+	/* copy parent */
+	proc->parent = parent;
+	proc->regs = parent->regs;
+	sys_set_return(proc, 0);
+
+	proc->state = PROC_STOPPED;
+
+	return proc->pid;
 }
 
 static void syscall_insert(uint64_t syscall_no, syscall_t syscall)
