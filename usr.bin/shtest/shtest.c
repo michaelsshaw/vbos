@@ -38,7 +38,9 @@ void _start()
 			write(fd, "attempting to fork\n", 19);
 			if (fork() == 0) {
 				write(fd, "child\n", 6);
-				exit(0);
+
+				while (1)
+					;
 			} else {
 				write(fd, "parent\n", 7);
 			}

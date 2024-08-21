@@ -126,6 +126,10 @@ int sys_open(const char *pathname, int flags)
 	fdesc->pos = 0;
 	fdesc->flags = flags;
 
+	spinlock_acquire(&file->ref_lock);
+	file->refcount++;
+	spinlock_release(&file->ref_lock);
+
 	struct rbnode *node = rbt_insert(&proc->fd_map, fdno);
 	node->value = (uintptr_t)fdesc;
 

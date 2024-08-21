@@ -65,6 +65,7 @@ struct file *vfs_open(const char *pathname, int *err)
 {
 	/* allocate a file */
 	struct file *file = slab_alloc(file_slab);
+
 	if (!file) {
 		kprintf(LOG_ERROR "Failed to allocate file struct\n");
 		return NULL;

@@ -91,6 +91,9 @@ struct dirent {
 struct file {
 	struct vnode *vnode;
 
+	spinlock_t ref_lock;
+	uint64_t refcount;
+
 	ino_t ino_num; /* inode number */
 	uint32_t type; /* type of the file */
 	uint64_t size; /* size of the file */

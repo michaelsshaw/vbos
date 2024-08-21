@@ -84,12 +84,15 @@ void proc_term(pid_t pid)
 {
 	struct rbnode *proc_node = rbt_search(proc_tree, pid);
 
+
 	struct proc_block_node *cur = proc_block_queue->head;
+
+	struct proc_block_node *next;
 	while (cur) {
 		if (cur->proc->pid == pid) {
+			next = cur->next;
 			proc_block_remove(cur);
-			cur = cur->next;
-			kfree(cur);
+			cur = next;
 			continue;
 		}
 
@@ -113,7 +116,12 @@ void proc_term(pid_t pid)
 		while (node) {
 			struct rbnode *next = rbt_successor(node);
 			struct file_descriptor *fdesc = (void *)node->value;
-			vfs_close(fdesc->file);
+
+			spinlock_acquire(&fdesc->file->ref_lock);
+			fdesc->file->refcount--;
+			if (fdesc->file->refcount == 0)
+				vfs_close(fdesc->file);
+			spinlock_release(&fdesc->file->ref_lock);
 			slab_free(fd_slab, fdesc);
 			node = next;
 		}
