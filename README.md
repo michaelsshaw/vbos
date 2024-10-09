@@ -18,6 +18,9 @@ You will need to deploy limine onto a filesystem image, the limine barebones
 project will suffice for creating this. In addition, you must also have an
 ext2 filesystem image.
 
+After compilation, the bin folder contains the userspace binaries that can be
+copied into your filesystem image.
+
 NOTE: For versions of limine >=5.x, multiple images must be used. Limine will
 no longer accept ext2 filesystems for booting kernel images, and this OS as of
 yet only supports ext2.
