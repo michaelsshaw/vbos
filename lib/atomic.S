@@ -10,8 +10,8 @@ atomic_cmpxchg:
 	
 	/* if ZF is set, the exchange was successful */
 	jnz nz
-	xorq %rax, %rax
+	xorl %eax, %eax
 	ret
 nz:
-	movq $1, %rax
+	movl $1, %eax
 	ret
