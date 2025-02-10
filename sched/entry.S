@@ -172,6 +172,11 @@
 		iretq
 .endm
 
+.global _save_context
+_save_context:
+	save_context
+	ret
+
 .global sti
 sti:
 	sti
@@ -327,3 +332,8 @@ _return_to_user:
 yield:
 	hlt
 	jmp yield
+
+.global _kthread_exit
+_kthread_exit:
+	movq %rax, %rdi
+	call kthread_exit

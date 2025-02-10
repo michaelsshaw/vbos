@@ -2,6 +2,8 @@
 #ifndef _COMMON_H_
 #define _COMMON_H_
 
+#define KSTACK_SIZE 0x4000
+
 #include <limine/limine.h>
 
 #include <stdint.h>
@@ -33,6 +35,7 @@ void yield();
 void panic();
 void cli();
 void sti();
+void _save_context();
 
 typedef uintptr_t paddr_t;
 typedef uint32_t paddr32_t;

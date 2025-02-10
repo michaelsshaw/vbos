@@ -27,8 +27,6 @@
 #define LIMINE_INTERNAL_MODULE_REQUIRED (1 << 0)
 #include <limine/limine.h>
 
-#define KSTACK_SIZE 0x4000
-
 struct limine_hhdm_request hhdm_req = { .id = LIMINE_HHDM_REQUEST, .revision = 0 };
 struct limine_kernel_file_request module_req = { .id = LIMINE_KERNEL_FILE_REQUEST, .revision = 0 };
 struct limine_smp_request smp_req = { .id = LIMINE_SMP_REQUEST, .revision = 0 };

@@ -36,13 +36,13 @@ void _start()
 
 		if (c[0] == '\n') {
 			write(fd, "attempting to fork\n", 19);
-			if (fork() == 0) {
+			pid_t pid = fork();
+
+			if (pid == 0) {
 				write(fd, "child\n", 6);
-				exit(0xCCCC);
+				exit(0);
 			} else {
 				write(fd, "parent\n", 7);
-
-				while(1);
 			}
 		}
 	}

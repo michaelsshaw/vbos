@@ -68,14 +68,6 @@ void serial_trap()
 
 	ringbuf_write(tty0->data, &c, 1);
 
-	/* attempt to unblock and waiting process */
-	struct proc_block_node *node = proc_block_find(tty0);
-	if (node && node->read) {
-		pid_t pid = node->proc->pid;
-		struct proc *proc = proc_find(pid);
-
-		sem_post(&proc->block_sem);
-	}
 	lapic_eoi();
 }
 
@@ -86,9 +78,9 @@ ssize_t serial_read(char *buf)
 	char c;
 
 	struct proc *proc = proc_find(getpid());
-	while ((ret = ringbuf_read(tty0->data, &c, 1)) <= 0) {
-		proc_block(proc, tty0, buf, true, 1);
-		sswtch();
+
+	while((ret = ringbuf_read(tty0->data, &c, 1)) == 0) {
+		kthread_yield();
 	}
 
 	copy_to_user(proc, buf, &c, 1);

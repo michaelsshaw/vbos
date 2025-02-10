@@ -17,11 +17,12 @@ static pid_t *proc_current;
 
 static struct proc kernel_procs[256] = { 0 };
 
-static struct proc_block_queue *proc_block_queue;
-
 void _return_to_user(struct procregs *regs, paddr_t cr3);
 extern uintptr_t kstacks[256];
 extern slab_t *fd_slab;
+
+static pid_t pid_counter = 0;
+static pid_t kpid_counter = 0;
 
 struct procregs *proc_current_regs()
 {
@@ -84,20 +85,6 @@ void proc_term(pid_t pid)
 {
 	struct rbnode *proc_node = rbt_search(proc_tree, pid);
 
-
-	struct proc_block_node *cur = proc_block_queue->head;
-
-	struct proc_block_node *next;
-	while (cur) {
-		if (cur->proc->pid == pid) {
-			next = cur->next;
-			proc_block_remove(cur);
-			cur = next;
-			continue;
-		}
-
-		cur = cur->next;
-	}
 
 	if (proc_node) {
 		struct proc *proc = (void *)proc_node->value;
@@ -165,7 +152,6 @@ void schedule()
 		spinlock_acquire(&proc->lock);
 
 		switch (proc->state) {
-		/* fallthrough */
 		case PROC_STOPPED:
 			proc->state = PROC_RUNNING;
 			proc_set_current(proc->pid);
@@ -174,10 +160,6 @@ void schedule()
 
 			break;
 		case PROC_BLOCKED:
-			if (!sem_trywait(&proc->block_sem))
-				proc->state = PROC_STOPPED;
-			spinlock_release(&proc->lock);
-			break;
 		case PROC_RUNNING:
 			spinlock_release(&proc->lock);
 			break;
@@ -189,93 +171,26 @@ void schedule()
 	yield();
 }
 
-void proc_block(struct proc *proc, void *dev, void *buf, bool read, size_t size)
-{
-	struct proc_block_node *insert = kmalloc(sizeof(struct proc_block_node), ALLOC_KERN);
-	insert->proc = proc;
-	insert->dev = dev;
-	insert->buf = buf;
-	insert->read = read;
-	insert->size = size;
-
-	/* insert into the queue */
-	struct proc_block_node *cur = proc_block_queue->head;
-
-	spinlock_acquire(&proc_block_queue->lock);
-	if (cur == NULL) {
-		proc_block_queue->head = insert;
-	} else {
-		while (cur->next)
-			cur = cur->next;
-
-		cur->next = insert;
-	}
-	spinlock_release(&proc_block_queue->lock);
-
-	proc->state = PROC_BLOCKED;
-}
-
-struct proc_block_node *proc_block_find(void *dev)
-{
-	void *ret = NULL;
-	struct proc_block_node *cur = proc_block_queue->head;
-
-	spinlock_acquire(&proc_block_queue->lock);
-	while (cur) {
-		if (cur->dev == dev) {
-			ret = cur;
-			break;
-		}
-
-		cur = cur->next;
-	}
-	spinlock_release(&proc_block_queue->lock);
-
-	return ret;
-}
-
-void proc_block_remove(struct proc_block_node *node)
-{
-	struct proc_block_node *cur = proc_block_queue->head;
-
-	spinlock_acquire(&proc_block_queue->lock);
-	if (cur == node) {
-		proc_block_queue->head = node->next;
-		kfree(node);
-	} else {
-		while (cur) {
-			if (cur->next == node) {
-				cur->next = node->next;
-				kfree(node);
-				break;
-			}
-
-			cur = cur->next;
-		}
-	}
-	spinlock_release(&proc_block_queue->lock);
-}
-
-void proc_unblock(pid_t pid)
-{
-	struct proc *proc = proc_find(pid);
-
-	if (proc) {
-		spinlock_acquire(&proc->lock);
-		proc->state = PROC_STOPPED;
-		spinlock_release(&proc->lock);
-	}
-}
-
-struct proc *proc_create()
+struct proc *proc_createv(int flags)
 {
 	struct proc *proc = slab_alloc(proc_slab);
 	memset(proc, 0, sizeof(struct proc));
 
 	spinlock_acquire(&proc->lock);
 
-	proc->pid = rbt_next_key(proc_tree);
-	proc->is_kernel = false;
+	if(flags & PT_KERN) {
+		kpid_counter++;
+		proc->pid = -kpid_counter;
+
+		proc->state = PROC_STOPPED;
+		proc->is_kernel = true;
+	} else {
+		pid_counter++;
+		proc->pid = pid_counter;
+
+		proc->state = PROC_RUNNING; /* prevent immediate scheduling */
+		proc->is_kernel = false;
+	}
 
 	struct rbnode *proc_node = rbt_insert(proc_tree, proc->pid);
 	proc_node->value = (uintptr_t)proc;
@@ -283,6 +198,11 @@ struct proc *proc_create()
 	spinlock_release(&proc->lock);
 
 	return proc;
+}
+
+struct proc *proc_create()
+{
+	return proc_createv(PT_USER);
 }
 
 struct proc *proc_get(pid_t pid)
@@ -301,8 +221,6 @@ void proc_init(unsigned num_cpus)
 	proc_current = kzalloc(num_cpus * sizeof(pid_t), ALLOC_KERN);
 	proc_tree = kzalloc(sizeof(struct rbtree), ALLOC_KERN);
 	proc_slab = slab_create(sizeof(struct proc), 32 * KB, 0);
-
-	proc_block_queue = kzalloc(sizeof(struct proc_block_queue), ALLOC_KERN);
 
 	for (unsigned i = 0; i < num_cpus; i++) {
 		proc_current[i] = -1;

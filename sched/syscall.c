@@ -26,9 +26,23 @@ uint64_t syscall(uint64_t arg1, uint64_t arg2, uint64_t arg3, uint64_t arg4, uin
 	if (syscall == NULL)
 		return -ENOSYS;
 
-	ssize_t ret = (ssize_t)syscall(arg1, arg2, arg3, arg4, arg5);
+	kprintf("syscall %d\n", syscall_no);
+	struct proc *proc = proc_find(getpid());
+	if (proc == NULL)
+		return -1;
 
-	return ret;
+	kthread_t *sc_thread = kthread_create();
+	if (sc_thread == NULL)
+		return -ENOMEM;
+
+	sc_thread->proc = proc;
+	proc->waiting_on = sc_thread;
+
+	proc->state = PROC_BLOCKED;
+
+	kthread_call(sc_thread, (uint64_t)syscall, arg1, arg2, arg3, arg4, arg5);
+
+	return kthread_join(sc_thread);
 }
 
 void sys_set_return(struct proc *proc, uint64_t ret)

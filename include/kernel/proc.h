@@ -14,6 +14,9 @@
 #define PROC_STOPPED 1
 #define PROC_BLOCKED 2
 
+#define PT_USER 0
+#define PT_KERN 1
+
 #define STDIN_FILENO 0
 #define STDOUT_FILENO 1
 #define STDERR_FILENO 2
@@ -46,6 +49,13 @@ struct procregs {
 
 } PACKED;
 
+typedef struct _kthread {
+	struct proc *proc;
+	uintptr_t stack;
+	bool done;
+	uint64_t retval;
+} kthread_t;
+
 struct proc {
 	struct procregs regs;
 	pid_t pid;
@@ -65,28 +75,11 @@ struct proc {
 	struct proc *parent;
 	struct rbtree children;
 
-	sem_t block_sem;
+	kthread_t *waiting_on;
 };
 
-struct proc_block_queue {
-	struct proc_block_node *head;
-	spinlock_t lock;
-};
-
-struct proc_block_node {
-	struct proc *proc;
-	void *dev;
-	void *buf;
-	bool read;
-	size_t size;
-	struct proc_block_node *next;
-};
 
 struct procregs *proc_current_regs();
-void proc_block(struct proc *proc, void *dev, void *buf, bool read, size_t size);
-void proc_unblock(pid_t pid);
-struct proc_block_node *proc_block_find(void *dev);
-void proc_block_remove(struct proc_block_node *node);
 struct proc *proc_create();
 struct proc *proc_fork(struct proc *parent);
 struct proc *proc_get(pid_t pid);
@@ -99,5 +92,12 @@ void proc_init(unsigned num_cpus);
 void trap_sched();
 void schedule();
 void syscall_block();
+
+kthread_t *kthread_create();
+void kthread_call(kthread_t *thread, uint64_t entry, uint64_t arg1, uint64_t arg2, uint64_t arg3, uint64_t arg4, uint64_t arg5);
+uint64_t kthread_join(kthread_t *thread);
+void kthread_yield();
+kthread_t *kthread_current();
+void sswtch();
 
 #endif /* _PROC_H_ */
