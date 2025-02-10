@@ -47,6 +47,24 @@
 	movq %r15, 112(%rax)
 .endm
 
+.macro restore_context
+	movq 8(%rax), %rbx
+	movq 16(%rax), %rcx
+	movq 24(%rax), %rdx
+	movq 32(%rax), %rsi
+	movq 40(%rax), %rdi
+	movq 48(%rax), %rbp
+	movq 56(%rax), %r8
+	movq 64(%rax), %r9
+	movq 72(%rax), %r10
+	movq 80(%rax), %r11
+	movq 88(%rax), %r12
+	movq 96(%rax), %r13
+	movq 104(%rax), %r14
+	movq 112(%rax), %r15
+	movq 0(%rax), %rax
+.endm
+
 .macro save_iretq_frame
 	/* save IRETQ frame */
 	popq %rdi
@@ -60,6 +78,16 @@
 	movq %rdi, 144(%rax)
 	popq %rdi
 	movq %rdi, 152(%rax)
+.endm
+
+.macro restore_iretq_frame
+	/* restore IRETQ frame */
+	call proc_current_regs
+	pushq 152(%rax)
+	pushq 144(%rax)
+	pushq 136(%rax)
+	pushq 128(%rax)
+	pushq 120(%rax)
 .endm
 
 .macro push_regs
@@ -102,12 +130,13 @@
 	.global _exception_\nr 					
 	_exception_\nr: 						
 		cli
-		push_regs
+		save_context
+		save_iretq_frame
 		movq $\nr, %rdi                                         
 		movq $0, %rsi                                           
 		call exception                                          
-		call yield
-		pop_regs
+		restore_iretq_frame
+		restore_context
 		iretq
 .endm
 
@@ -115,12 +144,13 @@
 	.global _exception_\nr 					
 	_exception_\nr: 						
 		cli
-		push_regs
+		save_context
 		popq %rsi 						
+		pushq %rsi
 		movq $\nr, %rdi 					
 		call exception 						
-		call yield
-		pop_regs
+		restore_iretq_frame
+		restore_context
 		iretq
 .endm
 
@@ -133,8 +163,9 @@
 		/* call irq handler */
 		movq $\nr, %rdi
 		call irq
-
-		call schedule
+		restore_iretq_frame
+		restore_context
+		iretq
 .endm
 
 .global sti
