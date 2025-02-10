@@ -48,8 +48,8 @@ struct procregs {
 
 struct proc {
 	struct procregs regs;
-	uint64_t pid;
-	uint64_t ppid;
+	pid_t pid;
+	pid_t ppid;
 	uint64_t cr3;
 	spinlock_t lock;
 
