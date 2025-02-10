@@ -48,6 +48,7 @@
 .endm
 
 .macro restore_context
+	call proc_current_regs
 	movq 8(%rax), %rbx
 	movq 16(%rax), %rcx
 	movq 24(%rax), %rdx
@@ -82,12 +83,15 @@
 
 .macro restore_iretq_frame
 	/* restore IRETQ frame */
+	pushq %rax
 	call proc_current_regs
+	popq %rdi
 	pushq 152(%rax)
 	pushq 144(%rax)
 	pushq 136(%rax)
 	pushq 128(%rax)
 	pushq 120(%rax)
+	movq %rdi, %rax
 .endm
 
 .macro push_regs
@@ -244,63 +248,8 @@ gate_syscall:
 .global gate_syscall_int80
 gate_syscall_int80:
 	cli
-	/* stack frame */
-	pushq %rbp
-	movq %rsp, %rbp
-
-	subq $88, %rsp
-
-	/* save registers */
-	movq %rdi, -8(%rbp)
-	movq %rsi, -16(%rbp)
-	movq %rdx, -24(%rbp)
-	movq %rcx, -32(%rbp)
-	movq %r8, -40(%rbp)
-	movq %r9, -48(%rbp)
-	movq %r10, -56(%rbp)
-	movq %r11, -64(%rbp)
-	movq %rax, -72(%rbp)
-
-	/* save context */
-	call proc_current_regs
-	movq -72(%rbp), %rdi /* rax */
-	movq %rdi, 0(%rax)
-	movq %rbx, 8(%rax) /* rbx */
-	movq -32(%rbp), %rdi /* rcx */
-	movq %rdi, 16(%rax)
-	movq -24(%rbp), %rdi /* rdx */
-	movq %rdi, 24(%rax)
-	movq -16(%rbp), %rdi /* rsi */
-	movq %rdi, 32(%rax)
-	movq -8(%rbp), %rdi /* rdi */
-	movq %rdi, 40(%rax)
-	movq (%rbp), %rdi
-	movq %rdi, 48(%rax) /* rbp */
-	movq -40(%rbp), %rdi /* r8 */
-	movq %rdi, 56(%rax)
-	movq -48(%rbp), %rdi /* r9 */
-	movq %rdi, 64(%rax)
-	movq -56(%rbp), %rdi /* r10 */
-	movq %rdi, 72(%rax)
-	movq -64(%rbp), %rdi /* r11 */
-	movq %rdi, 80(%rax)
-	movq %r12, 88(%rax)
-	movq %r13, 96(%rax)
-	movq %r14, 104(%rax)
-	movq %r15, 112(%rax)
-
-
-	/* save IRETQ frame */
-	movq 8(%rbp), %rdi
-	movq %rdi, 120(%rax) /* rip */
-	movq 16(%rbp), %rdi
-	movq %rdi, 128(%rax) /* cs */
-	movq 24(%rbp), %rdi
-	movq %rdi, 136(%rax) /* rflags */
-	movq 32(%rbp), %rdi
-	movq %rdi, 144(%rax) /* rsp */
-	movq 40(%rbp), %rdi
-	movq %rdi, 152(%rax) /* ss */
+	save_context
+	save_iretq_frame
 
 	/* restore argument registers */
 	movq 40(%rax), %rdi
@@ -310,14 +259,16 @@ gate_syscall_int80:
 	movq 56(%rax), %r8
 	movq 0(%rax), %rax
 
-	/* leave stack frame */
-	addq $88, %rsp
-	popq %rbp
-
 	movq %r10, %rcx
 	movq %rax, %r9
 
 	call syscall
+
+	restore_iretq_frame
+	pushq %rax
+	restore_context
+	popq %rax
+
 	iretq
 
 .global sswtch

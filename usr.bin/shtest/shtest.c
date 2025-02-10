@@ -38,11 +38,11 @@ void _start()
 			write(fd, "attempting to fork\n", 19);
 			if (fork() == 0) {
 				write(fd, "child\n", 6);
-
-				while (1)
-					;
+				exit(0xCCCC);
 			} else {
 				write(fd, "parent\n", 7);
+
+				while(1);
 			}
 		}
 	}
