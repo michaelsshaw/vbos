@@ -256,6 +256,13 @@ gate_syscall_int80:
 	save_context
 	save_iretq_frame
 
+	/* switch to a kernel process */
+	movq %rax, %rdi
+	movq $_gate_syscall_int80_entry_ret, %rsi
+	call proc_enter_kernel
+_gate_syscall_int80_entry_ret:
+	movq %rdi, %rax
+
 	/* restore argument registers */
 	movq 40(%rax), %rdi
 	movq 32(%rax), %rsi
@@ -268,6 +275,12 @@ gate_syscall_int80:
 	movq %rax, %r9
 
 	call syscall
+
+	/* switch back to user process */
+	movq %rax, %rdi
+	movq $1, %rsi
+	cli
+	call proc_leave_kernel
 
 	restore_iretq_frame
 	pushq %rax
@@ -332,8 +345,3 @@ _return_to_user:
 yield:
 	hlt
 	jmp yield
-
-.global _kthread_exit
-_kthread_exit:
-	movq %rax, %rdi
-	call kthread_exit

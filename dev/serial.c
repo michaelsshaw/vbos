@@ -79,8 +79,12 @@ ssize_t serial_read(char *buf)
 
 	struct proc *proc = proc_find(getpid());
 
-	while((ret = ringbuf_read(tty0->data, &c, 1)) == 0) {
-		kthread_yield();
+	serial_trap();
+
+	while ((ret = ringbuf_read(tty0->data, &c, 1)) == 0) {
+		_save_context();
+		sti();
+		yield();
 	}
 
 	copy_to_user(proc, buf, &c, 1);

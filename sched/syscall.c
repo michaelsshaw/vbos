@@ -12,7 +12,7 @@
 
 #define SYSCALL_MAX 0x100
 
-typedef void *(*syscall_t)(uint64_t arg1, uint64_t arg2, uint64_t arg3, uint64_t arg4, uint64_t arg5);
+typedef uint64_t (*syscall_t)(uint64_t arg1, uint64_t arg2, uint64_t arg3, uint64_t arg4, uint64_t arg5);
 
 syscall_t syscall_table[SYSCALL_MAX];
 slab_t *fd_slab;
@@ -21,28 +21,18 @@ void gate_syscall();
 
 uint64_t syscall(uint64_t arg1, uint64_t arg2, uint64_t arg3, uint64_t arg4, uint64_t arg5, uint64_t syscall_no)
 {
-	syscall_t syscall = (void *)syscall_table[syscall_no];
+	syscall_t sc_sel = (void *)syscall_table[syscall_no];
 
-	if (syscall == NULL)
+	if (sc_sel == NULL)
 		return -ENOSYS;
 
-	kprintf("syscall %d\n", syscall_no);
 	struct proc *proc = proc_find(getpid());
 	if (proc == NULL)
 		return -1;
 
-	kthread_t *sc_thread = kthread_create();
-	if (sc_thread == NULL)
-		return -ENOMEM;
+	uint64_t ret = sc_sel(arg1, arg2, arg3, arg4, arg5);
 
-	sc_thread->proc = proc;
-	proc->waiting_on = sc_thread;
-
-	proc->state = PROC_BLOCKED;
-
-	kthread_call(sc_thread, (uint64_t)syscall, arg1, arg2, arg3, arg4, arg5);
-
-	return kthread_join(sc_thread);
+	return ret;
 }
 
 void sys_set_return(struct proc *proc, uint64_t ret)
@@ -58,7 +48,7 @@ ssize_t sys_read(int fd, void *buf, size_t count)
 	if ((uintptr_t)buf >= hhdm_start)
 		return -EFAULT;
 
-	struct proc *proc = proc_find(getpid());
+	struct proc *proc = proc_find(getupid());
 	if (proc == NULL)
 		return -1;
 
@@ -93,7 +83,7 @@ ssize_t sys_write(int fd, void *buf, size_t count)
 	if ((uintptr_t)buf >= hhdm_start)
 		return -EFAULT;
 
-	struct proc *proc = proc_find(getpid());
+	struct proc *proc = proc_find(getupid());
 	if (proc == NULL)
 		return -1;
 
@@ -123,7 +113,7 @@ int sys_open(const char *pathname, int flags)
 	if ((uintptr_t)pathname >= hhdm_start)
 		return -EFAULT;
 
-	struct proc *proc = proc_find(getpid());
+	struct proc *proc = proc_find(getupid());
 	if (proc == NULL)
 		return -1;
 
@@ -152,7 +142,8 @@ int sys_open(const char *pathname, int flags)
 
 void sys_exit(int status)
 {
-	struct proc *proc = proc_find(getpid());
+	pid_t pid = getupid();
+	struct proc *proc = proc_find(pid);
 	if (proc == NULL)
 		return;
 
@@ -160,9 +151,9 @@ void sys_exit(int status)
 	proc->state = PROC_STOPPED;
 	spinlock_release(&proc->lock);
 
-	proc_term(getpid());
+	proc_term(pid);
 
-	kprintf("(syscall)Process %d exited with status 0x%x\n", getpid(), status);
+	kprintf("(syscall)Process %d exited with status 0x%x\n", pid, status);
 
 	proc_set_current(0);
 	schedule();
@@ -170,7 +161,7 @@ void sys_exit(int status)
 
 pid_t sys_fork()
 {
-	struct proc *parent = proc_find(getpid());
+	struct proc *parent = proc_find(getupid());
 	struct proc *proc = proc_create();
 
 	proc_clone_mmap(parent, proc);

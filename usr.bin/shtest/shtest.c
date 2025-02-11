@@ -25,27 +25,9 @@ void _start()
 
 	promptfd(fd);
 
-	char c[2];
-
-	ssize_t ret;
-	while ((ret = read(fd, c, 1)) > 0) {
-		if (c[0] == '\r')
-			c[0] = '\n';
-
-		write(fd, c, 1);
-
-		if (c[0] == '\n') {
-			write(fd, "attempting to fork\n", 19);
-			pid_t pid = fork();
-
-			if (pid == 0) {
-				write(fd, "child\n", 6);
-				exit(0);
-			} else {
-				write(fd, "parent\n", 7);
-			}
-		}
+	char buf[256];
+	int n;
+	while ((n = read(fd, buf, 256)) > 0) {
+		write(fd, buf, n);
 	}
-
-	exit(0x1234);
 }

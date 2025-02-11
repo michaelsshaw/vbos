@@ -51,22 +51,19 @@ void exception(int vector, int error)
 {
 	pid_t pid = getpid();
 
+	kprintf("Process %d terminated: %s(%xh)\n", pid, exception_names[vector], error);
+
 	struct proc *proc = proc_find(pid);
 
-	if (proc->is_kernel) {
-		kprintf(LOG_ERROR "Kernel process %d crashed: %s(%xh)\n", pid, exception_names[vector], error);
+	if (exception_handlers[vector])
+		exception_handlers[vector](error);
+
+	if(proc->pid == 0)
 		panic();
-	} else {
-		proc_term(pid);
-		kprintf("Process %d terminated: %s(%xh)\n", pid, exception_names[vector], error);
 
-		if (exception_handlers[vector])
-			exception_handlers[vector](error);
-
-		proc_set_current(0);
-
-		schedule();
-	}
+	proc_set_current(0);
+	proc_term(pid);
+	schedule();
 }
 
 void exception_init()

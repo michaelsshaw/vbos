@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
+#include "kernel/mem.h"
 #include <kernel/common.h>
 #include <kernel/proc.h>
 #include <kernel/rbtree.h>
@@ -45,6 +46,16 @@ pid_t getpid()
 	return proc_current[lapic_idno()];
 }
 
+pid_t getupid()
+{
+	struct proc *proc = proc_find(getpid());
+
+	if (proc && proc->buddy_proc)
+		return proc->buddy_proc->pid;
+	else
+		return 0;
+}
+
 struct proc *proc_find(pid_t pid)
 {
 	if (pid == 0)
@@ -85,7 +96,6 @@ void proc_term(pid_t pid)
 {
 	struct rbnode *proc_node = rbt_search(proc_tree, pid);
 
-
 	if (proc_node) {
 		struct proc *proc = (void *)proc_node->value;
 		spinlock_acquire(&proc->lock);
@@ -119,7 +129,7 @@ void proc_term(pid_t pid)
 
 		slab_free(proc_slab, proc);
 	} else {
-		kprintf(LOG_ERROR "proc: proc_term: proc %u not found\n", pid);
+		kprintf(LOG_ERROR "proc: proc_term: proc %d not found\n", pid);
 		panic();
 	}
 }
@@ -145,20 +155,24 @@ void schedule()
 	size_t num_procs = proc_tree->num_nodes;
 	size_t counter = 0;
 	size_t limit = num_procs * 2;
-	while (counter++ < limit) {
+	while (counter < limit) {
 		/* next process */
 		proc = proc_next(proc);
+
+		if (proc->pid == 0)
+			continue;
 
 		spinlock_acquire(&proc->lock);
 
 		switch (proc->state) {
 		case PROC_STOPPED:
+
 			proc->state = PROC_RUNNING;
 			proc_set_current(proc->pid);
 			spinlock_release(&proc->lock);
 			_return_to_user(&proc->regs, proc->cr3);
-
 			break;
+		case PROC_ZOMBIE:
 		case PROC_BLOCKED:
 		case PROC_RUNNING:
 			spinlock_release(&proc->lock);
@@ -166,9 +180,37 @@ void schedule()
 		}
 	}
 
-	proc_set_current(0);
+	/* no process to run */
 	sti();
 	yield();
+}
+
+void proc_init_memory(struct proc *proc, uint64_t mem_flags)
+{
+	if (proc->is_kernel && proc->buddy_proc) {
+		proc->cr3 = proc->buddy_proc->cr3;
+	} else {
+		proc->cr3 = (uintptr_t)buddy_alloc(0x1000);
+		memcpy((void *)proc->cr3, (void *)(kcr3 | hhdm_start), 0x1000);
+		proc->cr3 &= ~(hhdm_start);
+	}
+	uintptr_t stackaddr = (uintptr_t)buddy_alloc(0x4000);
+
+	if (!proc->is_kernel) {
+		stackaddr &= ~(hhdm_start);
+		proc_mmap(proc, stackaddr | hhdm_start, stackaddr, 0x4000, PAGE_XD | PAGE_RW | PAGE_PRESENT);
+
+		proc->regs.cs = GDT_ACCESS_CODE_RING3 | 3;
+		proc->regs.ss = GDT_ACCESS_DATA_RING3 | 3;
+	} else {
+		proc->regs.cs = GDT_ACCESS_CODE_RING0 | 0;
+		proc->regs.ss = GDT_ACCESS_DATA_RING0 | 0;
+	}
+
+	proc->regs.rflags = 0x246;
+	stackaddr += 0x3FF0;
+	proc->regs.rsp = stackaddr;
+	proc->regs.rbp = stackaddr;
 }
 
 struct proc *proc_createv(int flags)
@@ -178,20 +220,17 @@ struct proc *proc_createv(int flags)
 
 	spinlock_acquire(&proc->lock);
 
-	if(flags & PT_KERN) {
+	if (flags & PT_KERN) {
 		kpid_counter++;
 		proc->pid = -kpid_counter;
-
-		proc->state = PROC_STOPPED;
 		proc->is_kernel = true;
 	} else {
 		pid_counter++;
 		proc->pid = pid_counter;
-
-		proc->state = PROC_RUNNING; /* prevent immediate scheduling */
 		proc->is_kernel = false;
 	}
 
+	proc->state = PROC_RUNNING; /* prevent immediate scheduling */
 	struct rbnode *proc_node = rbt_insert(proc_tree, proc->pid);
 	proc_node->value = (uintptr_t)proc;
 
@@ -213,6 +252,62 @@ struct proc *proc_get(pid_t pid)
 		return (void *)proc_node->value;
 	else
 		return NULL;
+}
+
+void proc_enter_kernel(uint64_t save, void *ret)
+{
+	struct proc *proc = proc_find(getpid());
+
+	if (proc->is_kernel) {
+		kprintf(LOG_ERROR "proc: proc_enter_kernel: process %d is already a kernel process\n", getpid());
+		panic();
+	}
+
+	struct proc *kernel_proc = proc_createv(PT_KERN);
+
+	kernel_proc->is_kernel = true;
+	kernel_proc->buddy_proc = proc;
+
+	proc_init_memory(kernel_proc, PAGE_PRESENT | PAGE_RW);
+
+	spinlock_acquire(&proc->lock);
+	proc->state = PROC_BLOCKED;
+	spinlock_release(&proc->lock);
+
+	proc->buddy_proc = kernel_proc;
+	kernel_proc->buddy_proc = proc;
+
+	/* move the save value into RAX */
+	kernel_proc->regs.rax = save;
+	proc_set_current(kernel_proc->pid);
+	load_stack_and_jump(kernel_proc->regs.rsp, kernel_proc->regs.rbp, ret, (void *)save);
+}
+
+uint64_t proc_leave_kernel(uint64_t ret, bool shouldret)
+{
+	struct proc *proc = proc_find(getpid());
+
+	if (!proc->is_kernel) {
+		kprintf(LOG_ERROR "proc: proc_leave_kernel: process %d is not a kernel process\n", getpid());
+		panic();
+	}
+
+	struct proc *uproc = proc->buddy_proc;
+	uproc->buddy_proc = NULL;
+
+	if (shouldret) {
+		uproc->regs.rax = ret;
+	}
+
+	proc_set_current(uproc->pid);
+
+	spinlock_acquire(&proc->lock);
+	proc->state = PROC_ZOMBIE;
+	spinlock_release(&proc->lock);
+
+	uproc->state = PROC_RUNNING;
+
+	return ret;
 }
 
 void proc_init(unsigned num_cpus)
