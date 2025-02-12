@@ -303,7 +303,7 @@ void kfree(void *ptr)
 
 void ufree(struct proc *proc, void *addr)
 {
-	struct rbnode *n = rbt_search(&umalloc_tree, (uint64_t)addr);
+	struct rbnode *n = rbt_search(&proc->umalloc_tree, (uint64_t)addr);
 	if (n == NULL) {
 		kprintf(LOG_ERROR "umalloc: invalid free: %X\n", addr);
 		panic();
@@ -432,7 +432,7 @@ void *umalloc(struct proc *proc, size_t size, uint64_t opts)
 		}
 	}
 
-	struct rbnode *n = rbt_insert(&umalloc_tree, (uint64_t)vaddr);
+	struct rbnode *n = rbt_insert(&proc->umalloc_tree, (uint64_t)vaddr);
 	n->value = (uint64_t)a;
 
 	return (void *)vaddr;
