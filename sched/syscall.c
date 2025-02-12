@@ -65,8 +65,6 @@ ssize_t sys_read(int fd, void *buf, size_t count)
 
 	ssize_t ret = vfs_read(file, tmp_buf, fdesc->pos, count);
 
-	proc->state = PROC_RUNNING;
-
 	if (ret > 0)
 		memcpy(buf, tmp_buf, count);
 	else
@@ -146,10 +144,6 @@ void sys_exit(int status)
 	struct proc *proc = proc_find(pid);
 	if (proc == NULL)
 		return;
-
-	spinlock_acquire(&proc->lock);
-	proc->state = PROC_STOPPED;
-	spinlock_release(&proc->lock);
 
 	proc_term(pid);
 

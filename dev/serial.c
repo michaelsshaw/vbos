@@ -60,14 +60,19 @@ inline void serial_putchar(char c)
 	outb(COM1, c);
 }
 
-void serial_trap()
+void serial_read_line()
 {
-	while ((inb(COM1 | 5) & 0x01) == 0)
-		;
+	if ((inb(COM1 | 5) & 0x01) == 0)
+		return;
+
 	char c = inb(COM1);
 
 	ringbuf_write(tty0->data, &c, 1);
+}
 
+void serial_trap()
+{
+	serial_read_line();
 	lapic_eoi();
 }
 
@@ -77,14 +82,12 @@ ssize_t serial_read(char *buf)
 
 	char c;
 
+	serial_read_line();
+
 	struct proc *proc = proc_find(getpid());
 
-	serial_trap();
-
 	while ((ret = ringbuf_read(tty0->data, &c, 1)) == 0) {
-		_save_context();
-		sti();
-		yield();
+		sswtch();
 	}
 
 	copy_to_user(proc, buf, &c, 1);

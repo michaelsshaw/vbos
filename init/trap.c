@@ -44,7 +44,7 @@ static void exception_page_fault(int err)
 {
 	uint64_t cr2 = cr2_read();
 
-	kprintf(LOG_ERROR "Page fault at %xh, error code %xh\n", cr2, err);
+	kprintf(LOG_ERROR "Page fault at %Xh, error code %xh\n", cr2, err);
 }
 
 void exception(int vector, int error)

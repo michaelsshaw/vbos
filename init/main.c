@@ -75,7 +75,8 @@ void panic()
 {
 	kprintf(LOG_ERROR "KERNEL PANIC\n");
 	cli();
-	yield();
+	while (1)
+		yield();
 }
 
 char *kcmdline_get_symbol(const char *sym)

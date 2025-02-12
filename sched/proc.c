@@ -56,6 +56,14 @@ pid_t getupid()
 		return 0;
 }
 
+void proc_set_state(pid_t pid, uint8_t state)
+{
+	struct proc *proc = proc_find(pid);
+	spinlock_acquire(&proc->lock);
+	proc->state = state;
+	spinlock_release(&proc->lock);
+}
+
 struct proc *proc_find(pid_t pid)
 {
 	if (pid == 0)
@@ -134,6 +142,17 @@ void proc_term(pid_t pid)
 	}
 }
 
+void proc_yield()
+{
+	struct proc *proc = proc_find(getpid());
+	proc_set_current(0);
+	spinlock_acquire(&proc->lock);
+	proc->state = PROC_STOPPED;
+	spinlock_release(&proc->lock);
+	sti();
+	yield();
+}
+
 void trap_sched()
 {
 	lapic_eoi();
@@ -194,7 +213,9 @@ void proc_init_memory(struct proc *proc, uint64_t mem_flags)
 		memcpy((void *)proc->cr3, (void *)(kcr3 | hhdm_start), 0x1000);
 		proc->cr3 &= ~(hhdm_start);
 	}
+
 	uintptr_t stackaddr = (uintptr_t)buddy_alloc(0x4000);
+	proc->stack_start = stackaddr;
 
 	if (!proc->is_kernel) {
 		stackaddr &= ~(hhdm_start);
@@ -224,10 +245,14 @@ struct proc *proc_createv(int flags)
 		kpid_counter++;
 		proc->pid = -kpid_counter;
 		proc->is_kernel = true;
+		proc->regs.cs = GDT_ACCESS_CODE_RING0 | 0;
+		proc->regs.ss = GDT_ACCESS_DATA_RING0 | 0;
 	} else {
 		pid_counter++;
 		proc->pid = pid_counter;
 		proc->is_kernel = false;
+		proc->regs.cs = GDT_ACCESS_CODE_RING3 | 3;
+		proc->regs.ss = GDT_ACCESS_DATA_RING3 | 3;
 	}
 
 	proc->state = PROC_RUNNING; /* prevent immediate scheduling */
@@ -263,10 +288,15 @@ void proc_enter_kernel(uint64_t save, void *ret)
 		panic();
 	}
 
-	struct proc *kernel_proc = proc_createv(PT_KERN);
+	struct proc *kernel_proc;
+	if (proc->buddy_proc) {
+		kernel_proc = proc->buddy_proc;
+	} else {
+		kernel_proc = proc_createv(PT_KERN);
 
-	kernel_proc->is_kernel = true;
-	kernel_proc->buddy_proc = proc;
+		kernel_proc->is_kernel = true;
+		kernel_proc->buddy_proc = proc;
+	}
 
 	proc_init_memory(kernel_proc, PAGE_PRESENT | PAGE_RW);
 
@@ -293,7 +323,6 @@ uint64_t proc_leave_kernel(uint64_t ret, bool shouldret)
 	}
 
 	struct proc *uproc = proc->buddy_proc;
-	uproc->buddy_proc = NULL;
 
 	if (shouldret) {
 		uproc->regs.rax = ret;
@@ -302,10 +331,12 @@ uint64_t proc_leave_kernel(uint64_t ret, bool shouldret)
 	proc_set_current(uproc->pid);
 
 	spinlock_acquire(&proc->lock);
-	proc->state = PROC_ZOMBIE;
+	proc->state = PROC_BLOCKED;
 	spinlock_release(&proc->lock);
 
+	spinlock_acquire(&uproc->lock);
 	uproc->state = PROC_RUNNING;
+	spinlock_release(&uproc->lock);
 
 	return ret;
 }

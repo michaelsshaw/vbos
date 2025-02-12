@@ -53,13 +53,13 @@ struct procregs {
 
 struct proc {
 	struct procregs regs;
+	uint8_t state;
 	pid_t pid;
 	pid_t ppid;
 	uint64_t cr3;
 	spinlock_t lock;
 
 	bool is_kernel;
-	uint8_t state;
 
 	struct rbtree page_map;
 	spinlock_t page_map_lock;
@@ -71,6 +71,9 @@ struct proc {
 	struct rbtree children;
 
 	struct proc *buddy_proc;
+
+	uintptr_t stack_start;
+	uintptr_t stack_size;
 };
 
 

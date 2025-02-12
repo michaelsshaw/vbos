@@ -172,11 +172,6 @@
 		iretq
 .endm
 
-.global _save_context
-_save_context:
-	save_context
-	ret
-
 .global sti
 sti:
 	sti
@@ -292,16 +287,23 @@ _gate_syscall_int80_entry_ret:
 .global sswtch
 sswtch:
 	save_context
-	movw %ss, %di
 
+	xorq %rdi, %rdi
+	movw %ss, %di
 	movq %rdi, 152(%rax)
-	pushfq /* save flags */
+	pushfq
 	popq %rdi
 	movq %rsp, 144(%rax)
 	movq %rdi, 136(%rax)
+	xorq %rdi, %rdi
 	movw %cs, %di
 	movq %rdi, 128(%rax)
 	movq $_sswtch_ret, 120(%rax)
+
+	call getpid
+	movq %rax, %rdi
+	movq $1, %rsi /* PROC_STOPPED: allow to be scheduled */
+	call proc_set_state
 
 	call schedule
 _sswtch_ret:
@@ -341,7 +343,51 @@ _return_to_user:
 	
 	iretq
 
+.global _save_context
+_save_context:
+	pushq %rax
+	pushq %rcx
+	pushq %rdx
+	pushq %rsi
+	pushq %rdi
+	pushq %r8
+	pushq %r9
+	pushq %r10
+	pushq %r11
+
+	/* get current task registers */
+	call proc_current_regs
+
+	/* save current task registers */
+	popq %rdi
+	movq %rdi, 80(%rax) /* r11 */
+	popq %rdi
+	movq %rdi, 72(%rax) /* r10 */
+	popq %rdi
+	movq %rdi, 64(%rax) /* r9 */
+	popq %rdi
+	movq %rdi, 56(%rax) /* r8 */
+	popq %rdi
+	movq %rdi, 40(%rax) /* rdi */
+	popq %rdi
+	movq %rdi, 32(%rax) /* rsi */
+	popq %rdi
+	movq %rdi, 24(%rax) /* rdx */
+	popq %rdi
+	movq %rdi, 16(%rax) /* rcx */
+	popq %rdi
+	movq %rdi, 0(%rax) /* rax */
+
+	/* save remaining registers */
+	movq %rbx, 8(%rax) 
+	movq %rbp, 48(%rax)
+	movq %r12, 88(%rax)
+	movq %r13, 96(%rax)
+	movq %r14, 104(%rax)
+	movq %r15, 112(%rax)
+	ret
+
 .global yield
 yield:
 	hlt
-	jmp yield
+	ret

@@ -27,6 +27,23 @@ void _start()
 
 	char buf[256];
 	int n;
+
+	/* fork test */
+	pid_t pid = fork();
+	if (pid < 0) {
+		write(fd, "fork failed\n", 12);
+		exit(1);
+	}
+
+	if (pid == 0) {
+		write(fd, "child\n", 6);
+		while (1)
+			;
+	} else {
+		write(fd, "parent\n", 7);
+	}
+
+	/* rw test */
 	while ((n = read(fd, buf, 256)) > 0) {
 		write(fd, buf, n);
 	}
