@@ -331,17 +331,28 @@ void ufree(struct proc *proc, void *addr)
 	kfree(a);
 }
 
+/* It is implied that when you're calling this function, the process is not running */
 void *umalloc(struct proc *proc, size_t size, uint64_t opts)
 {
-	uint64_t flags = 0;
-
 	struct proc_allocation *a = kzalloc(sizeof(struct proc_allocation), 0);
 
 	if (a == NULL)
 		return NULL;
 
 	const size_t max_slab_size = uslab_sizes[ARRAY_SIZE(uslab_sizes) - 1];
-	uintptr_t vaddr = mmap_find_unmapped(&proc->page_map, &proc->page_map_lock, USER_HEAP_BASE, size);
+	uintptr_t vaddr;
+
+	if (opts & ALLOC_USER_STACK) {
+		vaddr = proc->stack_start - size;
+		if (vaddr & 0xFFF) {
+			kprintf(LOG_ERROR "umalloc: invalid stack size: %X\n", size);
+			return NULL;
+		}
+		proc->stack_start = vaddr;
+	} else {
+		vaddr = mmap_find_unmapped(&proc->page_map, &proc->page_map_lock, USER_HEAP_BASE, size);
+	}
+
 	uint64_t attr;
 
 	attr = PAGE_USER | PAGE_PRESENT;
@@ -386,7 +397,7 @@ void *umalloc(struct proc *proc, size_t size, uint64_t opts)
 		m->type = PM_BUD;
 		m->attr = attr;
 
-		proc_mmap(proc, m->paddr, vaddr, size, m->attr);
+		proc_mmap(proc, m->paddr, vaddr, size, attr);
 	} else {
 		/* Case 2: 
 		 * Regular sized allocation: Use slabs 
@@ -412,12 +423,14 @@ void *umalloc(struct proc *proc, size_t size, uint64_t opts)
 			size_t remaining = size - total_alloc;
 			size_t this_size = uslab_sizes[ARRAY_SIZE(uslab_sizes) - 1];
 			size_t this_index = ARRAY_SIZE(uslab_sizes) - 1;
-			for (int i = ARRAY_SIZE(uslab_sizes) - 2; i >= 0; i--) {
-				if (remaining >= uslab_sizes[i]) {
-					this_index = i + 1;
-					this_size = uslab_sizes[this_index];
-					break;
-				}
+
+			size_t i = this_size;
+			size_t j = this_index;
+			while (i > remaining && j) {
+				this_size = uslab_sizes[j];
+
+				j--;
+				i = uslab_sizes[j];
 			}
 
 			void *ret = slab_alloc(uslab_cache[this_index]);
@@ -425,10 +438,12 @@ void *umalloc(struct proc *proc, size_t size, uint64_t opts)
 			m->vaddr = vaddr + total_alloc;
 			m->paddr = ((paddr_t)(ret) & (~hhdm_start));
 			m->len = this_size;
-			m->attr = PAGE_USER | PAGE_PRESENT;
 			m->slab = uslab_cache[this_index];
+			m->attr = attr;
 
-			proc_mmap(proc, m->paddr, m->vaddr, m->len, m->attr);
+			proc_mmap(proc, m->paddr, m->vaddr, m->len, attr);
+
+			total_alloc += this_size;
 		}
 	}
 
