@@ -13,7 +13,7 @@ static size_t slab_sizes[] = { 16, 32, 64, 128, 256, 512, 1024, 2048, 4096 };
 static slab_t *kslab_cache[ARRAY_SIZE(slab_sizes)];
 static size_t dma_sizes[] = { 0x1000, 0x10000, 0x100000, 0x1000000 };
 static slab_t *slab_cache_dma[ARRAY_SIZE(slab_sizes)];
-static size_t uslab_sizes[] = { 0x1000, 0x4000, 0x8000, 0x10000 };
+static size_t uslab_sizes[] = { 0x1000, 0x4000, 0x8000, 0x10000, 0x20000 };
 static slab_t *uslab_cache[ARRAY_SIZE(slab_sizes)];
 
 static struct rbtree kmalloc_tree = { NULL, 0, 0 };
@@ -415,7 +415,7 @@ void *umalloc(struct proc *proc, size_t size, uint64_t opts)
 static void umalloc_init()
 {
 	for (size_t i = 0; i < ARRAY_SIZE(uslab_sizes); i++)
-		uslab_cache[i] = slab_create(uslab_sizes[i], 256 * KB, SLAB_PAGE_ALIGN);
+		uslab_cache[i] = slab_create(uslab_sizes[i], 4 * MB, SLAB_PAGE_ALIGN);
 }
 
 void slabtypes_init()
