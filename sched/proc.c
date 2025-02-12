@@ -1,10 +1,11 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
-#include "kernel/mem.h"
 #include <kernel/common.h>
 #include <kernel/proc.h>
 #include <kernel/rbtree.h>
+#include <kernel/mem.h>
 #include <kernel/slab.h>
 #include <kernel/gdt.h>
+#include <kernel/pio.h>
 
 #include <lib/sem.h>
 
@@ -121,6 +122,11 @@ void proc_set_exec_addr(struct proc *proc, uintptr_t addr)
 
 void proc_term(pid_t pid)
 {
+	if(pid == 1) {
+		/* reboot */
+		reboot();
+	}
+
 	struct rbnode *proc_node = rbt_search(proc_tree, pid);
 
 	if (proc_node) {
@@ -389,3 +395,4 @@ void proc_init(unsigned num_cpus)
 	proc_set_current(0);
 	(void)rbt_insert(proc_tree, 0);
 }
+

@@ -35,6 +35,7 @@ static uint64_t *pagemap_traverse(uint64_t *this_level, size_t next_num, uint64_
 
 uintptr_t mmap_find_unmapped(struct rbtree *tree, spinlock_t *lock, uintptr_t start, size_t len)
 {
+	bool kern = len >= hhdm_start;
 	len = MAX(len, 0x1000);
 	len = len | 0xFFF;
 	len += 1;
@@ -74,6 +75,10 @@ uintptr_t mmap_find_unmapped(struct rbtree *tree, spinlock_t *lock, uintptr_t st
 	}
 
 	spinlock_release(lock);
+
+	if (ret >= hhdm_start && !kern)
+		return 0;
+
 	return ret;
 }
 
@@ -131,10 +136,6 @@ void *proc_mmap(struct proc *proc, paddr_t paddr, uintptr_t vaddr, size_t len, u
 	if (vaddr + len >= hhdm_start) {
 		/* higher-half addresses are only for kernel use, so we need to find a lower address to map to */
 		vaddr = mmap_find_unmapped(&proc->page_map, &proc->page_map_lock, 0, len);
-		if (vaddr + len >= hhdm_start) {
-			kprintf(LOG_WARN "proc_mmap: Tried to map higher-half address %X\n", vaddr);
-			return NULL;
-		}
 	}
 
 	/* if the memory address is already mapped */

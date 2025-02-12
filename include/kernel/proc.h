@@ -7,6 +7,7 @@
 
 #include <kernel/lock.h>
 #include <kernel/rbtree.h>
+#include <kernel/slab.h>
 
 #include <lib/sem.h>
 
@@ -23,6 +24,12 @@
 #define STDIN_FILENO 0
 #define STDOUT_FILENO 1
 #define STDERR_FILENO 2
+
+#define USER_STACK_BASE 0x00007FFFF0000000
+#define USER_HEAP_BASE  0x0000000100000000 /* 4GB */
+
+#define PM_BUD 0
+#define PM_SLB 1
 
 typedef int64_t pid_t;
 
@@ -60,6 +67,22 @@ struct procregs {
 
 } PACKED;
 
+struct proc_mapping {
+	uintptr_t vaddr;
+	paddr_t paddr;
+	size_t len;
+	uint64_t attr;
+	uint64_t type;
+	slab_t *slab;
+	struct proc_mapping *next;
+};
+
+struct proc_allocation {
+	struct proc_mapping *mappings;
+	struct proc_mapping *last;
+	size_t num_mappings;
+};
+
 struct proc {
 	struct procregs regs;
 	uint8_t state;
@@ -83,6 +106,10 @@ struct proc {
 
 	uintptr_t stack_start;
 	uintptr_t stack_size;
+
+	uintptr_t heap_start;
+
+	struct rbtree umalloc_tree;
 };
 
 struct procregs *proc_current_regs();

@@ -12,6 +12,14 @@
 #define ALLOC_KERN 0x01
 #define ALLOC_DMA 0x02
 
+#define UA_SLAB 0x1
+#define UA_BUD 0x2
+
+#define ALLOC_USER 0x0
+#define ALLOC_USER_STACK 0x1
+#define ALLOC_USER_RDONLY 0x2
+#define ALLOC_USER_EXEC 0x4
+
 #define ATTEMPT_FREE(_x)   \
 	if (_x) {          \
 		kfree(_x); \

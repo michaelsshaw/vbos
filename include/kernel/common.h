@@ -36,6 +36,7 @@ void panic();
 void cli();
 void sti();
 void _save_context();
+void reboot();
 void load_stack_and_jump(uintptr_t rsp, uintptr_t rbp, void *func, void *arg);
 
 typedef uintptr_t paddr_t;

@@ -66,6 +66,13 @@
 	movq 0(%rax), %rax
 .endm
 
+.macro save_sysretq_frame
+	movq %rsp, 144(%rax)
+	pushfq
+	popq %rdi
+	movq %rdi, 136(%rax)
+.endm
+
 .macro save_iretq_frame
 	/* save IRETQ frame */
 	popq %rdi
@@ -149,6 +156,7 @@
 	_exception_\nr: 						
 		cli
 		save_context
+		save_iretq_frame
 		popq %rsi 						
 		pushq %rsi
 		movq $\nr, %rdi 					
@@ -234,15 +242,56 @@ irq 0x0F
 
 .global gate_syscall
 gate_syscall:
-	pushq %r11
-	pushq %rcx
+	cli
+	save_context
+	save_sysretq_frame
+
+	/* switch to a kernel process */
+	movq %rax, %rdi
+	movq $_gate_syscall_entry_ret, %rsi
+	call proc_enter_kernel
+_gate_syscall_entry_ret:
+	movq %rdi, %rax
+
+	/* restore argument registers */
+	movq 40(%rax), %rdi
+	movq 32(%rax), %rsi
+	movq 24(%rax), %rdx
+	movq 72(%rax), %r10
+	movq 56(%rax), %r8
+	movq 0(%rax), %rax
+
 	movq %r10, %rcx
 	movq %rax, %r9
 
 	call syscall
 
-	popq %rcx
-	popq %r11
+	/* switch back to user process */
+	movq %rax, %rdi
+	movq $1, %rsi
+	cli
+	call proc_leave_kernel
+
+	pushq %rax
+
+	call proc_current_regs
+
+	/* restore sysretq frame */
+	movq 120(%rax), %rcx /* RIP */
+	movq 136(%rax), %r11 /* RFLAGS */
+
+	/* switch to user stack */
+	popq %rbp
+	movq 144(%rax), %rsp
+
+	restore_context
+
+	pushq %rbp
+	movq 48(%rax), %rbp
+
+	/* syscall return code */
+	popq %rax
+
 	sysretq
 
 .global gate_syscall_int80
@@ -391,3 +440,8 @@ _save_context:
 yield:
 	hlt
 	ret
+
+.global reboot
+reboot:
+	movq $0, %rax
+	movq %rax, %cr3

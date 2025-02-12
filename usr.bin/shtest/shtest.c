@@ -45,5 +45,10 @@ void _start()
 	/* rw test */
 	while ((n = read(fd, buf, 256)) > 0) {
 		write(fd, buf, n);
+
+		if(buf[0] == 'q')
+			break;
 	}
+
+	exit(1234);
 }

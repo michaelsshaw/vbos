@@ -3,17 +3,21 @@
 #include <kernel/mem.h>
 #include <kernel/rbtree.h>
 #include <kernel/slab.h>
+#include <kernel/proc.h>
 
 #define SLAB_ALIGN 7
 
 #define KMT_DMA 0xDE11A000
 
 static size_t slab_sizes[] = { 16, 32, 64, 128, 256, 512, 1024, 2048, 4096 };
-static slab_t *slab_cache[ARRAY_SIZE(slab_sizes)];
+static slab_t *kslab_cache[ARRAY_SIZE(slab_sizes)];
 static size_t dma_sizes[] = { 0x1000, 0x10000, 0x100000, 0x1000000 };
 static slab_t *slab_cache_dma[ARRAY_SIZE(slab_sizes)];
+static size_t uslab_sizes[] = { 0x1000, 0x4000, 0x8000, 0x10000 };
+static slab_t *uslab_cache[ARRAY_SIZE(slab_sizes)];
 
 static struct rbtree kmalloc_tree = { NULL, 0, 0 };
+static struct rbtree umalloc_tree = { NULL, 0, 0 };
 
 static inline void slab_range(slab_t *slab, uintptr_t *o_start, uintptr_t *o_end)
 {
@@ -159,7 +163,7 @@ void slab_free(slab_t *slab, void *ptr)
 void kmalloc_init()
 {
 	for (size_t i = 0; i < ARRAY_SIZE(slab_sizes); i++)
-		slab_cache[i] = slab_create(slab_sizes[i], 128 * KB, 0);
+		kslab_cache[i] = slab_create(slab_sizes[i], 128 * KB, 0);
 	for (size_t i = 0; i < ARRAY_SIZE(dma_sizes); i++)
 		slab_cache_dma[i] = slab_create(dma_sizes[i], 8 * MB, SLAB_DMA_64K);
 }
@@ -221,7 +225,7 @@ void *kmalloc(size_t size, uint64_t flags)
 		}
 
 	} else {
-		ret = kmalloc_table(size, slab_sizes, ARRAY_SIZE(slab_sizes), slab_cache, false);
+		ret = kmalloc_table(size, slab_sizes, ARRAY_SIZE(slab_sizes), kslab_cache, false);
 	}
 
 	return ret;
@@ -297,9 +301,128 @@ void kfree(void *ptr)
 	rbt_delete(&kmalloc_tree, n);
 }
 
+void ufree(struct proc *proc, void *addr)
+{
+}
+
+void *umalloc(struct proc *proc, size_t size, uint64_t opts)
+{
+	uint64_t flags = 0;
+
+	struct proc_allocation *a = kzalloc(sizeof(struct proc_allocation), 0);
+
+	if (a == NULL)
+		return NULL;
+
+	const size_t max_slab_size = uslab_sizes[ARRAY_SIZE(uslab_sizes) - 1];
+	uintptr_t vaddr = mmap_find_unmapped(&proc->page_map, &proc->page_map_lock, USER_HEAP_BASE, size);
+	uint64_t attr;
+
+	attr = PAGE_USER | PAGE_PRESENT;
+
+	if (!(opts & ALLOC_USER_RDONLY))
+		attr |= PAGE_RW;
+
+	if (!(opts & ALLOC_USER_EXEC))
+		attr |= PAGE_XD;
+
+	if (vaddr == 0)
+		return NULL;
+
+	/* Do the allocation
+	 *
+	 * This part of the allocator decides whether to chain slabs, or to use a buddy allocator
+	 *
+	 * Slab chaining is only used in userspace allocations, and this is the only allocator that
+	 * does it.
+	 */
+	if (size > max_slab_size * 256) {
+		/* Case 1: 
+		 * Huge allocation: Just do a buddy_alloc 
+		 */
+		struct proc_mapping *m = kzalloc(sizeof(struct proc_mapping), 0);
+		if (m == NULL) {
+			ufree(proc, a);
+			return NULL;
+		}
+		size = npow2(size);
+		void *ret = buddy_alloc(size);
+
+		if (ret == NULL)
+			return NULL;
+
+		a->mappings = m;
+		a->num_mappings = 1;
+
+		m->vaddr = vaddr;
+		m->paddr = ((paddr_t)(ret) & (~hhdm_start));
+		m->len = size;
+		m->type = PM_BUD;
+		m->attr = attr;
+
+		proc_mmap(proc, m->paddr, vaddr, size, m->attr);
+
+		struct rbnode *n = rbt_insert(&umalloc_tree, (uint64_t)vaddr);
+		n->value = (uint64_t)a;
+	} else {
+		/* Case 2: 
+		 * Regular sized allocation: Use slabs 
+		 */
+		size_t total_alloc = 0;
+		while (total_alloc < size) {
+			struct proc_mapping *m = kzalloc(sizeof(struct proc_mapping), 0);
+
+			if (m == NULL) {
+				ufree(proc, a);
+				return NULL;
+			}
+
+			if (a->num_mappings == 0)
+				a->mappings = m;
+			else
+				a->last->next = m;
+
+			a->last = m;
+
+			a->num_mappings++;
+
+			size_t remaining = size - total_alloc;
+			size_t this_size = uslab_sizes[ARRAY_SIZE(uslab_sizes) - 1];
+			size_t this_index = ARRAY_SIZE(uslab_sizes) - 1;
+			for (int i = ARRAY_SIZE(uslab_sizes) - 2; i >= 0; i--) {
+				if (remaining >= uslab_sizes[i]) {
+					this_index = i + 1;
+					this_size = uslab_sizes[this_index];
+					break;
+				}
+			}
+
+			void *ret = slab_alloc(uslab_cache[this_index]);
+			m->type = PM_SLB;
+			m->vaddr = vaddr + total_alloc;
+			m->paddr = ((paddr_t)(ret) & (~hhdm_start));
+			m->len = this_size;
+			m->attr = PAGE_USER | PAGE_PRESENT;
+			m->slab = uslab_cache[this_index];
+
+			proc_mmap(proc, m->paddr, m->vaddr, m->len, m->attr);
+		}
+	}
+
+	return (void *)vaddr;
+}
+
+static void umalloc_init()
+{
+	for (size_t i = 0; i < ARRAY_SIZE(uslab_sizes); i++)
+		uslab_cache[i] = slab_create(uslab_sizes[i], 256 * KB, SLAB_PAGE_ALIGN);
+}
+
 void slabtypes_init()
 {
 	rbt_slab_init();
+
+	umalloc_init();
 
 	/* LAST! */
 	kmalloc_init();
