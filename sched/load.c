@@ -106,12 +106,11 @@ pid_t elf_load_proc(char *fname)
 	ds_write(GDT_SEGMENT_DATA_RING3 | 3);
 
 	/* allocate user stack */
-	uintptr_t stack_buf = (uintptr_t)buddy_alloc(0x1000);
-	uintptr_t u_stack_addr = 0x20002000;
-	(void)proc_mmap(proc, stack_buf & (~hhdm_start), u_stack_addr, 0x1000, PAGE_RW | PAGE_PRESENT | PAGE_USER | PAGE_XD);
+	proc->stack_start = USER_STACK_BASE;
+	void *ustack = umalloc(proc, 0x4000, ALLOC_USER_STACK);
 
 	/* set stack pointer */
-	proc->regs.rsp = u_stack_addr + 0xFF0;
+	proc->regs.rsp = (uintptr_t)ustack + 0x3FF0;
 
 	kfree(buf);
 
