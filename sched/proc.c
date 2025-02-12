@@ -369,5 +369,6 @@ void proc_init(unsigned num_cpus)
 	 * this value is never actually used, it prevents other processes from
 	 * having PID 0
 	 */
+	proc_set_current(0);
 	(void)rbt_insert(proc_tree, 0);
 }

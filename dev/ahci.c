@@ -4,6 +4,7 @@
 #include <kernel/block.h>
 #include <kernel/irq.h>
 #include <kernel/pio.h>
+#include <kernel/proc.h>
 
 #include <dev/ahci.h>
 #include <dev/pci.h>
@@ -206,13 +207,18 @@ bool ahci_access_sectors(struct sata_device *dev, paddr_t lba, uint16_t count, p
 	port->ci = 1 << slot;
 
 	/* wait for completion */
+	struct proc *proc = proc_find(getpid());
 	while (1) {
-		if ((port->ci & (1 << slot)) == 0)
-			break;
 		if (port->is & HBA_PORT_IS_TFES) {
 			kprintf(LOG_ERROR "AHCI: Read disk error\n");
 			return false;
 		}
+
+		if ((port->ci & (1 << slot)) == 0)
+			break;
+		else if (proc->buddy_proc)
+			sswtch();
+
 	}
 
 	/* check again */

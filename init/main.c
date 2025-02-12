@@ -168,6 +168,9 @@ void kmain()
 	uint16_t tss = gdt_insert_tss(ptr);
 	ltr(tss);
 
+	pic_init();
+	apic_init();
+
 	/* init the application processors */
 	struct limine_smp_response *smp_resp = smp_req.response;
 	proc_init(smp_resp->cpu_count);
@@ -187,9 +190,6 @@ void kmain()
 	}
 
 	devfs_init();
-
-	pic_init();
-	apic_init();
 
 	sem_t *init_sem = sem_create(0);
 
