@@ -12,6 +12,7 @@
 
 #define PROC_RUNNING 0
 #define PROC_STOPPED 1
+#define PROC_ALLOWSCHED 1
 #define PROC_BLOCKED 2
 #define PROC_YIELD 3
 #define PROC_ZOMBIE 4
@@ -24,6 +25,14 @@
 #define STDERR_FILENO 2
 
 typedef int64_t pid_t;
+
+struct proc_mmap_entry {
+	uintptr_t vaddr;
+	paddr_t paddr;
+	size_t len;
+	uint64_t attr;
+	uint64_t type;
+};
 
 struct procregs {
 	uint64_t rax;
@@ -76,7 +85,6 @@ struct proc {
 	uintptr_t stack_size;
 };
 
-
 struct procregs *proc_current_regs();
 struct proc *proc_create();
 struct proc *proc_createv(int flags);
@@ -93,6 +101,10 @@ void proc_init(unsigned num_cpus);
 void trap_sched();
 void schedule();
 void syscall_block();
+void proc_set_exec_addr(struct proc *proc, uintptr_t addr);
+void proc_set_flags(struct proc *proc, uint64_t flags);
+void proc_set_stack(struct proc *proc, uintptr_t base, size_t size);
+void proc_set_state(pid_t pid, uint8_t state);
 
 void sswtch();
 

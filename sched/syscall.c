@@ -147,8 +147,6 @@ void sys_exit(int status)
 
 	proc_term(pid);
 
-	kprintf("(syscall)Process %d exited with status 0x%x\n", pid, status);
-
 	proc_set_current(0);
 	schedule();
 }
@@ -171,6 +169,10 @@ pid_t sys_fork()
 		new_fdesc->file = file;
 		new_fdesc->pos = fdesc->pos;
 		new_fdesc->flags = fdesc->flags;
+
+		spinlock_acquire(&file->ref_lock);
+		file->refcount++;
+		spinlock_release(&file->ref_lock);
 
 		struct rbnode *new_node = rbt_insert(&proc->fd_map, fdesc->fd);
 		new_node->value = (uintptr_t)new_fdesc;

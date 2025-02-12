@@ -100,6 +100,25 @@ void proc_set_current(pid_t pid)
 	proc_current[lapic_idno()] = pid;
 }
 
+void proc_set_stack(struct proc *proc, uintptr_t base, size_t size)
+{
+	proc->stack_start = base;
+	proc->stack_size = size;
+
+	proc->regs.rsp = base + size - 0x10;
+	proc->regs.rbp = base + size - 0x10;
+}
+
+void proc_set_flags(struct proc *proc, uint64_t flags)
+{
+	proc->regs.rflags = flags;
+}
+
+void proc_set_exec_addr(struct proc *proc, uintptr_t addr)
+{
+	proc->regs.rip = addr;
+}
+
 void proc_term(pid_t pid)
 {
 	struct rbnode *proc_node = rbt_search(proc_tree, pid);
@@ -221,17 +240,15 @@ void proc_init_memory(struct proc *proc, uint64_t mem_flags)
 		stackaddr &= ~(hhdm_start);
 		proc_mmap(proc, stackaddr | hhdm_start, stackaddr, 0x4000, PAGE_XD | PAGE_RW | PAGE_PRESENT);
 
-		proc->regs.cs = GDT_ACCESS_CODE_RING3 | 3;
-		proc->regs.ss = GDT_ACCESS_DATA_RING3 | 3;
+		proc->regs.cs = GDT_SEGMENT_CODE_RING3 | 3;
+		proc->regs.ss = GDT_SEGMENT_DATA_RING3 | 3;
 	} else {
-		proc->regs.cs = GDT_ACCESS_CODE_RING0 | 0;
-		proc->regs.ss = GDT_ACCESS_DATA_RING0 | 0;
+		proc->regs.cs = GDT_SEGMENT_CODE_RING0 | 0;
+		proc->regs.ss = GDT_SEGMENT_DATA_RING0 | 0;
 	}
 
 	proc->regs.rflags = 0x246;
-	stackaddr += 0x3FF0;
-	proc->regs.rsp = stackaddr;
-	proc->regs.rbp = stackaddr;
+	proc_set_stack(proc, stackaddr, 0x4000);
 }
 
 struct proc *proc_createv(int flags)
@@ -245,14 +262,14 @@ struct proc *proc_createv(int flags)
 		kpid_counter++;
 		proc->pid = -kpid_counter;
 		proc->is_kernel = true;
-		proc->regs.cs = GDT_ACCESS_CODE_RING0 | 0;
-		proc->regs.ss = GDT_ACCESS_DATA_RING0 | 0;
+		proc->regs.cs = GDT_SEGMENT_CODE_RING0 | 0;
+		proc->regs.ss = GDT_SEGMENT_DATA_RING0 | 0;
 	} else {
 		pid_counter++;
 		proc->pid = pid_counter;
 		proc->is_kernel = false;
-		proc->regs.cs = GDT_ACCESS_CODE_RING3 | 3;
-		proc->regs.ss = GDT_ACCESS_DATA_RING3 | 3;
+		proc->regs.cs = GDT_SEGMENT_CODE_RING3 | 3;
+		proc->regs.ss = GDT_SEGMENT_DATA_RING3 | 3;
 	}
 
 	proc->state = PROC_RUNNING; /* prevent immediate scheduling */

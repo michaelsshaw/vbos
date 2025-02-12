@@ -37,8 +37,7 @@ void _start()
 
 	if (pid == 0) {
 		write(fd, "child\n", 6);
-		while (1)
-			;
+		exit(1);
 	} else {
 		write(fd, "parent\n", 7);
 	}

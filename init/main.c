@@ -49,6 +49,13 @@ void load_stack_and_jump(uintptr_t rsp, uintptr_t rbp, void *func, void *arg);
 
 uintptr_t kstacks[256] = { 0 };
 
+static void do_dummy_proc()
+{
+	sti();
+	while (1)
+		;
+}
+
 static inline void kexec(char *cmd)
 {
 	pid_t pid = elf_load_proc(cmd);
@@ -214,6 +221,12 @@ void kmain()
 	serial_init();
 	irq_map(0, trap_sched);
 	apic_enable_timer();
+
+	struct proc *dummy_proc = proc_createv(PT_KERN);
+	proc_init_memory(dummy_proc, 0);
+	proc_set_flags(dummy_proc, 0x46);
+	proc_set_exec_addr(dummy_proc, (uintptr_t)do_dummy_proc);
+	proc_set_state(dummy_proc->pid, PROC_ALLOWSCHED);
 
 	load_stack_and_jump(ptr, ptr, kexec, "/bin/shtest.elf");
 }

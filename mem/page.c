@@ -266,7 +266,6 @@ paddr_t proc_clone_mmap(struct proc *in, struct proc *out)
 		paddr_t paddr = (paddr_t)buddy_alloc(len);
 		phys_memcpy((void *)paddr, o_paddr, len);
 		paddr = virt_to_phys(paddr, kcr3);
-
 		uint64_t attr = node->value3;
 
 		proc_mmap(out, paddr, vaddr, len, attr);
