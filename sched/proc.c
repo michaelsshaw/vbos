@@ -122,7 +122,7 @@ void proc_set_exec_addr(struct proc *proc, uintptr_t addr)
 
 void proc_term(pid_t pid)
 {
-	if(pid == 1) {
+	if (pid == 1) {
 		/* reboot */
 		reboot();
 	}
@@ -135,7 +135,14 @@ void proc_term(pid_t pid)
 
 		rbt_delete(proc_tree, proc_node);
 
-		struct rbnode *node = rbt_minimum(proc->page_map.root);
+		struct rbnode *node = rbt_minimum(proc->umalloc_tree.root);
+		while (node) {
+			struct rbnode *next = rbt_successor(node);
+			ufree(proc, (void *)node->key);
+			node = next;
+		}
+
+		node = rbt_minimum(proc->page_map.root);
 		while (node) {
 			struct rbnode *next = rbt_successor(node);
 			proc_munmap(proc, node->key);
@@ -395,4 +402,3 @@ void proc_init(unsigned num_cpus)
 	proc_set_current(0);
 	(void)rbt_insert(proc_tree, 0);
 }
-
