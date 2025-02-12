@@ -303,6 +303,32 @@ void kfree(void *ptr)
 
 void ufree(struct proc *proc, void *addr)
 {
+	struct rbnode *n = rbt_search(&umalloc_tree, (uint64_t)addr);
+	if (n == NULL) {
+		kprintf(LOG_ERROR "umalloc: invalid free: %X\n", addr);
+		panic();
+	}
+
+	struct proc_allocation *a = (struct proc_allocation *)n->value;
+	struct proc_mapping *m = a->mappings;
+
+	while (m) {
+		struct proc_mapping *next = m->next;
+		if (m->type == PM_BUD) {
+			buddy_free((void *)(m->paddr | hhdm_start));
+			proc_munmap(proc, m->vaddr);
+		} else if (m->type == PM_SLB) {
+			slab_free(m->slab, (void *)(m->paddr | hhdm_start));
+			proc_munmap(proc, m->vaddr);
+		}
+
+		kfree(m);
+		m = next;
+	}
+
+	rbt_delete(&umalloc_tree, n);
+	n->value = 0;
+	kfree(a);
 }
 
 void *umalloc(struct proc *proc, size_t size, uint64_t opts)
@@ -361,9 +387,6 @@ void *umalloc(struct proc *proc, size_t size, uint64_t opts)
 		m->attr = attr;
 
 		proc_mmap(proc, m->paddr, vaddr, size, m->attr);
-
-		struct rbnode *n = rbt_insert(&umalloc_tree, (uint64_t)vaddr);
-		n->value = (uint64_t)a;
 	} else {
 		/* Case 2: 
 		 * Regular sized allocation: Use slabs 
@@ -408,6 +431,9 @@ void *umalloc(struct proc *proc, size_t size, uint64_t opts)
 			proc_mmap(proc, m->paddr, m->vaddr, m->len, m->attr);
 		}
 	}
+
+	struct rbnode *n = rbt_insert(&umalloc_tree, (uint64_t)vaddr);
+	n->value = (uint64_t)a;
 
 	return (void *)vaddr;
 }
