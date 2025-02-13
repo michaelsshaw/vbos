@@ -18,3 +18,4 @@ _sc_define open, 2
 _sc_define close, 3
 _sc_define fork, 57
 _sc_define exit, 60
+_sc_define mknod, 133

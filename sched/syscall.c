@@ -190,6 +190,19 @@ pid_t sys_fork()
 	return proc->pid;
 }
 
+int sys_mknod(const char *pathname, mode_t mode, dev_t dev)
+{
+	if (mode != S_IFIFO)
+		return -ENOSYS;
+
+	struct vnode *vnode = vfs_mknod(pathname, mode);
+
+	if (vnode == NULL)
+		return -1;
+
+	return 0;
+}
+
 static void syscall_insert(uint64_t syscall_no, syscall_t syscall)
 {
 	syscall_table[syscall_no] = syscall;
@@ -205,6 +218,7 @@ void syscall_init()
 	syscall_insert(SYS_OPEN, (syscall_t)sys_open);
 	syscall_insert(SYS_FORK, (syscall_t)sys_fork);
 	syscall_insert(SYS_EXIT, (syscall_t)sys_exit);
+	syscall_insert(SYS_MKNOD, (syscall_t)sys_mknod);
 
 	/* init syscall instruction */
 	uint64_t star = rdmsr(MSR_IA32_STAR);

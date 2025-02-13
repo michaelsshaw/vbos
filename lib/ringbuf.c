@@ -3,9 +3,9 @@
 #include <kernel/common.h>
 #include <kernel/ringbuf.h>
 
-struct ringbuf *ringbuf_create(size_t size)
+ringbuf_t *ringbuf_create(size_t size)
 {
-	struct ringbuf *rb = kmalloc(sizeof(struct ringbuf), ALLOC_KERN);
+	ringbuf_t *rb = kzalloc(sizeof(ringbuf_t), ALLOC_KERN);
 	rb->buf = kmalloc(size, ALLOC_KERN);
 	rb->size = size;
 	rb->head = 0;
@@ -13,13 +13,13 @@ struct ringbuf *ringbuf_create(size_t size)
 	return rb;
 }
 
-void ringbuf_destroy(struct ringbuf *rb)
+void ringbuf_destroy(ringbuf_t *rb)
 {
 	ATTEMPT_FREE(rb->buf);
 	ATTEMPT_FREE(rb);
 }
 
-size_t ringbuf_write(struct ringbuf *rb, const char *buf, size_t count)
+size_t ringbuf_write(ringbuf_t *rb, const char *buf, size_t count)
 {
 	size_t written = 0;
 	while (count--) {
@@ -32,7 +32,7 @@ size_t ringbuf_write(struct ringbuf *rb, const char *buf, size_t count)
 	return written;
 }
 
-size_t ringbuf_read(struct ringbuf *rb, char *buf, size_t count)
+size_t ringbuf_read(ringbuf_t *rb, char *buf, size_t count)
 {
 	size_t read = 0;
 	while (count--) {

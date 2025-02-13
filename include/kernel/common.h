@@ -42,5 +42,7 @@ void load_stack_and_jump(uintptr_t rsp, uintptr_t rbp, void *func, void *arg);
 typedef uintptr_t paddr_t;
 typedef uint32_t paddr32_t;
 typedef int64_t ssize_t;
+typedef int mode_t;
+typedef long dev_t;
 
 #endif /* _COMMON_H_ */

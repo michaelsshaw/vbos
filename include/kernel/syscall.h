@@ -7,6 +7,7 @@
 #define SYS_OPEN 2
 #define SYS_FORK 57
 #define SYS_EXIT 60
+#define SYS_MKNOD 133
 
 #include <kernel/common.h>
 #include <kernel/proc.h>

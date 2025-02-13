@@ -46,6 +46,8 @@
 #define O_TRUNC 0x0010
 #define O_APPEND 0x0020
 
+#define S_IFIFO 0x1000
+
 #define FS_TYPE_EXT2 0x0001
 #define FS_TYPE_PFS 0x0002 /* pseudo fs */
 
@@ -139,6 +141,7 @@ ssize_t vfs_write(struct file *file, void *buf, off_t off, size_t count);
 ssize_t vfs_read(struct file *file, void *buf, off_t off, size_t count);
 int vfs_statf(struct file *file, struct statbuf *statbuf);
 struct file *vfs_open(const char *pathname, int *err);
+struct vnode *vfs_mknod(const char *pathname, mode_t mode);
 int vfs_close(struct file *file);
 int unlink(const char *pathname);
 int statfd(struct file_descriptor *fdesc, struct statbuf *statbuf);

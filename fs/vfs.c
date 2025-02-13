@@ -2,6 +2,7 @@
 #include <kernel/slab.h>
 #include <kernel/block.h>
 #include <kernel/rbtree.h>
+#include <kernel/ringbuf.h>
 
 #include <fs/ext2.h>
 #include <fs/devfs.h>
@@ -189,6 +190,10 @@ ssize_t vfs_write(struct file *file, void *buf, off_t off, size_t count)
 	if ((file->vnode->flags & VFS_VTYPE_MASK) == VFS_VNO_DIR)
 		return -EISDIR;
 
+	if (file->vnode->flags & VFS_VNO_FIFO) {
+		return ringbuf_write(file->vnode->priv_data, buf, count);
+	}
+
 	return file->vnode->fs->ops->write(file->vnode, buf, off, count);
 }
 
@@ -200,8 +205,14 @@ ssize_t vfs_read(struct file *file, void *buf, off_t off, size_t count)
 	if (off >= file->vnode->size && file->type == VFS_VNO_REG)
 		return 0;
 
+	/* read from fifo */
+	if (file->vnode->flags & VFS_VNO_FIFO) {
+		return ringbuf_read(file->vnode->priv_data, buf, count);
+	}
+
 	if (off + count > file->vnode->size)
 		count = file->vnode->size - off;
+
 
 	return file->vnode->fs->ops->read(file->vnode, buf, off, count);
 }
@@ -253,6 +264,71 @@ inline uint64_t vfs_file_type(struct file *file)
 inline void *vfs_file_dev(struct file *file)
 {
 	return ((struct devfs_dev_info *)file->vnode->priv_data)->dev;
+}
+
+struct vnode *vfs_mknod(const char *pathname, mode_t mode)
+{
+	char *pathcpy = kzalloc(strlen(pathname) + 1, ALLOC_KERN);
+	strcpy(pathcpy, pathname);
+
+	char *name = basename(pathcpy);
+	char *dir = dirname(pathcpy);
+
+	struct file *dir_file = vfs_open(dir, NULL);
+	if (!dir_file)
+		return NULL;
+
+	struct fs *fs = dir_file->vnode->fs;
+	struct vnode *dir_vnode = dir_file->vnode;
+
+	struct vnode *vnode = vfs_create_vno();
+	if (!vnode) {
+		vfs_close(dir_file);
+		return NULL;
+	}
+
+	vnode->refcount = 1;
+	vnode->fs = dir_vnode->fs;
+	vnode->flags = mode;
+	vnode->priv_data = ringbuf_create(0x4000);
+
+	/* create directory entry */
+	struct dirent *dirents = dir_vnode->dirents;
+	int num_dirents = dir_vnode->num_dirents;
+
+	/* search for existing entry */
+	for (int i = 0; i < num_dirents; i++) {
+		if (strcmp(dirents[i].name, name) == 0) {
+			vfs_close(dir_file);
+			slab_free(vnode_slab, vnode);
+			return NULL;
+		}
+	}
+
+	spinlock_acquire(&dir_vnode->lock);
+
+	dirents = krealloc(dirents, (num_dirents + 1) * sizeof(struct dirent), ALLOC_KERN);
+	if (!dirents) {
+		vfs_close(dir_file);
+		slab_free(vnode_slab, vnode);
+		return NULL;
+	}
+
+	dir_vnode->dirents = dirents;
+
+	struct dirent *dirent = &dirents[num_dirents];
+	memset(dirent, 0, sizeof(struct dirent));
+	dirent->vnode = vnode;
+	dirent->reclen = sizeof(struct dirent);
+	dirent->inode = 0;
+	strcpy(dirent->name, name);
+
+	dir_vnode->num_dirents++;
+	spinlock_release(&dir_vnode->lock);
+
+	vfs_close(dir_file);
+
+	return vnode;
 }
 
 struct vnode *vfs_create_vno()
