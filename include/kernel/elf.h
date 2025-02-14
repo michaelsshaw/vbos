@@ -38,16 +38,25 @@
 #define R_X86_64_PC32 2
 #define R_X86_64_RELATIVE 8
 
-#define SHT_NULL 0
-#define SHT_PROGBITS 1
-#define SHT_SYMTAB 2
-#define SHT_STRTAB 3
-#define SHT_RELA 4
-#define SHT_NOBITS 8
-#define SHT_REL 9
+#define SHT_NULL 0x0
+#define SHT_PROGBITS 0x1
+#define SHT_SYMTAB 0x2
+#define SHT_STRTAB 0x3
+#define SHT_RELA 0x4
+#define SHT_HASH 0x5
+#define SHT_DYNAMIC 0x6
+#define SHT_NOTE 0x7
+#define SHT_NOBITS 0x8
+#define SHT_REL 0x9
+#define SHT_SHLIB 0x0A
+#define SHT_DYNSYM 0x0B
+#define SHT_INIT_ARRAY 0x0E
+#define SHT_FINI_ARRAY 0x0F
+#define SHT_PREINIT_ARRAY 0x10
 
 #define SHF_WRITE 1
 #define SHF_ALLOC 2
+#define SHF_EXECINSTR 4
 
 #define STB_LOCAL 0
 #define STB_GLOBAL 1
@@ -65,19 +74,30 @@
 #define PF_W 0x2
 #define PF_R 0x4
 
-#define ELF64_R_TYPE(i) ((i)&0xffffffff)
+#define ELF64_R_TYPE(i) ((i) & 0xffffffff)
 #define ELF64_R_SYM(i) ((i) >> 32)
 
 #define ELF_RELOC_ERR -1
 
-struct elf64_header {
-	uint8_t e_ident[16];
+typedef uint64_t Elf64_Addr;
+typedef uint64_t Elf64_Off;
+typedef uint16_t Elf64_Section;
+typedef uint16_t Elf64_Versym;
+typedef unsigned char Elf_Byte;
+typedef uint16_t Elf64_Half;
+typedef int32_t Elf64_Sword;
+typedef uint32_t Elf64_Word;
+typedef int64_t Elf64_Sxword;
+typedef uint64_t Elf64_Xword;
+
+typedef struct {
+	unsigned char e_ident[16];
 	uint16_t e_type;
 	uint16_t e_machine;
 	uint32_t e_version;
-	uint64_t e_entry;
-	uint64_t e_phoff;
-	uint64_t e_shoff;
+	Elf64_Addr e_entry;
+	Elf64_Off e_phoff;
+	Elf64_Off e_shoff;
 	uint32_t e_flags;
 	uint16_t e_ehsize;
 	uint16_t e_phentsize;
@@ -85,51 +105,31 @@ struct elf64_header {
 	uint16_t e_shentsize;
 	uint16_t e_shnum;
 	uint16_t e_shstrndx;
-} PACKED;
+} PACKED Elf64_Ehdr;
 
-struct elf64_program_header {
+typedef struct {
 	uint32_t p_type;
 	uint32_t p_flags;
-	uint64_t p_offset;
-	uint64_t p_vaddr;
-	uint64_t p_paddr;
+	Elf64_Off p_offset;
+	Elf64_Addr p_vaddr;
+	Elf64_Addr p_paddr;
 	uint64_t p_filesz;
 	uint64_t p_memsz;
 	uint64_t p_align;
-} PACKED;
+} PACKED Elf64_Phdr;
 
-struct elf64_section_header {
+typedef struct {
 	uint32_t sh_name;
 	uint32_t sh_type;
 	uint64_t sh_flags;
-	uint64_t sh_addr;
-	uint64_t sh_offset;
+	Elf64_Addr sh_addr;
+	Elf64_Off sh_offset;
 	uint64_t sh_size;
 	uint32_t sh_link;
 	uint32_t sh_info;
 	uint64_t sh_addralign;
 	uint64_t sh_entsize;
-} PACKED;
-
-struct elf64_symbol {
-	uint32_t st_name;
-	uint8_t st_info;
-	uint8_t st_other;
-	uint16_t st_shndx;
-	uint64_t st_value;
-	uint64_t st_size;
-} PACKED;
-
-struct elf64_rel {
-	uint64_t r_offset;
-	uint64_t r_info;
-} PACKED;
-
-struct elf64_rela {
-	uint64_t r_offset;
-	uint64_t r_info;
-	int64_t r_addend;
-} PACKED;
+} PACKED Elf64_Shdr;
 
 pid_t elf_load_proc(char *fname);
 

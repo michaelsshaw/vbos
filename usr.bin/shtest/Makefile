@@ -11,7 +11,7 @@ SSRC := syscall.S
 OBJ := $(CSRC:.c=.o) $(SSRC:.S=.o)
 DEP := $(OBJ:.o=.d)
 
-CFLAGS := -Wall -ffreestanding -mno-mmx -mno-sse2 -mno-sse -m64 -MMD -g
+CFLAGS := -Wall -ffreestanding -mno-mmx -mno-sse2 -mno-sse -m64 -MMD
 LDFLAGS := -nostdlib -static -m elf_x86_64
 
 CURDIR := $(shell pwd | awk -F '/' '{print $$(NF-1),"/",$$NF}' | sed 's/ //g')

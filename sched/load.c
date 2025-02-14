@@ -14,7 +14,7 @@ int elf_check_compat(char *buf)
 	if (strncmp(buf, elf_magic, 4))
 		return -ENOEXEC;
 
-	struct elf64_header *hdr = (struct elf64_header *)buf;
+	Elf64_Ehdr *hdr = (Elf64_Ehdr *)buf;
 
 	/* must be 64-bit */
 	if (hdr->e_ident[EI_CLASS] != ELFCLASS64)
@@ -35,6 +35,11 @@ int elf_check_compat(char *buf)
 	return 0;
 }
 
+Elf64_Shdr *elf_shdr(Elf64_Ehdr *hdr)
+{
+	return (Elf64_Shdr *)((uintptr_t)hdr + hdr->e_shoff);
+}
+
 pid_t elf_load_proc(char *fname)
 {
 	int err;
@@ -52,6 +57,16 @@ pid_t elf_load_proc(char *fname)
 	vfs_read(file, buf, 0, size);
 	vfs_close(file);
 
+	for (int i = 0; i < size; i++) {
+		kprintf("%b", buf[i]);
+
+		if((i & 0xF) == 0xF) {
+			kprintf("\n");
+			kprintf("%x: ", i + 1);
+		}
+	}
+	kprintf("\n");
+
 	int ret;
 
 	if ((ret = elf_check_compat(buf))) {
@@ -59,7 +74,7 @@ pid_t elf_load_proc(char *fname)
 		return ret;
 	}
 
-	struct elf64_header *hdr = (struct elf64_header *)buf;
+	Elf64_Ehdr *hdr = (Elf64_Ehdr *)buf;
 
 	/* read data and text segments */
 
@@ -73,7 +88,7 @@ pid_t elf_load_proc(char *fname)
 
 	proc->cr3 &= (~hhdm_start);
 
-	struct elf64_program_header *phdr = (struct elf64_program_header *)(buf + hdr->e_phoff);
+	Elf64_Phdr *phdr = (Elf64_Phdr *)(buf + hdr->e_phoff);
 	for (unsigned int i = 0; i < hdr->e_phnum; i++) {
 		if (phdr[i].p_type != PT_LOAD)
 			continue;
@@ -81,9 +96,6 @@ pid_t elf_load_proc(char *fname)
 		uintptr_t vaddr = phdr[i].p_vaddr;
 		size_t len = MAX(0x1000, npow2(phdr[i].p_filesz));
 		uintptr_t paddr = (uintptr_t)buddy_alloc(len);
-
-		/* length to copy, not allocated length */
-		len = phdr[i].p_filesz;
 		uint64_t flags = PAGE_PRESENT | PAGE_USER;
 
 		if (phdr[i].p_flags & PF_W)
@@ -93,7 +105,15 @@ pid_t elf_load_proc(char *fname)
 			flags |= PAGE_XD;
 
 		(void)proc_mmap(proc, paddr & (~hhdm_start), vaddr, len, flags);
-		memcpy((void *)paddr + (vaddr & 0xFFF), buf + phdr[i].p_offset, len);
+		memcpy((void *)paddr + (vaddr & 0xFFF), buf + phdr[i].p_offset, phdr[i].p_filesz);
+	}
+
+	Elf64_Shdr *shdr_list = (Elf64_Shdr *)(buf + hdr->e_shoff);
+	Elf64_Shdr *shdr_str = &shdr_list[hdr->e_shstrndx];
+
+	for (unsigned int i = 0; i < hdr->e_shnum; i++) {
+		Elf64_Shdr *section = &shdr_list[i];
+		kprintf("section: %d, type=%d\n", i, section->sh_type);
 	}
 
 	/* set entry point */
@@ -107,10 +127,12 @@ pid_t elf_load_proc(char *fname)
 
 	/* allocate user stack */
 	proc->stack_start = USER_STACK_BASE;
-	void *ustack = umalloc(proc, 0x4000, ALLOC_USER_STACK);
+	proc->stack_size = 0; /* umalloc will grow the stack */
+	void *ustack = umalloc(proc, 0x10000, ALLOC_USER_STACK);
 
 	/* set stack pointer */
-	proc->regs.rsp = (uintptr_t)ustack + 0x3FF0;
+	proc->regs.rsp = proc->stack_start + proc->stack_size;
+	proc->regs.rbp = proc->regs.rsp;
 
 	kfree(buf);
 

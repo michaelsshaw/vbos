@@ -942,6 +942,8 @@ static int ext2_read_file(struct vnode *vnode, void *buf, size_t offset, size_t 
 		offset = 0;
 
 		count -= MIN(fs->block_size, count);
+
+		block++;
 	}
 
 	return ret;

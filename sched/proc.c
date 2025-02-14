@@ -236,6 +236,13 @@ void schedule()
 	yield();
 }
 
+void proc_init_page_tables(struct proc *proc)
+{
+	proc->cr3 = (uintptr_t)buddy_alloc(0x1000);
+	phys_memcpy((void *)proc->cr3, kcr3, 0x1000);
+	proc->cr3 = virt_to_phys(proc->cr3, kcr3);
+}
+
 void proc_init_memory(struct proc *proc, uint64_t mem_flags)
 {
 	if (proc->is_kernel && proc->buddy_proc) {
@@ -250,8 +257,6 @@ void proc_init_memory(struct proc *proc, uint64_t mem_flags)
 	proc->stack_start = stackaddr;
 
 	if (!proc->is_kernel) {
-		stackaddr &= ~(hhdm_start);
-		proc_mmap(proc, stackaddr | hhdm_start, stackaddr, 0x4000, PAGE_XD | PAGE_RW | PAGE_PRESENT);
 
 		proc->regs.cs = GDT_SEGMENT_CODE_RING3 | 3;
 		proc->regs.ss = GDT_SEGMENT_DATA_RING3 | 3;

@@ -424,13 +424,14 @@ void *umalloc(struct proc *proc, size_t size, uint64_t opts)
 			size_t this_size = uslab_sizes[ARRAY_SIZE(uslab_sizes) - 1];
 			size_t this_index = ARRAY_SIZE(uslab_sizes) - 1;
 
-			size_t i = this_size;
-			size_t j = this_index;
-			while (i > remaining && j) {
-				this_size = uslab_sizes[j];
-
-				j--;
-				i = uslab_sizes[j];
+			if (this_size > remaining) {
+				for (size_t i = 0; i < ARRAY_SIZE(uslab_sizes); i++) {
+					if (uslab_sizes[i] >= remaining) {
+						this_size = uslab_sizes[i];
+						this_index = i;
+						break;
+					}
+				}
 			}
 
 			void *ret = slab_alloc(uslab_cache[this_index]);
@@ -445,6 +446,9 @@ void *umalloc(struct proc *proc, size_t size, uint64_t opts)
 
 			total_alloc += this_size;
 		}
+
+		if (opts & ALLOC_USER_STACK)
+			proc->stack_size += total_alloc;
 	}
 
 	struct rbnode *n = rbt_insert(&proc->umalloc_tree, (uint64_t)vaddr);

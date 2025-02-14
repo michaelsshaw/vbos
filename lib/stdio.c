@@ -96,6 +96,17 @@ int vsnprintf(char *str, const char *restrict fmt, size_t size, va_list args)
 
 				goto printf_reverse;
 				break;
+			case 'b':
+				u = va_arg(args, int);
+
+				n = 0;
+
+				memset(buf, 0, sizeof(buf));
+
+				str[0] = convert[(u>>4)&0xF];
+				str[1] = convert[u&0xF];
+				ret += 2;
+				break;
 			case 'X':
 				l = va_arg(args, long);
 				for (uint64_t j = 0; j < (sizeof(l) << 1); j++) {

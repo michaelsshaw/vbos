@@ -25,7 +25,7 @@
 #define STDOUT_FILENO 1
 #define STDERR_FILENO 2
 
-#define USER_STACK_BASE 0x00007FFFF0000000
+#define USER_STACK_BASE 0x0000070000000000
 #define USER_HEAP_BASE  0x0000000100000000 /* 4GB */
 
 #define PM_BUD 0
@@ -116,6 +116,7 @@ struct procregs *proc_current_regs();
 struct proc *proc_create();
 struct proc *proc_createv(int flags);
 void proc_init_memory(struct proc *proc, uint64_t mem_flags);
+void proc_init_page_tables(struct proc *proc);
 struct proc *proc_fork(struct proc *parent);
 struct proc *proc_get(pid_t pid);
 pid_t getpid();
