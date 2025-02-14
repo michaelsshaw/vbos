@@ -57,16 +57,6 @@ pid_t elf_load_proc(char *fname)
 	vfs_read(file, buf, 0, size);
 	vfs_close(file);
 
-	for (int i = 0; i < size; i++) {
-		kprintf("%b", buf[i]);
-
-		if((i & 0xF) == 0xF) {
-			kprintf("\n");
-			kprintf("%x: ", i + 1);
-		}
-	}
-	kprintf("\n");
-
 	int ret;
 
 	if ((ret = elf_check_compat(buf))) {
@@ -113,7 +103,7 @@ pid_t elf_load_proc(char *fname)
 
 	for (unsigned int i = 0; i < hdr->e_shnum; i++) {
 		Elf64_Shdr *section = &shdr_list[i];
-		kprintf("section: %d, type=%d\n", i, section->sh_type);
+		char *name = buf + shdr_str->sh_offset + section->sh_name;
 	}
 
 	/* set entry point */
