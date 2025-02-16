@@ -93,26 +93,32 @@ static long ext2_block_double_indir(struct ext2fs *fs, uint32_t dir_block, size_
 
 static long ext2_inode_get_block(struct ext2fs *fs, struct ext2_inode *inode, size_t ino_block)
 {
-	if (ino_block < N_DIRECT)
+	const uintptr_t zone_direct_limit = 12;
+	const uintptr_t zone_indirect_limit = zone_direct_limit + N_INDIR;
+	const uintptr_t zone_dindirect_limit = zone_indirect_limit + N_DINDIR;
+	const uintptr_t limit = zone_dindirect_limit + N_TINDIR;
+
+	if (ino_block >= limit)
+		return -EINVAL;
+
+	if (ino_block < zone_direct_limit) {
 		return inode->block[ino_block];
-
-	if (ino_block < N_DIRECT + N_INDIR)
+	} else if (ino_block < zone_indirect_limit) {
 		return ext2_block_single_indir(fs, inode->block[N_DIRECT], ino_block - N_DIRECT);
-
-	if (ino_block < N_DIRECT + N_INDIR + N_DINDIR) {
+	} else if (ino_block < zone_dindirect_limit) {
 		size_t index = (ino_block - N_DIRECT - N_INDIR) / N_PER_INDIRECT;
 		size_t index_2 = (ino_block - N_DIRECT - N_INDIR) % N_PER_INDIRECT;
 
 		return ext2_block_double_indir(fs, inode->block[N_DIRECT + 1], index, index_2);
-	}
-
-	if (ino_block < N_DIRECT + N_INDIR + N_DINDIR + N_TINDIR) {
+	} else if (ino_block < limit) {
 		size_t index = (ino_block - N_DIRECT - N_INDIR - N_DINDIR) / (N_PER_INDIRECT * N_PER_INDIRECT);
 		size_t index_2 = ((ino_block - N_DIRECT - N_INDIR - N_DINDIR) % (N_PER_INDIRECT * N_PER_INDIRECT)) / N_PER_INDIRECT;
 		size_t index_3 = ((ino_block - N_DIRECT - N_INDIR - N_DINDIR) % (N_PER_INDIRECT * N_PER_INDIRECT)) % N_PER_INDIRECT;
 
 		long ret = ext2_block_double_indir(fs, inode->block[N_DIRECT + 2], index, index_2);
-		ret = ext2_block_single_indir(fs, ret, index_3);
+		return ext2_block_single_indir(fs, ret, index_3);
+	} else {
+		return -EINVAL;
 	}
 
 	return -EINVAL;
@@ -223,6 +229,65 @@ static int ext2_write_inode(struct ext2fs *fs, struct ext2_inode *in, ino_t inod
 	return 0;
 }
 
+static long find_free_block(struct ext2fs *fs, size_t block_group)
+{
+	struct ext2_group_desc *bg = &fs->bgdt[block_group];
+
+	if (bg->free_blocks_count) {
+		uint32_t block = bg->block_bitmap;
+		uint32_t block_offset = 0;
+
+		char *buf = kmalloc(fs->block_size, ALLOC_DMA);
+		if (!buf)
+			return -ENOMEM;
+
+		ext2_read_block(fs, buf, block);
+
+		while (block_offset < fs->block_size) {
+			uint8_t *byte = (uint8_t *)buf + block_offset;
+			if (*byte == 0xFF) {
+				block_offset += 8;
+				continue;
+			}
+
+			for (int j = 0; j < 8; j++) {
+				if (!(*byte & (1 << j))) {
+					*byte |= (1 << j);
+					bg->free_blocks_count--;
+					fs->sb.free_blocks_count--;
+
+					ext2_write_block(fs, buf, block);
+
+					/* update superblock and bgdt */
+					ext2_write_super(fs);
+					ext2_write_bgdt(fs);
+
+					kfree(buf);
+
+					uint32_t block_ret_no = (block_group * fs->sb.blocks_per_group) + (block_offset * 8) + j + 1;
+
+					/* zero out the block */
+					char *block_buf = kmalloc(fs->block_size, ALLOC_DMA);
+					if (!block_buf)
+						return -ENOMEM;
+
+					memset(block_buf, 0, fs->block_size);
+					ext2_write_block(fs, block_buf, block_ret_no);
+					kfree(block_buf);
+
+					return block_ret_no;
+				}
+			}
+
+			block_offset++;
+		}
+
+		kfree(buf);
+	}
+
+	return -ENOSPC;
+}
+
 static long ext2_alloc_block(struct ext2fs *fs)
 {
 	uint32_t num_groups = fs->sb.blocks_count / fs->sb.blocks_per_group;
@@ -230,59 +295,9 @@ static long ext2_alloc_block(struct ext2fs *fs)
 		num_groups++;
 
 	for (int i = 0; i < num_groups; i++) {
-		struct ext2_group_desc *bg = &fs->bgdt[i];
-
-		if (bg->free_blocks_count) {
-			uint32_t block = bg->block_bitmap;
-			uint32_t block_offset = 0;
-
-			char *buf = kmalloc(fs->block_size, ALLOC_DMA);
-			if (!buf)
-				return -ENOMEM;
-
-			ext2_read_block(fs, buf, block);
-
-			while (block_offset < fs->block_size) {
-				uint8_t *byte = (uint8_t *)buf + block_offset;
-				if (*byte == 0xFF) {
-					block_offset += 8;
-					continue;
-				}
-
-				for (int j = 0; j < 8; j++) {
-					if (!(*byte & (1 << j))) {
-						*byte |= (1 << j);
-						bg->free_blocks_count--;
-						fs->sb.free_blocks_count--;
-
-						ext2_write_block(fs, buf, block);
-
-						/* update superblock and bgdt */
-						ext2_write_super(fs);
-						ext2_write_bgdt(fs);
-
-						kfree(buf);
-
-						uint32_t block_ret_no = (i * fs->sb.blocks_per_group) + (block_offset * 8) + j + 1;
-
-						/* zero out the block */
-						char *block_buf = kmalloc(fs->block_size, ALLOC_DMA);
-						if (!block_buf)
-							return -ENOMEM;
-
-						memset(block_buf, 0, fs->block_size);
-						ext2_write_block(fs, block_buf, block_ret_no);
-						kfree(block_buf);
-
-						return block_ret_no;
-					}
-				}
-
-				block_offset++;
-			}
-
-			kfree(buf);
-		}
+		long ret = find_free_block(fs, i);	
+		if (ret >= 0)
+			return ret;
 	}
 
 	return -ENOSPC;
