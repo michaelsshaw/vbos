@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
+#include "kernel/lock.h"
 #include <kernel/slab.h>
 
 #include <fs/ext2.h>
@@ -211,6 +212,8 @@ static long ext2_free_block(struct ext2fs *fs, uint32_t block)
 
 /* inode operations:
  * -----------------------------------------------------------------------------
+ * alloc inode
+ * free inode
  * R/W inode 
  * Get block index (helper)
  * Get block number (helper)
@@ -223,6 +226,94 @@ static long ext2_free_block(struct ext2fs *fs, uint32_t block)
  * ext2_ino_find_by_name: search for a file by name
  * -----------------------------------------------------------------------------
  */
+static long ext2_alloc_inode(struct ext2fs *fs, struct ext2_inode *out)
+{
+	uint32_t num_groups = fs->sb.blocks_count / fs->sb.blocks_per_group;
+	if (fs->sb.blocks_count % fs->sb.blocks_per_group)
+		num_groups++;
+
+	for (size_t i = 0; i < num_groups; i++) {
+		struct ext2_group_desc *bg = &fs->bgdt[i];
+
+		if (!bg->free_inodes_count)
+			continue;
+
+		uint32_t block = bg->inode_bitmap;
+		uint32_t block_offset = 0;
+
+		char *buf = kmalloc(fs->block_size, ALLOC_DMA);
+		if (!buf)
+			return -ENOMEM;
+
+		ext2_read_block(fs, buf, block);
+
+		spinlock_acquire(&fs->lock);
+		uint8_t *byte;
+		while (block_offset < fs->block_size) {
+			byte = (uint8_t *)buf + block_offset;
+			if (*byte == 0xFF)
+				block_offset += 8;
+			else
+				break;
+		}
+		int j;
+		for (j = 0; j < 8; j++) {
+			if (!(*byte & (1 << j)))
+				break;
+		}
+
+		*byte |= (1 << j);
+		bg->free_inodes_count--;
+		fs->sb.free_inodes_count--;
+
+		ext2_write_block(fs, buf, block);
+
+		/* update superblock and bgdt */
+		ext2_write_super(fs);
+		ext2_write_bgdt(fs);
+
+		kfree(buf);
+		spinlock_release(&fs->lock);
+
+		uint32_t inode_no = (i * fs->sb.inodes_per_group) + (block_offset << 3) + j + 1;
+		return inode_no;
+	}
+
+	return -ENOSPC;
+}
+
+static int ext2_free_inode(struct ext2fs *fs, ino_t inode)
+{
+	uint32_t group = (inode - 1) / fs->sb.inodes_per_group;
+	uint32_t index = (inode - 1) % fs->sb.inodes_per_group;
+
+	struct ext2_group_desc *bg = &fs->bgdt[group];
+
+	uint32_t block = bg->inode_bitmap;
+	uint32_t offset = index >> 3;
+
+	char *buf = kmalloc(fs->block_size, ALLOC_DMA);
+	if (!buf)
+		return -ENOMEM;
+
+	ext2_read_block(fs, buf, block);
+
+	spinlock_acquire(&fs->lock);
+	uint8_t *byte = (uint8_t *)buf + offset;
+	*byte &= ~(1 << (index & 7));
+	bg->free_inodes_count++;
+	fs->sb.free_inodes_count++;
+	ext2_write_block(fs, buf, block);
+
+	ext2_write_super(fs);
+	ext2_write_bgdt(fs);
+
+	spinlock_release(&fs->lock);
+
+	kfree(buf);
+	return 0;
+}
+
 static int ext2_read_inode(struct ext2fs *fs, struct ext2_inode *out, ino_t inode)
 {
 	uint32_t group = (inode - 1) / fs->sb.inodes_per_group;
@@ -475,6 +566,65 @@ static long ext2_ino_find_by_name(struct ext2fs *fs, const char *path)
 	return ret;
 }
 
+static int ext2_ino_add_dirent(struct ext2fs *fs, struct ext2_inode *ino, const char *name, ino_t ino_num, uint8_t type)
+{
+	size_t n_blocks = ino->size;
+	if (n_blocks % fs->block_size)
+		n_blocks += fs->block_size;
+	n_blocks /= fs->block_size;
+
+	struct ext2_dir_entry *entry = kzalloc(fs->block_size * n_blocks, ALLOC_DMA);
+	if (!entry)
+		return -ENOMEM;
+
+	/* read all entries */
+	size_t offset = 0;
+	for (int i = 0; i < n_blocks; i++) {
+		long ret = ext2_ino_read_block(fs, ino, entry + offset, i);
+		if (ret < 0) {
+			kfree(entry);
+			return ret;
+		}
+
+		offset += fs->block_size;
+	}
+
+	/* find the last dirent */
+	offset = 0;
+	struct ext2_dir_entry *cur = entry;
+	while (cur->inode && offset < fs->block_size * n_blocks) {
+		cur = (struct ext2_dir_entry *)((char *)entry + offset);
+		if (!cur->inode || !cur->rec_len)
+			break;
+		offset += cur->rec_len;
+	}
+
+	if (offset + strlen(name) + sizeof(struct ext2_dir_entry) >= fs->block_size * n_blocks) {
+		/* easier to do it this way */
+		entry = krealloc(entry, (n_blocks + 1) * fs->block_size, ALLOC_DMA);
+		memset(entry + n_blocks * fs->block_size, 0, fs->block_size);
+		/* this adds a new block */
+		ext2_ino_write_block(fs, ino, ((char *)entry) + n_blocks, n_blocks);
+		ino->size += fs->block_size;
+		n_blocks++;
+	}
+
+	cur->inode = ino_num;
+	cur->name_len = strlen(name);
+	cur->rec_len = fs->block_size - offset;
+	cur->file_type = type;
+	memcpy(cur->name, name, cur->name_len);
+
+	uint32_t starting_block = offset / fs->block_size;
+	for (int i = starting_block; i < n_blocks; i++) {
+		ext2_ino_write_block(fs, ino, ((char *)entry) + i * fs->block_size, i);
+	}
+
+	kfree(entry);
+
+	return 0;
+}
+
 static int ino_type_to_dent(uint32_t ino_flags)
 {
 	/* convert from ext2 inode type to dirent type */
@@ -506,6 +656,7 @@ static int ino_type_to_dent(uint32_t ino_flags)
  * write file
  * unlink
  * mkdir
+ * creat
  * -----------------------------------------------------------------------------
  */
 
@@ -520,13 +671,8 @@ static long ext2_vno_read_dirs(struct ext2fs *fs, struct ext2_inode *inode, stru
 	if (!entry_buf)
 		return -ENOMEM;
 
-	size_t ino_num_blocks = inode->size;
-	if (ino_num_blocks % fs->block_size)
-		ino_num_blocks += fs->block_size;
-	ino_num_blocks /= fs->block_size;
-
 	/* read the directory entries */
-	for (int i = 0; i < ino_num_blocks; i++) {
+	for (int i = 0; i < n_blocks; i++) {
 		long ret = ext2_ino_read_block(fs, inode, entry_buf + fs->block_size * i, i);
 		if (ret < 0) {
 			kfree(entry_buf);
@@ -598,13 +744,15 @@ static int ext2_open_vno(struct fs *vfs, struct vnode *out, ino_t ino_num)
 	return 0;
 }
 
-int ext2_read_file(struct vnode *vnode, void *buf, size_t offset, size_t size)
+static int ext2_read_file(struct vnode *vnode, void *buf, size_t offset, size_t size)
 {
 	struct fs *fs = vnode->fs;
 	struct ext2fs *extfs = (struct ext2fs *)fs->fs;
 
 	struct ext2_inode inode;
-	ext2_read_inode(extfs, &inode, vnode->ino_num);
+	int res = ext2_read_inode(extfs, &inode, vnode->ino_num);
+	if (res < 0)
+		return res;
 
 	if (offset > inode.size)
 		return -EINVAL;
@@ -632,6 +780,98 @@ int ext2_read_file(struct vnode *vnode, void *buf, size_t offset, size_t size)
 	kfree(block_buf);
 
 	return size;
+}
+
+static int ext2_write_file(struct vnode *vnode, void *buf, size_t offset, size_t size)
+{
+	struct fs *fs = vnode->fs;
+	struct ext2fs *extfs = (struct ext2fs *)fs->fs;
+
+	struct ext2_inode inode;
+	int res = ext2_read_inode(extfs, &inode, vnode->ino_num);
+	if (res < 0)
+		return res;
+
+	if (offset + size > inode.size)
+		inode.size = offset + size;
+
+	size_t first_block = offset / extfs->block_size;
+	size_t last_block = (offset + size) / extfs->block_size;
+	size_t n_blocks_read = (last_block - first_block) + 1;
+
+	char *block_buf = kzalloc(n_blocks_read * extfs->block_size, ALLOC_DMA);
+	if (!block_buf)
+		return -ENOMEM;
+
+	for (size_t i = first_block; i <= last_block; i++) {
+		long ret = ext2_ino_read_block(extfs, &inode, block_buf + (i * extfs->block_size), i);
+		if (ret < 0 && ret != -ENOENT) {
+			kfree(block_buf);
+			return ret;
+		}
+	}
+
+	size_t start_offset = offset % extfs->block_size;
+	memcpy(block_buf + start_offset, buf, size);
+
+	for (size_t i = first_block; i <= last_block; i++) {
+		long ret = ext2_ino_write_block(extfs, &inode, block_buf + (i * extfs->block_size), i);
+		if (ret < 0) {
+			kfree(block_buf);
+			return ret;
+		}
+	}
+
+	kfree(block_buf);
+
+	return size;
+}
+
+static int ext2_create_file(struct vnode *parent, const char *name, mode_t mode)
+{
+	struct fs *fs = parent->fs;
+	struct ext2fs *extfs = (struct ext2fs *)fs->fs;
+
+	char *name_cpy = kzalloc(strlen(name) + 1, ALLOC_KERN);
+	if (!name_cpy)
+		return -ENOMEM;
+
+	strcpy(name_cpy, name);
+
+	struct ext2_inode inode;
+	int res = ext2_read_inode(extfs, &inode, parent->ino_num);
+	if (res < 0)
+		return res;
+
+	/* check if file already exists */
+	long ret = ext2_dno_find(extfs, &inode, name_cpy);
+	if (ret >= 0)
+		return -EEXIST;
+
+	/* allocate inode */
+	ret = ext2_alloc_inode(extfs, &inode);
+	if (ret < 0)
+		return ret;
+
+	struct ext2_inode inode_new = { 0 };
+	inode_new.mode = mode;
+	inode_new.uid = 0;
+	inode_new.gid = 0;
+	inode_new.size = 0;
+	inode_new.blocks = 0;
+
+	/* write inode */
+	res = ext2_write_inode(extfs, &inode_new, ret);
+
+	if (res < 0)
+		return res;
+
+	/* write directory entry */
+	res = ext2_ino_add_dirent(extfs, &inode, name_cpy, ret, ino_type_to_dent(mode));
+	if (res < 0)
+		return res;
+
+	return 0;
 }
 
 struct fs *ext2_init_fs(struct block_device *bdev)
@@ -682,8 +922,9 @@ struct fs *ext2_init_fs(struct block_device *bdev)
 
 	ext2_ops->open_vno = ext2_open_vno;
 	ext2_ops->read = ext2_read_file;
-	/*
 	ext2_ops->write = ext2_write_file;
+	ext2_ops->creat = ext2_create_file;
+	/*
 	ext2_ops->unlink = ext2_unlink;
 	ext2_ops->mkdir = ext2_mkdir;
 	*/
