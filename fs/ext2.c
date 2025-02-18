@@ -548,7 +548,7 @@ static long ext2_vno_read_dirs(struct ext2fs *fs, struct ext2_inode *inode, stru
 		memcpy(&dentry.name, entry->name, entry->name_len);
 		dentry.name[entry->name_len] = '\0';
 		dentry.inode = entry->inode;
-		dentry.type = ino_type_to_dent(entry->file_type);
+		dentry.type = entry->file_type;
 
 		/* insert into dirents linked list */
 		out->dirents = krealloc(out->dirents, (out->num_dirents + 1) * sizeof(struct dirent), ALLOC_KERN);
