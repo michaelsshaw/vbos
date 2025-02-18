@@ -90,8 +90,6 @@ struct fs *devfs_init()
 	devfs->ops->write = devfs_write;
 	devfs->ops->unlink = devfs_unlink;
 	devfs->ops->open_vno = devfs_open_vno;
-	devfs->ops->readdir = devfs_readdir;
-	devfs->ops->open_dir = devfs_open_dir;
 
 	devfs->root->flags = VFS_VNO_DIR;
 	devfs->root->fs = devfs;

@@ -132,15 +132,6 @@ struct file *vfs_open(const char *pathname, int *err)
 						goto out_2;
 					}
 
-					if (new_vnode->flags & VFS_VNO_DIR) {
-						int res = fs->ops->open_dir(new_vnode->fs, new_vnode);
-						if (res < 0) {
-							ATTEMPT_WRITE(err, res);
-							slab_free(vnode_slab, new_vnode);
-							goto out_2;
-						}
-					}
-
 					cur_vnode = new_vnode;
 					entry->vnode = cur_vnode;
 				}
@@ -212,7 +203,6 @@ ssize_t vfs_read(struct file *file, void *buf, off_t off, size_t count)
 
 	if (off + count > file->vnode->size)
 		count = file->vnode->size - off;
-
 
 	return file->vnode->fs->ops->read(file->vnode, buf, off, count);
 }
@@ -456,14 +446,8 @@ struct fs *vfs_mount_root(const char *dev, const char *mount_point)
 	strcpy(fs->mount_point, mount_point);
 
 	struct vnode *root = fs->root;
-	struct dirent *dirents = NULL;
-	int num_dirents = fs->ops->readdir(root, &dirents);
-	if (num_dirents < 0)
-		goto out_dealloc_fs;
-
-	root->dirents = dirents;
-	root->num_dirents = num_dirents;
 	root->no_free = true;
+
 	return fs;
 
 out_dealloc_fs:

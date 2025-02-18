@@ -146,6 +146,8 @@ struct ext2fs {
 	uint32_t bgdt_num_blocks;
 	struct ext2_group_desc *bgdt;
 
+	spinlock_t lock;
+
 	uint32_t indir_block_size;
 
 	uint32_t block_size;
