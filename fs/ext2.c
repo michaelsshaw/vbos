@@ -948,6 +948,7 @@ static int ext2_create_file(struct vnode *parent, const char *name, mode_t mode)
 		return ret;
 
 	struct ext2_inode inode_new = { 0 };
+	/* notably we do no mode conversion since ext2 is the same as the kernel vfs */
 	inode_new.mode = mode;
 	inode_new.uid = 0;
 	inode_new.gid = 0;
@@ -1019,9 +1020,6 @@ struct fs *ext2_init_fs(struct block_device *bdev)
 	ext2_ops->write = ext2_write_file;
 	ext2_ops->creat = ext2_create_file;
 	ext2_ops->unlink = ext2_unlink_file;
-	/*
-	ext2_ops->mkdir = ext2_mkdir;
-	*/
 
 	ret->ops = ext2_ops;
 
