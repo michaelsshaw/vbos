@@ -655,6 +655,7 @@ static int ext2_ino_del_dirent(struct ext2fs *fs, struct ext2_inode *ino, const 
 	struct ext2_dir_entry *cur = NULL;
 	struct ext2_dir_entry *prev = NULL;
 
+	spinlock_acquire(&fs->lock);
 	while (cur && offset < fs->block_size * n_blocks && cur->inode) {
 		cur = (struct ext2_dir_entry *)((char *)entry + offset);
 
@@ -682,10 +683,10 @@ static int ext2_ino_del_dirent(struct ext2fs *fs, struct ext2_inode *ino, const 
 
 			/* write all the blocks */
 			uint32_t starting_block = offset / fs->block_size;
-			for (int i = starting_block; i < n_blocks; i++) {
+			for (int i = starting_block; i < n_blocks; i++) 
 				ext2_ino_write_block(fs, ino, ((char *)entry) + i * fs->block_size, i);
-			}
 
+			spinlock_release(&fs->lock);
 			return 0;
 		}
 
@@ -693,6 +694,7 @@ static int ext2_ino_del_dirent(struct ext2fs *fs, struct ext2_inode *ino, const 
 		offset += cur->rec_len;
 	}
 
+	spinlock_release(&fs->lock);
 	return -ENOENT;
 }
 
