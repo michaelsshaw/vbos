@@ -216,7 +216,7 @@ int vfs_statf(struct file *file, struct statbuf *statbuf)
 
 int unlink(const char *pathname)
 {
-	return rootfs->ops->unlink(rootfs, pathname);
+	return -ENOSYS;
 }
 
 char *basename(char *path)

@@ -24,7 +24,7 @@ static int devfs_write(struct vnode *vnode, void *buf, size_t offset, size_t siz
 }
 
 /* devfs does not support unlink */
-static int devfs_unlink(struct fs *fs, const char *path)
+static int devfs_unlink(struct vnode *parent, const char *path)
 {
 	return -EINVAL;
 }

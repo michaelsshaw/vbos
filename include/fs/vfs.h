@@ -117,7 +117,7 @@ struct file_descriptor {
 struct fs_ops {
 	int (*read)(struct vnode *vnode, void *buf, size_t offset, size_t size);
 	int (*write)(struct vnode *vnode, void *buf, size_t offset, size_t size);
-	int (*unlink)(struct fs *fs, const char *path); /* change to vno, not path) */
+	int (*unlink)(struct vnode *parent, const char *name);
 	int (*creat)(struct vnode *parent, const char *path, mode_t mode);
 	int (*open_vno)(struct fs *vfs, struct vnode *out, ino_t ino_num);
 };

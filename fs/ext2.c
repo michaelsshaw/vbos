@@ -577,6 +577,8 @@ static int ext2_ino_add_dirent(struct ext2fs *fs, struct ext2_inode *ino, const 
 	if (!entry)
 		return -ENOMEM;
 
+	size_t this_len = sizeof(struct ext2_dir_entry) + strlen(name);
+
 	/* read all entries */
 	size_t offset = 0;
 	for (int i = 0; i < n_blocks; i++) {
@@ -589,12 +591,11 @@ static int ext2_ino_add_dirent(struct ext2fs *fs, struct ext2_inode *ino, const 
 		offset += fs->block_size;
 	}
 
-	/* find the last dirent */
 	offset = 0;
 	struct ext2_dir_entry *cur = entry;
 	while (cur->inode && offset < fs->block_size * n_blocks) {
 		cur = (struct ext2_dir_entry *)((char *)entry + offset);
-		if (!cur->inode || !cur->rec_len)
+		if (!cur->inode && cur->rec_len <= this_len)
 			break;
 		offset += cur->rec_len;
 	}
@@ -623,6 +624,76 @@ static int ext2_ino_add_dirent(struct ext2fs *fs, struct ext2_inode *ino, const 
 	kfree(entry);
 
 	return 0;
+}
+
+static int ext2_ino_del_dirent(struct ext2fs *fs, struct ext2_inode *ino, const char *name)
+{
+	size_t n_blocks = ino->size;
+	if (n_blocks % fs->block_size)
+		n_blocks += fs->block_size;
+	n_blocks /= fs->block_size;
+
+	struct ext2_dir_entry *entry = kmalloc(fs->block_size * n_blocks, ALLOC_DMA);
+	if (!entry)
+		return -ENOMEM;
+
+	/* read all entries */
+
+	size_t offset = 0;
+	for (int i = 0; i < n_blocks; i++) {
+		long ret = ext2_ino_read_block(fs, ino, entry + offset, i);
+		if (ret < 0) {
+			kfree(entry);
+			return ret;
+		}
+
+		offset += fs->block_size;
+	}
+
+	/* find the dirent */
+	offset = 0;
+	struct ext2_dir_entry *cur = NULL;
+	struct ext2_dir_entry *prev = NULL;
+
+	while (cur && offset < fs->block_size * n_blocks && cur->inode) {
+		cur = (struct ext2_dir_entry *)((char *)entry + offset);
+
+		/* check if the name matches */
+		if (!strncmp(cur->name, name, cur->name_len)) {
+			/* remove the dirent */
+			cur->inode = 0;
+			cur->name_len = 0;
+			cur->file_type = 0;
+			memset(cur->name, 0, cur->name_len);
+
+			/* update the previous dirent */
+			if (prev) {
+				/* if there is a previous dirent, we need to update the rec_len */
+				prev->rec_len += cur->rec_len;
+				cur->rec_len = 0;
+			} else {
+				/* if there is no previous dirent, we need to update the first dirent */
+				struct ext2_dir_entry *next = (struct ext2_dir_entry *)((char *)cur + cur->rec_len);
+				next->rec_len += cur->rec_len;
+
+				if (next->inode == 0)
+					cur->rec_len = n_blocks * fs->block_size - offset;
+			}
+
+			/* write all the blocks */
+			uint32_t starting_block = offset / fs->block_size;
+			for (int i = starting_block; i < n_blocks; i++) {
+				ext2_ino_write_block(fs, ino, ((char *)entry) + i * fs->block_size, i);
+			}
+
+			return 0;
+		}
+
+		prev = cur;
+		offset += cur->rec_len;
+	}
+
+	return -ENOENT;
 }
 
 static int ino_type_to_dent(uint32_t ino_flags)
@@ -827,6 +898,29 @@ static int ext2_write_file(struct vnode *vnode, void *buf, size_t offset, size_t
 	return size;
 }
 
+static int ext2_unlink_file(struct vnode *parent, const char *name)
+{
+	struct fs *fs = parent->fs;
+	struct ext2fs *extfs = (struct ext2fs *)fs->fs;
+
+	char *name_cpy = kzalloc(strlen(name) + 1, ALLOC_KERN);
+	if (!name_cpy)
+		return -ENOMEM;
+
+	strcpy(name_cpy, name);
+
+	struct ext2_inode inode;
+	int res = ext2_read_inode(extfs, &inode, parent->ino_num);
+	if (res < 0)
+		return res;
+
+	res = ext2_ino_del_dirent(extfs, &inode, name_cpy);
+	if (res < 0)
+		return res;
+
+	return 0;
+}
+
 static int ext2_create_file(struct vnode *parent, const char *name, mode_t mode)
 {
 	struct fs *fs = parent->fs;
@@ -924,8 +1018,8 @@ struct fs *ext2_init_fs(struct block_device *bdev)
 	ext2_ops->read = ext2_read_file;
 	ext2_ops->write = ext2_write_file;
 	ext2_ops->creat = ext2_create_file;
+	ext2_ops->unlink = ext2_unlink_file;
 	/*
-	ext2_ops->unlink = ext2_unlink;
 	ext2_ops->mkdir = ext2_mkdir;
 	*/
 
