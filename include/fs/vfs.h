@@ -140,6 +140,7 @@ ssize_t vfs_write(struct file *file, void *buf, off_t off, size_t count);
 ssize_t vfs_read(struct file *file, void *buf, off_t off, size_t count);
 int vfs_statf(struct file *file, struct statbuf *statbuf);
 struct file *vfs_open(const char *pathname, int *err);
+struct vnode *vfs_create_file(struct vnode *parent, const char *path, mode_t mode);
 struct vnode *vfs_mknod(const char *pathname, mode_t mode);
 int vfs_close(struct file *file);
 int unlink(const char *pathname);

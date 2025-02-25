@@ -207,16 +207,31 @@ ssize_t vfs_read(struct file *file, void *buf, off_t off, size_t count)
 	return file->vnode->fs->ops->read(file->vnode, buf, off, count);
 }
 
+struct vnode *vfs_create_file(struct vnode *parent, const char *path, mode_t mode)
+{
+	struct fs *fs = parent->fs;
+
+	int res = fs->ops->creat(parent, path, mode);
+	if (res < 0)
+		return NULL;
+
+	/* find the new vnode */
+	struct vnode *vnode = NULL;
+	for (int i = 0; i < parent->num_dirents; i++) {
+		if (strcmp(parent->dirents[i].name, path) == 0) {
+			vnode = parent->dirents[i].vnode;
+			break;
+		}
+	}
+
+	return vnode;
+}
+
 int vfs_statf(struct file *file, struct statbuf *statbuf)
 {
 	statbuf->size = file->vnode->size;
 
 	return 0;
-}
-
-int unlink(const char *pathname)
-{
-	return -ENOSYS;
 }
 
 char *basename(char *path)
@@ -274,6 +289,15 @@ struct vnode *vfs_mknod(const char *pathname, mode_t mode)
 	struct vnode *vnode = vfs_create_vno();
 	if (!vnode) {
 		vfs_close(dir_file);
+		return NULL;
+	}
+
+	switch (mode & VFS_VTYPE_MASK) {
+	case VFS_VNO_FIFO:
+	case VFS_VNO_BLKDEV:
+	case VFS_VNO_CHARDEV:
+		break;
+	default:
 		return NULL;
 	}
 
