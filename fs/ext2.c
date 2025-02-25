@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
-#include "kernel/lock.h"
+#include <kernel/lock.h>
 #include <kernel/slab.h>
 
 #include <fs/ext2.h>
