@@ -1,6 +1,4 @@
 /* SDPX-License-Identifier: GPL-2.0-only */
-#include "kernel/common.h"
-#include "kernel/pio.h"
 #include <kernel/slab.h>
 #include <kernel/block.h>
 #include <kernel/rbtree.h>
@@ -293,7 +291,6 @@ struct vnode *vfs_mknod(const char *pathname, mode_t mode)
 	if (!dir_file)
 		return NULL;
 
-	struct fs *fs = dir_file->vnode->fs;
 	struct vnode *dir_vnode = dir_file->vnode;
 
 	struct vnode *vnode = vfs_create_vno();
