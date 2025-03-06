@@ -190,6 +190,37 @@ pid_t sys_fork()
 	return proc->pid;
 }
 
+int sys_mkdir(const char *pathname, mode_t mode)
+{
+	struct vnode *parent;
+
+	char *path_copy = kzalloc(strlen(pathname) + 1, ALLOC_KERN);
+	strcpy(path_copy, pathname);
+
+	char *name = basename(path_copy);
+	char *dir = dirname(path_copy);
+
+	struct file *parent_file;
+	int err;
+
+	if (strempty(dir))
+		parent_file = vfs_open("/", &err);
+	else
+		parent_file = vfs_open(dir, &err);
+
+	if (parent_file == NULL)
+		return err;
+
+	parent = parent_file->vnode;
+
+	if (vfs_create_file(parent, name, mode))
+		return -1;
+
+	vfs_close(parent_file);
+
+	return 0;
+}
+
 int sys_mknod(const char *pathname, mode_t mode, dev_t dev)
 {
 	if (mode != S_IFIFO)
@@ -218,6 +249,7 @@ void syscall_init()
 	syscall_insert(SYS_OPEN, (syscall_t)sys_open);
 	syscall_insert(SYS_FORK, (syscall_t)sys_fork);
 	syscall_insert(SYS_EXIT, (syscall_t)sys_exit);
+	syscall_insert(SYS_MKDIR, (syscall_t)sys_mkdir);
 	syscall_insert(SYS_MKNOD, (syscall_t)sys_mknod);
 
 	/* init syscall instruction */
