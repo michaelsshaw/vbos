@@ -11,7 +11,7 @@
 #define SYS_EXIT 60
 #define SYS_MKDIR 83
 #define SYS_MKNOD 133
-
+#define SYS_LSDIR 254
 
 #include <kernel/common.h>
 #include <kernel/proc.h>

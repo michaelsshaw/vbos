@@ -190,6 +190,41 @@ pid_t sys_fork()
 	return proc->pid;
 }
 
+int sys_lsdir(int dirfd, struct dirent *dirents, size_t buf_size)
+{
+	struct proc *proc = proc_find(getupid());
+	if (proc == NULL)
+		return -1;
+
+	struct rbnode *fdesc_node = rbt_search(&proc->fd_map, dirfd);
+
+	if (fdesc_node == NULL)
+		return -EBADF;
+
+	struct file_descriptor *fdesc = (void *)fdesc_node->value;
+	struct file *file = fdesc->file;
+	struct vnode *vnode = file->vnode;
+
+	if (vnode == NULL)
+		return -1;
+
+	if ((vnode->flags & VFS_VTYPE_MASK) != VFS_VNO_DIR)
+		return -ENOTDIR;
+
+	size_t num_dirents = vnode->num_dirents;
+	int ret = MIN(num_dirents, buf_size / sizeof(struct dirent));
+
+	for(int i = 0; i < ret; i++) {
+		struct dirent *dirent = &vnode->dirents[i];
+		memcpy(&dirents[i], dirent, sizeof(struct dirent));
+
+		/* don't leak kernel pointers */
+		dirents[i].vnode = NULL;
+	}
+
+	return ret;
+}
+
 int sys_mkdir(const char *pathname, mode_t mode)
 {
 	struct vnode *parent;
@@ -277,6 +312,9 @@ void syscall_init()
 	syscall_insert(SYS_OPEN, (syscall_t)sys_open);
 	syscall_insert(SYS_FORK, (syscall_t)sys_fork);
 	syscall_insert(SYS_EXIT, (syscall_t)sys_exit);
+	syscall_insert(SYS_LSDIR, (syscall_t)sys_lsdir);
+	syscall_insert(SYS_MMAP, (syscall_t)sys_mmap);
+	syscall_insert(SYS_MUNMAP, (syscall_t)sys_munmap);
 	syscall_insert(SYS_MKDIR, (syscall_t)sys_mkdir);
 	syscall_insert(SYS_MKNOD, (syscall_t)sys_mknod);
 
