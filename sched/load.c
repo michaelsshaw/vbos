@@ -118,7 +118,7 @@ pid_t elf_load_proc(char *fname)
 	/* allocate user stack */
 	proc->stack_start = USER_STACK_BASE;
 	proc->stack_size = 0; /* umalloc will grow the stack */
-	void *ustack = umalloc(proc, 0x10000, ALLOC_USER_STACK);
+	void *ustack = umalloc(proc, 0x10000, ALLOC_USER_STACK, 0);
 
 	/* set stack pointer */
 	proc->regs.rsp = proc->stack_start + proc->stack_size;

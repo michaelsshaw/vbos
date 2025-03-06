@@ -5,10 +5,13 @@
 #define SYS_READ 0
 #define SYS_WRITE 1
 #define SYS_OPEN 2
+#define SYS_MMAP 9
+#define SYS_MUNMAP 11
 #define SYS_FORK 57
 #define SYS_EXIT 60
 #define SYS_MKDIR 83
 #define SYS_MKNOD 133
+
 
 #include <kernel/common.h>
 #include <kernel/proc.h>

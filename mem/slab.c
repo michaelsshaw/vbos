@@ -332,7 +332,7 @@ void ufree(struct proc *proc, void *addr)
 }
 
 /* It is implied that when you're calling this function, the process is not running */
-void *umalloc(struct proc *proc, size_t size, uint64_t opts)
+void *umalloc(struct proc *proc, size_t size, uint64_t opts, uintptr_t req_addr)
 {
 	struct proc_allocation *a = kzalloc(sizeof(struct proc_allocation), 0);
 
@@ -350,7 +350,11 @@ void *umalloc(struct proc *proc, size_t size, uint64_t opts)
 		}
 		proc->stack_start = vaddr;
 	} else {
-		vaddr = mmap_find_unmapped(&proc->page_map, &proc->page_map_lock, USER_HEAP_BASE, size);
+		if (req_addr) {
+			vaddr = mmap_find_unmapped(&proc->page_map, &proc->page_map_lock, req_addr, size);
+		} else {
+			vaddr = mmap_find_unmapped(&proc->page_map, &proc->page_map_lock, USER_HEAP_BASE, size);
+		}
 	}
 
 	uint64_t attr;

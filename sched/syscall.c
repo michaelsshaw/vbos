@@ -234,6 +234,34 @@ int sys_mknod(const char *pathname, mode_t mode, dev_t dev)
 	return 0;
 }
 
+void *sys_mmap(void *addr, size_t len, int prot, int flags, int fd, off_t offset)
+{
+	if (!(flags & MAP_ANONYMOUS))
+		return (void *)-ENOSYS;
+
+	struct proc *proc = proc_find(getupid());
+	if (proc == NULL)
+		return (void *)-1;
+
+	void *ret = umalloc(proc, len, UA_SLAB, (uintptr_t)addr);
+
+	if (ret == NULL)
+		return (void *)-ENOMEM;
+
+	return ret;
+}
+
+void *sys_munmap(void *addr, size_t len)
+{
+	struct proc *proc = proc_find(getupid());
+	if (proc == NULL)
+		return (void *)-1;
+
+	ufree(proc, addr);
+
+	return 0;
+}
+
 static void syscall_insert(uint64_t syscall_no, syscall_t syscall)
 {
 	syscall_table[syscall_no] = syscall;

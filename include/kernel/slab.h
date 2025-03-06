@@ -56,7 +56,7 @@ void *kmalloc(size_t size, uint64_t flags);
 void *kzalloc(size_t size, uint64_t flags);
 void *krealloc(void *ptr, size_t size, uint64_t flags);
 void kfree(void *ptr);
-void *umalloc(struct proc *proc, size_t size, uint64_t opts);
+void *umalloc(struct proc *proc, size_t size, uint64_t opts, uintptr_t req_addr);
 void ufree(struct proc *proc, void *ptr);
 
 void slabtypes_init();

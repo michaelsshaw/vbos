@@ -17,6 +17,8 @@
 #define PAGE_PWT 0x8
 #define PAGE_PCD 0x10
 
+#define MAP_ANONYMOUS 0x20
+
 #ifndef __ASM__
 
 #define ALIGN(_a) __attribute__((aligned(_a)))
