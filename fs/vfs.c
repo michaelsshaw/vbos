@@ -1,4 +1,6 @@
 /* SDPX-License-Identifier: GPL-2.0-only */
+#include "kernel/common.h"
+#include "kernel/pio.h"
 #include <kernel/slab.h>
 #include <kernel/block.h>
 #include <kernel/rbtree.h>
@@ -62,35 +64,13 @@ static void vfs_vnode_dec_ref(struct vnode *vnode)
 		vfs_vnode_dealloc(vnode);
 }
 
-struct file *vfs_open(const char *pathname, int *err)
+struct vnode *vfs_lookup(const char *name, int *err)
 {
-	/* allocate a file */
-	struct file *file = slab_alloc(file_slab);
-
-	if (!file) {
-		kprintf(LOG_ERROR "Failed to allocate file struct\n");
-		return NULL;
-	}
-	memset(file, 0, sizeof(struct file));
-
-	int len = strlen(pathname);
-	int inc = 0;
-	for (int i = 0; i < len; i++) {
-		if (pathname[i] == '/')
-			inc++;
-		else
-			break;
-	}
-
-	if (inc < len)
-		pathname += inc;
-
-	/* start at root */
+	struct vnode *cur_vnode = rootfs->root;
 	struct fs *fs = rootfs;
-	struct vnode *cur_vnode = fs->root;
 
-	char *path_copy = kmalloc(strlen(pathname) + 1, ALLOC_KERN);
-	strcpy(path_copy, pathname);
+	char *path_copy = kzalloc(strlen(name) + 1, ALLOC_KERN);
+	strcpy(path_copy, name);
 
 	char *tok_last = NULL;
 	char *tok = strtok(path_copy, "/", &tok_last);
@@ -119,7 +99,8 @@ struct file *vfs_open(const char *pathname, int *err)
 					struct vnode *new_vnode = slab_alloc(vnode_slab);
 					if (!new_vnode) {
 						ATTEMPT_WRITE(err, -ENOMEM);
-						goto out_2;
+						kfree(path_copy);
+						return NULL;
 					}
 					memset(new_vnode, 0, sizeof(struct vnode));
 					new_vnode->refcount = 1;
@@ -129,7 +110,8 @@ struct file *vfs_open(const char *pathname, int *err)
 					if (res < 0) {
 						ATTEMPT_WRITE(err, res);
 						slab_free(vnode_slab, new_vnode);
-						goto out_2;
+						kfree(path_copy);
+						return NULL;
 					}
 
 					cur_vnode = new_vnode;
@@ -143,26 +125,54 @@ struct file *vfs_open(const char *pathname, int *err)
 
 		if (!found) {
 			ATTEMPT_WRITE(err, -ENOENT);
-
-			/* clean up */
 			vfs_vnode_dec_ref(cur_vnode);
-			goto out_2;
+			kfree(path_copy);
+			return NULL;
 		}
 
 		/* get next token */
 		tok = strtok(NULL, "/", &tok_last);
 	}
 
-	file->vnode = cur_vnode;
-	file->type = cur_vnode->flags & VFS_VTYPE_MASK;
-	file->size = cur_vnode->size;
-	file->ino_num = cur_vnode->ino_num;
+	kfree(path_copy);
+	return cur_vnode;
+}
+
+struct file *vfs_open(const char *pathname, int *err)
+{
+	/* allocate a file */
+	struct file *file = slab_alloc(file_slab);
+
+	if (!file) {
+		kprintf(LOG_ERROR "Failed to allocate file struct\n");
+		return NULL;
+	}
+	memset(file, 0, sizeof(struct file));
+
+	int len = strlen(pathname);
+	int inc = 0;
+	for (int i = 0; i < len; i++) {
+		if (pathname[i] == '/')
+			inc++;
+		else
+			break;
+	}
+
+	if (inc < len)
+		pathname += inc;
+
+	struct vnode *vno = vfs_lookup(pathname, err);
+	if (!vno) {
+		slab_free(file_slab, file);
+		return NULL;
+	}
+
+	file->vnode = vno;
+	file->type = vno->flags & VFS_VTYPE_MASK;
+	file->size = vno->size;
+	file->ino_num = vno->ino_num;
 
 	return file;
-
-out_2:
-	slab_free(file_slab, file);
-	return NULL;
 }
 
 int vfs_close(struct file *file)
