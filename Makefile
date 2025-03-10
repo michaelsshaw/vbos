@@ -14,6 +14,7 @@ CFLAGS +=		   		\
 	-fno-lto			\
 	-fno-pie			\
 	-fno-pic			\
+	-fno-builtin			\
 	-DKDEBUG			\
 	-m64				\
 	-march=x86-64			\
