@@ -19,14 +19,99 @@ CFLAGS +=		   		\
 	-m64				\
 	-march=x86-64			\
 	-mabi=sysv		   	\
-	-mno-80387		   	\
 	-mno-mmx			\
 	-mno-sse			\
 	-mno-sse2			\
+	-mno-sse3			\
+	-mno-ssse3			\
+	-mno-sse4			\
+	-mno-sse4a			\
+	-mno-sse4.1			\
+	-mno-sse4.2			\
+	-mno-avx			\
+	-mno-avx2			\
+	-mno-avx512f			\
+	-mno-avx512cd			\
+	-mno-avx512vl			\
+	-mno-avx512bw			\
+	-mno-avx512dq			\
+	-mno-avx512ifma			\
+	-mno-avx512vbmi			\
+	-mno-sha			\
+	-mno-aes			\
+	-mno-pclmul			\
+	-mno-clflushopt			\
+	-mno-clwb			\
+	-mno-fsgsbase			\
+	-mno-ptwrite			\
+	-mno-rdrnd			\
+	-mno-f16c			\
+	-mno-fma			\
+	-mno-pconfig			\
+	-mno-wbnoinvd			\
+	-mno-fma4			\
+	-mno-prfchw			\
+	-mno-rdpid			\
+	-mno-rdseed			\
+	-mno-sgx			\
+	-mno-xop			\
+	-mno-lwp			\
+	-mno-3dnow			\
+	-mno-3dnowa			\
+	-mno-popcnt			\
+	-mno-abm			\
+	-mno-adx			\
+	-mno-bmi			\
+	-mno-bmi2			\
+	-mno-lzcnt			\
+	-mno-fxsr			\
+	-mno-xsave			\
+	-mno-xsaveopt			\
+	-mno-xsavec			\
+	-mno-xsaves			\
+	-mno-rtm			\
+	-mno-hle			\
+	-mno-tbm			\
+	-mno-mwaitx			\
+	-mno-clzero			\
+	-mno-pku			\
+	-mno-avx512vbmi2		\
+	-mno-avx512bf16			\
+	-mno-avx512fp16			\
+	-mno-gfni			\
+	-mno-vaes			\
+	-mno-waitpkg			\
+	-mno-vpclmulqdq			\
+	-mno-avx512bitalg		\
+	-mno-movdiri			\
+	-mno-movdir64b			\
+	-mno-enqcmd			\
+	-mno-uintr			\
+	-mno-tsxldtrk			\
+	-mno-avx512vpopcntdq		\
+	-mno-avx512vp2intersect		\
+	-mno-avx512vnni			\
+	-mno-avxvnni			\
+	-mno-cldemote			\
+	-mno-serialize			\
+	-mno-amx-tile			\
+	-mno-amx-int8			\
+	-mno-amx-bf16			\
+	-mno-hreset			\
+	-mno-kl				\
+	-mno-widekl			\
+	-mno-avxifma			\
+	-mno-avxvnniint8		\
+	-mno-avxneconvert		\
+	-mno-cmpccxadd			\
+	-mno-amx-fp16			\
+	-mno-prefetchi			\
+	-mno-raoint			\
+	-mno-amx-complex		\
 	-mno-red-zone			\
 	-mcmodel=kernel 		\
 	-Iinclude 			\
-	-MMD 		
+	-MMD
 
 LDFLAGS :=		 		\
 	-nostdlib			\
